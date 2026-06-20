@@ -1,220 +1,278 @@
-# Wi-Fi — Realtek RTL8852BE
+# Audio — PipeWire
 
 ## Mục tiêu
 
-Cấu hình Wi-Fi cho card Realtek RTL8852BE (Wi-Fi 6).
+Cài đặt và cấu hình âm thanh với PipeWire trên Intel SST.
 
 ## Kiến thức nền
 
-### Realtek RTL8852BE
+### Intel Smart Sound Technology (SST)
 
-Card Wi-Fi trên Lenovo LOQ 15IAX9 là Realtek RTL8852BE (RTL8852BE).
+Intel SST là công nghệ âm thanh kỹ thuật số tích hợp trên chipset Intel.
+Nó sử dụng DSP (Digital Signal Processor) để xử lý âm thanh.
 
-- Chuẩn: 802.11ax (Wi-Fi 6)
-- Băng tần: 2.4GHz + 5GHz
-- Bluetooth đi kèm
+Để Intel SST hoạt động trên Linux, cần:
 
-### Tại sao cần driver riêng?
+- `sof-firmware`: Firmware cho Sound Open Firmware (SOF) — đã cài trong pacstrap.
+- Kernel mới (6.x+) — đã cài linux.
+- ALSA + PipeWire.
 
-Kernel Linux mới nhất đã có driver cho RTL8852BE (`rtw88_8852be`)
-nhưng có thể chưa ổn định hoặc bị thiếu firmware.
+### ALSA vs PulseAudio vs PipeWire
 
-Driver ổn định nhất là `rtl8852be-dkms` từ AUR.
+| | ALSA | PulseAudio | PipeWire |
+|---|---|---|---|
+| Cấp | Low-level | High-level | High-level |
+| Mixer | Có | Có | Có |
+| Network audio | Không | Có | Có |
+| Bluetooth | Không | Có | Có (tốt hơn) |
+| Latency | Thấp | Trung bình | Thấp |
+| Modern | Cũ | Đang bị thay thế | Mới, đang phát triển |
 
-### Các cách kết nối Wi-Fi
+Chúng ta dùng **PipeWire** — chuẩn âm thanh mới của Linux, thay thế PulseAudio.
 
-1. **iwd** (iNet Wireless Daemon): Trình quản lý Wi-Fi độc lập, nhẹ.
-2. **NetworkManager**: Dùng qua backend iwd hoặc wpa_supplicant.
-3. **iwctl**: Công cụ CLI của iwd.
-4. **nmtui**: Giao diện text của NetworkManager.
+### PipeWire stack
+
+```
+Application → PipeWire → ALSA (kernel) → Hardware
+                  ↕
+            WirePlumber (session manager)
+                  ↕
+            pipewire-pulse (PulseAudio compat)
+                  ↕
+            Ứng dụng PulseAudio cũ
+```
 
 ## Các bước thực hiện
 
-### Bước 1: Xác nhận card Wi-Fi
+### Bước 1: Cài PipeWire và WirePlumber
 
 ```bash
-lspci | grep -i network
+pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber
 ```
 
-Output:
+| Gói | Vai trò |
+|---|---|
+| `pipewire` | Core audio server |
+| `pipewire-alsa` | ALSA compatibility layer |
+| `pipewire-pulse` | PulseAudio compatibility (cho ứng dụng cũ) |
+| `wireplumber` | Session & policy manager (quản lý thiết bị) |
 
-```
-02:00.0 Network controller: Realtek Semiconductor Co., Ltd. RTL8852BE PCIe 802.11ax Wireless Network Controller
-```
-
-### Bước 2: Kiểm tra driver hiện tại
+### Bước 2: Enable PipeWire service
 
 ```bash
-lsmod | grep rtw
+systemctl --user enable pipewire pipewire-pulse wireplumber
 ```
 
-Nếu có `rtw88_8852be` → kernel driver đã load. Nếu không → cần driver riêng.
+PipeWire chạy ở user level (không cần root).
 
-Kiểm tra firmware:
+### Bước 3: Kiểm tra card âm thanh
 
 ```bash
-dmesg | grep -i rtw
+# Liệt kê card âm thanh
+cat /proc/asound/cards
+
+# Dùng aplay
+aplay -l
 ```
 
-### Bước 3: Cài driver từ AUR
+Output mong đợi:
 
-Cài yay trước (nếu chưa có):
-
-```bash
-pacman -S --needed base-devel git
-git clone https://aur.archlinux.org/yay.git
-cd yay
-makepkg -si
+```
+**** List of PLAYBACK Hardware Devices ****
+card 0: PCH [HDA Intel PCH], device 0: ALC257 Analog [ALC257 Analog]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 0: PCH [HDA Intel PCH], device 3: HDMI 0 [HDMI 0]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 1: HDMI [HDA NVidia], device 3: HDMI 0 [HDMI 0]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
 ```
 
-Sau đó:
+### Bước 4: Kiểm tra output
 
 ```bash
-yay -S rtl8852be-dkms
+# Phát thử âm thanh
+speaker-test -l1 -c2
+
+# Hoặc dùng aplay
+speaker-test -t wav -c 2
 ```
 
-### Bước 4: Load module
+Nhấn Ctrl+C để dừng.
+
+### Bước 5: Cài công cụ quản lý
 
 ```bash
-# Load module
-sudo modprobe 8852be
-
-# Kiểm tra
-lsmod | grep 8852be
+pacman -S pavucontrol pamixer
 ```
 
-### Bước 5: Kiểm tra Wi-Fi
+| Gói | Vai trò |
+|---|---|
+| `pavucontrol` | GUI mixer (điều chỉnh volume từng ứng dụng) |
+| `pamixer` | CLI mixer (dùng trong keybinding) |
+
+### Bước 6: Kiểm tra PipeWire
 
 ```bash
-# Kiểm tra interface
-ip link show
+# Kiểm tra trạng thái
+pactl info
 
-# Sẽ thấy wlan0 (hoặc wlp2s0)
+# Output:
+# Server Name: PulseAudio (on PipeWire)
+# ...
 ```
 
-### Bước 6: Kết nối Wi-Fi
-
 ```bash
-# Dùng NetworkManager
-nmcli device status
-nmcli device wifi list
-nmcli device wifi connect "MyWiFi" password "mypassword"
+# Liệt kê sinks (thiết bị output)
+pactl list sinks short
 ```
 
-Hoặc dùng iwctl:
-
 ```bash
-iwctl
-station wlan0 scan
-station wlan0 get-networks
-station wlan0 connect "MyWiFi"
+# Liệt kê sources (thiết bị input)
+pactl list sources short
 ```
 
-### Bước 7: Cấu hình NetworkManager (đã enable)
+### Bước 7: Cấu hình volume trong sxhkd
 
-NetworkManager đã được enable trong quá trình cài (bài 03-installation/network.md).
+Đã cấu hình trong sxhkdrc:
 
-```bash
-systemctl status NetworkManager
+```
+XF86AudioRaiseVolume
+    pamixer -i 5
+XF86AudioLowerVolume
+    pamixer -d 5
+XF86AudioMute
+    pamixer -t
 ```
 
-### Bước 8: Kiểm tra kết nối
+## Cấu hình nâng cao
+
+### Chọn output device mặc định
 
 ```bash
-ip addr show wlan0
-ping -c 3 archlinux.org
+# Liệt kê sinks
+pactl list sinks short
+
+# Set sink mặc định (dùng tên hoặc index)
+pactl set-default-sink alsa_output.pci-0000_00_1f.3.analog-stereo
+```
+
+### Điều chỉnh phần trăm volume mỗi lần nhấn
+
+Sửa trong sxhkdrc:
+
+```
+XF86AudioRaiseVolume
+    pamixer -i 3
+XF86AudioLowerVolume
+    pamixer -d 3
+```
+
+## Xác minh SOF firmware
+
+```bash
+# Kiểm tra SOF đã được load
+dmesg | grep -i sof
+```
+
+Output mong đợi:
+
+```
+sof-audio-pci-intel-tgl 0000:00:1f.3: sof firmware version 2.x.x
 ```
 
 ## Troubleshooting
 
-### "No Wi-Fi adapter found"
+### Không có âm thanh
 
-**Symptoms**: NetworkManager báo không thấy thiết bị Wi-Fi.
+**Symptoms**: speaker-test không ra tiếng.
 
-**Cause**: Driver chưa được load hoặc chưa cài.
+**Cause**: Card âm thanh sai mặc định, hoặc thiếu firmware, hoặc PipeWire chưa chạy.
 
 **Diagnosis**:
 
 ```bash
-# Kiểm tra RF kill
-rfkill list
+# Kiểm tra PipeWire
+systemctl --user status pipewire
+systemctl --user status wireplumber
+
+# Kiểm tra ALSA
+aplay -l
+cat /proc/asound/cards
 
 # Kiểm tra module
-lsmod | grep 8852be
-
-# Kiểm tra kernel messages
-dmesg | grep -i rtw
+lsmod | grep snd_sof
 ```
 
 **Fix**:
-1. Cài `rtl8852be-dkms`.
-2. Load module: `sudo modprobe 8852be`.
-3. Soft block: `rfkill unblock wifi`.
 
-### "Firmware not found"
+```bash
+# Restart PipeWire
+systemctl --user restart pipewire pipewire-pulse wireplumber
 
-**Symptoms**: dmesg báo firmware missing.
+# Nếu vẫn không được, kiểm tra alsamixer
+alsamixer
+# Nhấn F6 để chọn card, đảm bảo Master và PCM không bị muted (MM → nhấn m để unmute)
+```
+
+### "sof-audio-pci-intel-tgl: error: failed to load firmware"
+
+```bash
+# SOF firmware thiếu → cài lại
+pacman -S sof-firmware
+```
+
+### Không có HDMI audio
+
+```bash
+# Kiểm tra NVIDIA HDMI
+aplay -l | grep HDMI
+
+# Nếu có card NVIDIA HDMI, set làm default
+pactl set-default-sink alsa_output.pci-0000_01_00.1.hdmi-stereo
+```
+
+### Độ trễ âm thanh (audio lag)
+
+PipeWire mặc định có latency thấp. Nếu bị lag:
+
+```bash
+# Cấu hình PipeWire
+vim /etc/pipewire/pipewire.conf
+
+# Tìm và sửa:
+default.clock.rate = 48000
+default.clock.allowed-rates = [ 44100 48000 ]
+```
+
+### Loa trong không hoạt động nhưng tai nghe có
+
+**Cause**: Auto-mute của codec âm thanh.
 
 **Fix**:
 
 ```bash
-# Cài firmware
-pacman -S linux-firmware
-
-# Hoặc cài firmware riêng từ AUR
-yay -S rtl8852be-firmware
+# Vào alsamixer
+alsamixer
+# Chọn card HDA Intel PCH
+# Nhấn F6 → chọn HDA Intel PCH
+# Tìm "Auto-Mute Mode" → Disable
 ```
 
-### Wi-Fi chập chờn, thường xuyên mất kết nối
-
-**Fix**:
+### Âm thanh quá nhỏ
 
 ```bash
-# Tắt power saving
-iw dev wlan0 set power_save off
-
-# Hoặc qua NetworkManager
-nmcli connection modify "MyWiFi" 802-11-wireless.powersave 2
+# Tăng gain
+pamixer --set-limit 150
+pamixer -i 20
 ```
-
-### "Operation not permitted"
-
-```bash
-# Kiểm tra block
-rfkill list
-
-# Unblock
-sudo rfkill unblock wifi
-sudo rfkill unblock bluetooth
-```
-
-### Card Wi-Fi không được kernel nhận
-
-```bash
-# Xem PCI device có được nhận không
-lspci -vnn | grep -A 10 "RTL8852BE"
-```
-
-Nếu PCI không detect → có thể card bị disabled trong BIOS.
-
-## Dùng USB tethering như fallback
-
-Nếu Wi-Fi chưa hoạt động, dùng LAN hoặc USB tethering:
-
-### Android
-
-1. Cắm USB.
-2. Settings → Network → USB Tethering → Bật.
-
-### iPhone
-
-1. Cắm USB.
-2. Settings → Personal Hotspot → USB Only.
 
 ## Tổng kết
 
-- Card Wi-Fi Realtek RTL8852BE cần driver từ AUR (`rtl8852be-dkms`).
-- NetworkManager đã cấu hình để quản lý Wi-Fi.
-- Có thể dùng nmcli hoặc iwctl để kết nối.
-- Nếu Wi-Fi không hoạt động, dùng LAN hoặc USB tethering.
-- Troubleshooting cơ bản: rfkill, modprobe, firmware.
+- PipeWire + WirePlumber đã được cài và enable.
+- SOF firmware cho Intel SST hoạt động.
+- Công cụ pavucontrol và pamixer đã được cài.
+- Volume control qua phím chức năng hoạt động.
+- Troubleshooting: kiểm tra firmware, alsamixer, PipeWire status.

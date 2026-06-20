@@ -1,195 +1,163 @@
-# Restore từ Snapshot
+# Timeshift — Snapshot GUI
 
 ## Mục tiêu
 
-Khôi phục hệ thống từ snapshot BTRFS khi gặp sự cố.
+Cài đặt và cấu hình Timeshift để tự động quản lý snapshot BTRFS.
 
 ## Kiến thức nền
 
-### Restore là gì?
+### Timeshift là gì?
 
-Restore là quá trình đưa subvolume về trạng thái của một snapshot.
-Điều này sẽ undo tất cả thay đổi kể từ khi snapshot được tạo.
+Timeshift là công cụ snapshot cho Linux, giống như System Restore trên Windows.
+Nó tự động tạo snapshot theo lịch và cung cấp giao diện để restore.
 
-### Cách restore hoạt động
+### Timeshift hoạt động thế nào?
 
-BTRFS không cho phép sửa read-only snapshot.
-Thay vào đó, chúng ta:
+Timeshift sử dụng BTRFS snapshot (nếu filesystem là BTRFS) hoặc rsync (nếu ext4).
+Nó tạo snapshot theo lịch:
 
-1. Tạo snapshot từ snapshot cũ thành subvolume mới (hoặc ghi đè).
-2. Hoặc đổi tên subvolume hiện tại thành backup, và rename snapshot thành subvolume mới.
+- **Hourly**: Mỗi giờ (giữ snapshot gần đây).
+- **Daily**: Hàng ngày.
+- **Weekly**: Hàng tuần.
+- **Monthly**: Hàng tháng.
 
-### Có 2 cách restore
+Và cho phép chọn số lượng snapshot cần giữ cho mỗi loại.
 
-| Cách | Mô tả | Khi nào dùng |
-|---|---|---|
-| **Rollback** | Đổi tên subvolume + snapshot | Khi cần restore nhanh từ live system |
-| **Boot từ snapshot** | Boot kernel từ snapshot | Khi hệ thống không boot được |
+### BTRFS mode vs RSYNC mode
 
-Chúng ta focus vào rollback từ live environment (khi boot từ USB).
+| Mode | Cách hoạt động | Dung lượng | Tốc độ |
+|---|---|---|---|
+| BTRFS | Snapshot (CoW) | Thấp | Rất nhanh |
+| RSYNC | Copy file | Cao | Chậm |
+
+Chúng ta dùng **BTRFS mode** vì đã có BTRFS.
 
 ## Các bước thực hiện
 
-### Bước 1: Boot vào Arch live USB
-
-Boot từ USB Arch, mount filesystem.
-
-### Bước 2: Mount BTRFS partition
+### Bước 1: Cài Timeshift
 
 ```bash
-mount /dev/nvme0n1p2 /mnt
+pacman -S timeshift
 ```
 
-### Bước 3: Liệt kê snapshot
+### Bước 2: Cấu hình Timeshift (lần đầu)
 
 ```bash
-btrfs subvolume list /mnt
+sudo timeshift --first-run
+```
+
+Hoặc:
+
+```bash
+sudo timeshift-gtk
+```
+
+### Bước 3: Cấu hình trong GUI
+
+1. **Select Snapshot Type**: Chọn **BTRFS**.
+2. **Select BTRFS Devices**: Chọn `/dev/nvme0n1p2`.
+3. **Snapshot Location**: Chọn `/.snapshots` (Timeshift tự tạo).
+4. **Schedule**:
+   - Daily: 3 snapshots
+   - Weekly: 2 snapshots
+   - Monthly: 1 snapshot
+5. **User Home**: Exclude (bỏ qua) — vì @home là subvolume riêng.
+6. Nhấn **Create** để tạo snapshot đầu tiên.
+
+### Bước 4: Kiểm tra snapshot
+
+```bash
+timeshift --list
 ```
 
 Output:
 
 ```
-ID 256 gen 123 top level 5 path @
-ID 257 gen 124 top level 5 path @home
-ID 258 gen 125 top level 5 path @log
-ID 259 gen 126 top level 5 path @pkg
-ID 260 gen 127 top level 5 path @swap
-ID 261 gen 128 top level 5 path .snapshots/@_20250601_120000
-ID 262 gen 129 top level 5 path .snapshots/@_20250615_120000
+Num     Name                                Tags
+0    > 2025-06-19_20-00-01                  O
 ```
 
-### Bước 4: Chọn snapshot để restore
-
-Giả sử cần restore về snapshot `@_20250615_120000`.
-
-### Bước 5: Đổi tên subvolume hiện tại
+### Bước 5: Tạo snapshot thủ công
 
 ```bash
-# Backup subvolume hiện tại
-mv /mnt/@ /mnt/@_broken
-
-# Đổi tên snapshot thành @
-mv /mnt/.snapshots/@_20250615_120000 /mnt/@
+sudo timeshift --create --comments "truoc-khi-update"
 ```
 
-### Bước 6: Mount và chroot
+### Bước 6: Kiểm tra dung lượng snapshot
 
 ```bash
-# Mount subvolume mới
-mount -o subvol=@ /dev/nvme0n1p2 /mnt
-
-# Mount các subvolume khác
-mount -o subvol=@home /dev/nvme0n1p2 /mnt/home
-mount -o subvol=@log /dev/nvme0n1p2 /mnt/var/log
-mount -o subvol=@pkg /dev/nvme0n1p2 /mnt/var/cache/pacman/pkg
-mount -o subvol=@swap /dev/nvme0n1p2 /mnt/swap
-mount /dev/nvme0n1p1 /mnt/efi
-
-# Chroot
-arch-chroot /mnt
+sudo timeshift --list
 ```
 
-### Bước 7: Rebuild initramfs và GRUB
+## Cấu hình qua CLI
 
-```bash
-# Rebuild initramfs
-mkinitcpio -P
+### File cấu hình
 
-# Rebuild GRUB
-grub-mkconfig -o /boot/grub/grub.cfg
+File: `/etc/timeshift/timeshift.json`
+
+```json
+{
+  "backup_device_uuid": "uuid-cua-btrfs-partition",
+  "parent_device_uuid": "",
+  "do_first_run": false,
+  "btrfs_mode": true,
+  "include_btrfs_home": false,
+  "exclude": [
+    "/home/**",
+    "/var/cache/pacman/pkg/**",
+    "/swap/**"
+  ],
+  "stop_on_errors": false,
+  "schedule_monthly": "1",
+  "schedule_weekly": "2",
+  "schedule_daily": "3",
+  "count_monthly": "1",
+  "count_weekly": "2",
+  "count_daily": "3",
+  "count_boot": "5"
+}
 ```
 
-### Bước 8: Reboot
+## Best practices
 
-```bash
-exit
-umount -R /mnt
-reboot
-```
-
-## Restore bằng Timeshift
-
-Nếu Timeshift hoạt động, có thể restore từ boot menu:
-
-1. Boot vào GRUB → Advanced Options.
-2. Chọn kernel với `timeshift` trong tên.
-3. Timeshift sẽ hiện menu chọn snapshot.
-4. Chọn snapshot → Enter.
-
-Hoặc từ live system với Timeshift CLI:
-
-```bash
-# Boot live USB
-# Cài Timeshift nếu chưa có
-pacman -S timeshift
-
-# Restore snapshot
-sudo timeshift --restore --snapshot '2025-06-15_12-00-00'
-```
-
-## Restore @home (dữ liệu cá nhân)
-
-Nếu chỉ cần restore home:
-
-```bash
-# Từ live USB
-mount /dev/nvme0n1p2 /mnt
-
-# Backup @home cũ
-mv /mnt/@home /mnt/@home_broken
-
-# Restore từ snapshot
-mv /mnt/.snapshots/@home_20250601_120000 /mnt/@home
-```
-
-## Xóa snapshot cũ
-
-Sau khi restore thành công:
-
-```bash
-# Xóa subvolume hỏng
-btrfs subvolume delete /mnt/@_broken
-
-# Xóa snapshot cũ không cần
-btrfs subvolume delete /mnt/.snapshots/@_20250601_120000
-```
+1. **Exclude @home**: Dữ liệu cá nhân không cần snapshot thường xuyên.
+2. **Exclude cache**: `@pkg` (pacman cache) không cần trong snapshot.
+3. **Exclude swap**: `@swap` có nodatacow, không snapshot được.
+4. **Snapshot hàng ngày**: Đủ cho desktop cá nhân.
+5. **Kiểm tra dung lượng**: Timeshift snapshot có thể rất lớn nếu không giới hạn.
 
 ## Troubleshooting
 
-### Snapshot không tìm thấy
+### Timeshift báo "BTRFS not detected"
 
 ```bash
-btrfs subvolume list -s /mnt
+# Kiểm tra filesystem
+lsblk -f /dev/nvme0n1p2
+
+# Phải là btrfs
 ```
 
-Nếu không thấy, lưu ý snapshot có đuôi `-r` (read-only) hoặc nằm ở đường dẫn khác.
-
-### Không mount được sau khi restore
-
-- Kiểm tra fstab (UUID có thay đổi không? → không, vì trên cùng partition).
-- Kiểm tra subvol= option trong fstab.
-
-### "Device or resource busy"
+### Timeshift không thấy snapshot
 
 ```bash
-# Unmount tất cả
-umount -R /mnt
-sleep 1
-mount /dev/nvme0n1p2 /mnt
+# Kiểm tra thư mục
+ls -la /timeshift/
+
+# Nếu snapshot ở /.snapshots → symlink
+ls -la /.snapshots
 ```
 
-## Lưu ý quan trọng
+### Dung lượng đầy do snapshot
 
-- Restore snapshot sẽ xóa tất cả thay đổi kể từ khi snapshot được tạo.
-- File mới tạo sau snapshot sẽ biến mất.
-- Dữ liệu trong @home không bị ảnh hưởng nếu bạn chỉ restore @.
-- Luôn backup @home riêng nếu cần.
-- Sau restore, cần rebuild initramfs và GRUB.
+```bash
+# Xóa snapshot cũ
+sudo timeshift --delete --snapshot '2025-06-01_20-00-01'
+```
 
 ## Tổng kết
 
-- Restore bằng rename subvolume (nhanh và an toàn).
-- Có thể restore từ Timeshift (GUI hoặc CLI).
-- Luôn backup subvolume cũ trước khi restore (đề phòng).
-- Rebuild initramfs và GRUB sau khi restore @.
-- Restore @home riêng nếu cần.
+- Timeshift tự động tạo snapshot BTRFS theo lịch.
+- Cấu hình GUI dễ dùng.
+- Exclude @home, @pkg, @swap để tiết kiệm dung lượng.
+- Có thể tạo snapshot thủ công trước update.
+- Snapshot là lớp bảo vệ đầu tiên — vẫn cần backup ra ổ ngoài.

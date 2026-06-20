@@ -1,245 +1,284 @@
-# Picom — Compositor
+# Polybar — Thanh trạng thái
 
 ## Mục tiêu
 
-Cài đặt và cấu hình Picom — compositor cho Xorg, xử lý đổ bóng, chống tearing.
+Cài đặt và cấu hình Polybar — thanh trạng thái hiển thị thông tin hệ thống.
 
 ## Kiến thức nền
 
-### Compositor là gì?
+### Polybar là gì?
 
-Compositor là chương trình quản lý cách các cửa sổ được hiển thị lên màn hình.
-Nó thêm các hiệu ứng:
+Polybar là chương trình tạo thanh trạng thái (status bar) cho các window manager.
+Nó hiển thị thông tin như:
 
-- **Đổ bóng (shadow)**: Bóng đổ phía sau cửa sổ.
-- **Trong suốt (transparency/fade)**: Làm mờ cửa sổ không focus.
-- **Chống xé hình (vsync)**: Đồng bộ với tốc độ làm tươi màn hình.
-- **Animation**: Hiệu ứng chuyển động khi mở/đóng cửa sổ.
+- Workspace hiện tại
+- Thời gian
+- Pin (laptop)
+- Volume
+- Network status
+- CPU / RAM / Disk usage
 
-### Tại sao cần compositor cho bspwm?
+### Cách Polybar hoạt động
 
-bspwm không có compositor tích hợp. Nếu không có picom (hoặc compositor khác):
-
-- Không có đổ bóng → giao diện phẳng, khó phân biệt cửa sổ.
-- Có thể bị **screen tearing** (xé hình) khi di chuyển cửa sổ hay xem video.
-- Không có animation → chuyển cảnh khô cứng.
+1. Đọc file cấu hình (`~/.config/polybar/config.ini`).
+2. Tạo bar với các module được cấu hình.
+3. Module có thể là built-in (như date, battery) hoặc script tùy chỉnh.
 
 ## Các bước thực hiện
 
-### Bước 1: Cài Picom
+### Bước 1: Cài Polybar
 
 ```bash
-pacman -S picom
+pacman -S polybar
 ```
 
-### Bước 2: Tạo thư mục và file config
+### Bước 2: Tạo thư mục và copy config mẫu
 
 ```bash
 su - archuser
-mkdir -p ~/.config/picom
+mkdir -p ~/.config/polybar
+cp /usr/share/doc/polybar/config ~/.config/polybar/config.ini
 exit
 ```
 
+### Bước 3: Cấu hình config.ini
+
 ```bash
-vim /home/archuser/.config/picom/picom.conf
+vim /home/archuser/.config/polybar/config.ini
 ```
 
-### Bước 3: File cấu hình picom.conf
-
-```conf
-#################################
-#         Animations            #
-#################################
-
-animations = true;
-animation-window-mass = 0.5;
-animation-for-open-window = "zoom";
-animation-for-workspace-switch-in = "slide-left";
-animation-for-workspace-switch-out = "slide-right";
-
-#################################
-#          Shadows              #
-#################################
-
-shadow = true;
-shadow-radius = 12;
-shadow-offset-x = -8;
-shadow-offset-y = -8;
-shadow-opacity = 0.4;
-shadow-red = 0.0;
-shadow-green = 0.0;
-shadow-blue = 0.0;
-shadow-exclude = [
-    "name = 'Notification'",
-    "class_g = 'Polybar'",
-    "class_g = 'Rofi'",
-    "class_g = 'Dunst'",
-    "class_g = 'Nitrogen'",
-    "name = 'picom'"
-];
-
-#################################
-#       Fading                  #
-#################################
-
-fading = true;
-fade-in-step = 0.03;
-fade-out-step = 0.03;
-fade-delta = 3;
-no-fading-openclose = true;
-fade-exclude = [];
-
-#################################
-#      Opacity                  #
-#################################
-
-inactive-opacity = 0.95;
-active-opacity = 1.0;
-frame-opacity = 1.0;
-inactive-opacity-override = false;
-opacity-rule = [
-    "90:class_g = 'Alacritty' && focused",
-    "80:class_g = 'Alacritty' && !focused"
-];
-
-#################################
-#      VSync / Tearing          #
-#################################
-
-vsync = true;
-
-#################################
-#     Window type settings      #
-#################################
-
-wintypes:
-{
-    tooltip = { fade = true; shadow = false; opacity = 0.85; };
-    dock = { shadow = false; };
-    desktop = { shadow = false; };
-    menu = { opacity = 0.95; };
-    popup_menu = { opacity = 0.95; };
-    dropdown_menu = { opacity = 0.95; };
-};
-
-#################################
-#      Blur                     #
-#################################
-
-blur-method = "none";
-blur-size = 12;
-blur-deviation = 5;
-blur-strength = 5;
-blur-background = false;
-blur-background-frame = false;
-blur-background-fixed = false;
-blur-kern = "3x3box";
-blur-background-exclude = [];
-
-#################################
-#      Miscellaneous            #
-#################################
-
-detect-rounded-corners = true;
-detect-transient = true;
-detect-client-opacity = true;
-refresh-rate = 144;
-use-damage = true;
-
-# NVIDIA-specific
-unredir-if-possible = false;
-```
-
-### Bước 4: Cấu hình cho NVIDIA
-
-Nếu dùng NVIDIA làm GPU chính, thêm option:
+Nội dung:
 
 ```ini
-vsync = true;
-unredir-if-possible = false;
+[colors]
+background = #282A36
+background-alt = #44475A
+foreground = #F8F8F2
+foreground-alt = #6272A4
+primary = #50FA7B
+secondary = #FFB86C
+alert = #FF5555
+disabled = #44475A
+
+[bar/main]
+width = 100%
+height = 28
+offset-x = 0
+offset-y = 0
+radius = 0
+fixed-center = false
+background = ${colors.background}
+foreground = ${colors.foreground}
+
+line-size = 2
+line-color = #f00
+
+padding-left = 2
+padding-right = 2
+
+module-margin-left = 1
+module-margin-right = 1
+
+font-0 = "FiraCode Nerd Font:size=11;3"
+font-1 = "Noto Sans:size=10;3"
+
+modules-left = bspwm
+modules-center = date
+modules-right = filesystem memory cpu temperature wlan eth battery pulseaudio powermenu
+
+cursor-click = pointer
+cursor-scroll = pointer
+
+enable-ipc = true
+
+[module/bspwm]
+type = internal/bspwm
+format = <label-state> <label-mode>
+label-monitor = ${colors.foreground-alt}
+label-monitor-foreground = ${colors.foreground-alt}
+label-focused = %name%
+label-focused-foreground = ${colors.primary}
+label-focused-underline = ${colors.primary}
+label-focused-padding = 2
+label-unfocused = %name%
+label-unfocused-foreground = ${colors.foreground-alt}
+label-unfocused-padding = 2
+label-visible = %name%
+label-visible-foreground = ${colors.foreground-alt}
+label-visible-padding = 2
+label-urgent = %name%
+label-urgent-foreground = ${colors.alert}
+label-urgent-underline = ${colors.alert}
+label-urgent-padding = 2
+
+[module/date]
+type = internal/date
+interval = 1
+date = %Y-%m-%d
+date-alt = %A, %d %B %Y
+time = %H:%M:%S
+time-alt = %H:%M:%S
+format = <label>
+label = %date% %time%
+label-foreground = ${colors.foreground}
+
+[module/filesystem]
+type = internal/filesystem
+mount-0 = /
+label-mounted = %mountpoint%: %percentage_used%%
+label-unmounted = %mountpoint%: not mounted
+label-unmounted-foreground = ${colors.disabled}
+interval = 60
+
+[module/memory]
+type = internal/memory
+label = RAM: %percentage_used%%
+label-foreground = ${colors.secondary}
+interval = 5
+
+[module/cpu]
+type = internal/cpu
+label = CPU: %percentage:2%%
+label-foreground = ${colors.secondary}
+interval = 2
+
+[module/temperature]
+type = internal/temperature
+thermal-zone = 0
+label = %temperature-c%
+label-foreground = ${colors.foreground}
+warn-temperature = 80
+
+[module/wlan]
+type = internal/network
+interface = wlan0
+interval = 3
+format-connected = <label-connected>
+label-connected = %essid% %local_ip%
+label-connected-foreground = ${colors.primary}
+format-disconnected = <label-disconnected>
+label-disconnected = No Wi-Fi
+label-disconnected-foreground = ${colors.alert}
+
+[module/eth]
+type = internal/network
+interface = eth0
+interval = 3
+format-connected = <label-connected>
+label-connected = %local_ip%
+label-connected-foreground = ${colors.primary}
+format-disconnected =
+label-disconnected =
+
+[module/battery]
+type = internal/battery
+battery = BAT0
+adapter = AC0
+format-charging = <animation-charging> <label-charging>
+format-discharging = <label-discharging>
+format-full = <label-full>
+label-charging = %percentage%%
+label-discharging = %percentage%%
+label-full = %percentage%%
+label-discharging-foreground = ${colors.foreground}
+label-charging-foreground = ${colors.primary}
+label-full-foreground = ${colors.primary}
+animation-charging-0 = 🔌
+animation-charging-framerate = 600
+
+[module/pulseaudio]
+type = internal/pulseaudio
+format-volume = <label-volume>
+label-volume = VOL: %percentage%%
+label-muted = VOL: MUTED
+label-muted-foreground = ${colors.alert}
+click-right = pavucontrol
+
+[module/powermenu]
+type = custom/menu
+expand-right = true
+label-open = ⏻
+label-close = ⏻
+label-separator = |
+menu-0-0 = Lock
+menu-0-0-exec = betterlockscreen -l
+menu-0-1 = Logout
+menu-0-1-exec = bspc quit
+menu-0-2 = Reboot
+menu-0-2-exec = systemctl reboot
+menu-0-3 = Shutdown
+menu-0-3-exec = systemctl poweroff
 ```
 
-`unredir-if-possible = false` rất quan trọng với NVIDIA:
-Khi true, picom sẽ tắt compositor khi cửa sổ fullscreen → gây tearing.
-Đặt false để luôn bật compositor.
+### Bước 4: Cập nhật bspwmrc để chạy Polybar
 
-### Bước 5: Kích hoạt trong bspwmrc
-
-Trong `bspwmrc` đã có dòng:
+Trong `bspwmrc`, đã có dòng:
 
 ```bash
-picom --config ~/.config/picom/picom.conf &
+polybar main &
 ```
 
-Nếu chưa có, thêm trước dòng `exec`.
+Nếu bạn đặt tên bar khác, sửa tương ứng.
+
+### Bước 5: Module bspwm trong Polybar
+
+Để Polybar hiển thị workspace bspwm, module `bspwm` giao tiếp với bspwm qua IPC
+(Inter-Process Communication). Đảm bảo `bspc` có trong PATH (mặc định có).
 
 ### Bước 6: Kiểm tra
 
 ```bash
-# Khởi động picom thử
-picom --config ~/.config/picom/picom.conf
+# Khởi động Polybar thử
+polybar main
 
-# Kiểm tra lỗi
-picom --config ~/.config/picom/picom.conf --log-file /tmp/picom.log
-cat /tmp/picom.log
+# Nếu lỗi, xem log
+polybar main 2>&1 | head -20
 ```
 
-## Performance tuning
+## Các module phổ biến
 
-### Giảm tải cho GPU
+| Module | Hiển thị |
+|---|---|
+| `bspwm` | Danh sách workspace |
+| `date` | Ngày giờ |
+| `cpu` | CPU usage |
+| `memory` | RAM usage |
+| `filesystem` | Dung lượng ổ |
+| `network` | IP, SSID |
+| `battery` | Pin laptop |
+| `pulseaudio` | Volume |
+| `temperature` | Nhiệt độ CPU |
 
-```ini
-detect-rounded-corners = true;
-refresh-rate = 144;
-use-damage = true;
+## Tùy chỉnh
+
+### Font
+
+Polybar cần Nerd Fonts để hiển thị icon. Cài:
+
+```bash
+pacman -S ttf-firacode-nerd ttf-noto-nerd
 ```
 
-### Tắt animation nếu lag
+### Click events
 
-```ini
-animations = false;
-```
-
-### Tắt shadow cho terminal (tăng performance)
-
-```ini
-shadow-exclude = [
-    "class_g = 'Alacritty'"
-];
-```
+Polybar hỗ trợ click chuột trái/phải trên module.
+Ví dụ: click volume → mở pavucontrol.
 
 ## Troubleshooting
 
-### Screen tearing vẫn còn
+### Polybar không hiển thị
 
-```ini
-vsync = true;
-unredir-if-possible = false;
-```
+- Kiểm tra `pgrep -x polybar`.
+- Kiểm tra config syntax: `polybar main --print-logfile=/tmp/polybar.log`.
+- Xem log: `cat /tmp/polybar.log`.
 
-Nếu vẫn bị tearing, thử backend khác:
+### Workspace không hiển thị đúng
 
-```bash
-picom --backend glx --config ~/.config/picom/picom.conf
-```
-
-### Picom làm chậm ứng dụng
-
-Thử backend xrender thay vì glx:
-
-```ini
-backend = "xrender";
-```
-
-### Picom crash
-
-- Kiểm tra log: `cat /tmp/picom.log`.
-- Tắt animation và blur.
-- Dùng backend cũ hơn.
+- Module `bspwm` cần `bspc` trong PATH.
+- Polybar phải chạy sau bspwm.
 
 ## Tổng kết
 
-- Picom đã được cài với cấu hình có shadow, fade, animation.
-- VSync được bật để chống tearing.
-- Cấu hình NVIDIA-specific để tránh lỗi fullscreen.
-- Picom tự động chạy cùng bspwm.
+- Polybar đã được cấu hình với các module cần thiết.
+- Thanh trạng thái hiển thị workspace, CPU, RAM, network, battery, volume.
+- Tích hợp click event cho volume và power menu.

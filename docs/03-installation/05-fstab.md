@@ -1,139 +1,150 @@
-# Locale, Timezone, Hostname
+# Fstab
 
 ## Mục tiêu
 
-Cấu hình ngôn ngữ, múi giờ, và tên máy sau khi chroot vào hệ thống mới.
+Tạo file `/etc/fstab` để hệ thống tự động mount các partition và subvolume khi khởi động.
 
-## Điều kiện tiên quyết
+## Kiến thức nền
 
-- Đã cài base system bằng pacstrap.
-- Đã genfstab và kiểm tra.
-- Đã chroot vào `/mnt`.
+### fstab là gì?
 
-## Chroot
+`/etc/fstab` (File System Table) là file cấu hình của Linux chứa danh sách các
+filesystem sẽ được tự động mount khi boot.
+
+Mỗi dòng trong fstab có format:
+
+```
+<device>    <mountpoint>    <fstype>    <options>    <dump>    <pass>
+```
+
+| Field | Ý nghĩa |
+|---|---|
+| device | Thiết bị (UUID hoặc /dev/...) |
+| mountpoint | Thư mục mount |
+| fstype | Loại filesystem (btrfs, vfat, ...) |
+| options | Mount options (compress=zstd, noatime, subvol=@, ...) |
+| dump | Backup flag (0 = không backup) |
+| pass | fsck order (0 = không check, 1 = root, 2 = others) |
+
+### Tại sao dùng UUID?
+
+UUID là mã định danh duy nhất của partition, không thay đổi ngay cả khi
+thêm/bớt ổ cứng. Không dùng `/dev/nvme0n1p1` vì có thể thay đổi.
+
+## Các bước thực hiện
+
+### Bước 1: Sinh fstab
 
 ```bash
-arch-chroot /mnt
-```
-
-`arch-chroot` là script tự động mount các filesystem cần thiết (proc, sys, dev)
-và chroot vào hệ thống mới.
-
-Sau lệnh này, prompt sẽ thay đổi thành:
-
-```
-[root@archiso /]#
-```
-
-## Các bước cấu hình
-
-### Bước 1: Cấu hình Timezone
-
-```bash
-# Liệt kê các múi giờ có sẵn
-timedatectl list-timezones | grep -i asia
-
-# Đặt timezone cho Việt Nam
-ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime
-
-# Đồng bộ hardware clock (RTC)
-hwclock --systohc
+genfstab -U /mnt >> /mnt/etc/fstab
 ```
 
 Giải thích:
-- `ln -sf`: Tạo symlink. Timezone được xác định bằng symlink từ `/etc/localtime`
-  đến file timezone tương ứng.
-- `/usr/share/zoneinfo/Asia/Ho_Chi_Minh`: Múi giờ Việt Nam (UTC+7).
-- `hwclock --systohc`: Ghi thời gian hệ thống vào hardware clock (RTC — BIOS clock).
-  Mặc định Linux dùng UTC cho RTC. Windows dùng local time. Nếu muốn dual boot
-  với Windows, cần thêm bước. Nhưng chúng ta đã xóa Windows.
+- `genfstab`: Script sinh fstab tự động dựa trên mount hiện tại.
+- `-U`: Dùng UUID thay vì device path.
+- `/mnt`: Thư mục gốc của hệ thống mới.
+- `>>`: Append vào file fstab.
 
-#### Nếu muốn dùng RTC ở localtime:
-
-Không cần cho máy chỉ có Arch. Nhưng nếu sau này cần dual boot thì:
+### Bước 2: Kiểm tra nội dung
 
 ```bash
-timedatectl set-local-rtc 1
+cat /mnt/etc/fstab
 ```
 
-### Bước 2: Cấu hình Locale
+Kết quả mong đợi:
 
-Locale định nghĩa ngôn ngữ, định dạng số, ngày tháng, tiền tệ.
+```
+# /dev/nvme0n1p2
+UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /              btrfs   rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@ 0 0
+
+# /dev/nvme0n1p2
+UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /home          btrfs   rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@home 0 0
+
+# /dev/nvme0n1p2
+UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /var/log       btrfs   rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@log 0 0
+
+# /dev/nvme0n1p2
+UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /var/cache/pacman/pkg btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@pkg 0 0
+
+# /dev/nvme0n1p2
+UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /swap          btrfs   rw,noatime,space_cache=v2,nodatacow,subvol=@swap 0 0
+
+# /dev/nvme0n1p1
+UUID=yyyy-yyyy-yyyy-yyyy-yyyy  /efi           vfat    rw,noatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro 0 2
+```
+
+Kiểm tra:
 
 ```bash
-# Sửa file locale.gen — bỏ comment dòng en_US.UTF-8 và vi_VN.UTF-8
-vim /etc/locale.gen
+vim /mnt/etc/fstab
 ```
 
-Tìm và uncomment (xóa dấu `#` ở đầu) các dòng:
+Đảm bảo các mount options chính xác:
 
-```
-en_US.UTF-8 UTF-8
-vi_VN.UTF-8 UTF-8
-```
+- `compress=zstd`: Có trên các subvolume BTRFS (trừ @swap).
+- `nodatacow`: Có trên `@swap`.
+- `subvol=@...`: Mỗi dòng đúng subvolume.
+- `fmask=0022,dmask=0022`: FAT32 mount options chuẩn cho ESP.
 
-Sau đó:
+### Bước 3: Kiểm tra UUID
 
 ```bash
-# Sinh locale
-locale-gen
-
-# Tạo /etc/locale.conf
-echo "LANG=en_US.UTF-8" > /etc/locale.conf
+blkid
 ```
 
-Giải thích:
-- `locale-gen`: Đọc `/etc/locale.gen` và sinh các locale đã được uncomment.
-- `/etc/locale.conf`: File cấu toàn hệ thống. `LANG=en_US.UTF-8` là ngôn ngữ mặc định.
-  (Không dùng vi_VN vì terminal sẽ lỗi font và nhiều ứng dụng không hỗ trợ.)
+So UUID trong fstab với output của blkid. Phải khớp.
 
-### Bước 3: Đặt Hostname
+## Swap entry trong fstab
+
+Swap không có trong fstab lúc này. Sau khi tạo swapfile (trong chroot),
+chúng ta sẽ thêm thủ công. Swapfile cần entry trong fstab:
+
+```
+/swap/swapfile  none  swap  sw  0  0
+```
+
+## Xác minh
 
 ```bash
-# Tạo file hostname
-echo "loq-arch" > /etc/hostname
-
-# Sửa file hosts
-vim /etc/hosts
+# Kiểm tra các mount trong fstab có đúng không
+mount -a --fake
+# Nếu không có lỗi → fstab hợp lệ
 ```
 
-Thêm vào `/etc/hosts`:
+## Nếu có lỗi
+
+### genfstab không tạo đúng subvolume
+
+Có thể genfstab không nhận diện đúng subvol option. Kiểm tra và sửa thủ công
+bằng vim nếu cần.
+
+### Thiếu dòng
+
+Nếu thiếu dòng mount cho `/var/log` hoặc `/var/cache/pacman/pkg`, thêm bằng tay.
+
+### Sai UUID
+
+Kiểm tra blkid và sửa UUID trong fstab.
+
+## File fstab mẫu hoàn chỉnh
 
 ```
-127.0.0.1   localhost
-::1         localhost
-127.0.1.1   loq-arch.localdomain   loq-arch
+# /etc/fstab: static file system information
+# <file system> <dir> <type> <options> <dump> <pass>
+
+UUID=ABC / btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@ 0 0
+UUID=ABC /home btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@home 0 0
+UUID=ABC /var/log btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@log 0 0
+UUID=ABC /var/cache/pacman/pkg btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@pkg 0 0
+UUID=ABC /swap btrfs rw,noatime,space_cache=v2,nodatacow,subvol=@swap 0 0
+UUID=DEF /efi vfat rw,noatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro 0 2
+/swap/swapfile none swap sw 0 0
 ```
 
-Giải thích:
-- `127.0.0.1 localhost`: Loopback IPv4 mặc định.
-- `::1 localhost`: Loopback IPv6 mặc định.
-- `127.0.1.1 loq-arch.localdomain loq-arch`: Hostname của máy.
-  `127.0.1.1` (không phải 127.0.0.1) là convention để hostname resolution
-  hoạt động với network services.
-
-### Bước 4: Kiểm tra
-
-```bash
-# Kiểm tra timezone
-timedatectl status
-
-# Kiểm tra locale
-locale
-
-# Kiểm tra hostname
-hostname
-hostname -f
-```
+(ABC và DEF là UUID thật — mỗi máy khác nhau, không copy mẫu này.)
 
 ## Tổng kết
 
-Các cấu hình cơ bản đã được thiết lập:
-
-| Cấu hình | Giá trị |
-|---|---|
-| Timezone | Asia/Ho_Chi_Minh |
-| Locale | en_US.UTF-8 |
-| Hostname | loq-arch |
-
-Sẵn sàng cấu hình network và tạo user.
+- fstab đã được sinh với UUID và mount options chính xác.
+- Kiểm tra và sửa thủ công nếu cần.
+- Sẵn sàng chroot vào hệ thống mới.

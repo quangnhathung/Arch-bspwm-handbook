@@ -1,163 +1,190 @@
-# Timeshift — Snapshot GUI
+# Backup Strategy
 
 ## Mục tiêu
 
-Cài đặt và cấu hình Timeshift để tự động quản lý snapshot BTRFS.
+Xây dựng chiến lược backup thực tế cho desktop cá nhân.
 
 ## Kiến thức nền
 
-### Timeshift là gì?
+### Tại sao cần backup riêng ngoài snapshot?
 
-Timeshift là công cụ snapshot cho Linux, giống như System Restore trên Windows.
-Nó tự động tạo snapshot theo lịch và cung cấp giao diện để restore.
+Snapshot BTRFS chỉ bảo vệ khỏi lỗi người dùng (xóa nhầm, cập nhật hỏng).
+Nó không bảo vệ khỏi:
 
-### Timeshift hoạt động thế nào?
+- **Hỏng ổ cứng**: Nếu NVMe chết, snapshot cũng mất.
+- **Mất máy / trộm**: Mất toàn bộ dữ liệu vật lý.
+- **Lỗi filesystem**: Dù hiếm, BTRFS có thể gặp lỗi nghiêm trọng.
 
-Timeshift sử dụng BTRFS snapshot (nếu filesystem là BTRFS) hoặc rsync (nếu ext4).
-Nó tạo snapshot theo lịch:
+### 3-2-1 Rule (chuẩn)
 
-- **Hourly**: Mỗi giờ (giữ snapshot gần đây).
-- **Daily**: Hàng ngày.
-- **Weekly**: Hàng tuần.
-- **Monthly**: Hàng tháng.
+- **3** bản sao dữ liệu.
+- **2** loại media khác nhau (ổ trong, ổ ngoài).
+- **1** bản ở nơi khác (offsite).
 
-Và cho phép chọn số lượng snapshot cần giữ cho mỗi loại.
+## Chiến lược cho desktop cá nhân
 
-### BTRFS mode vs RSYNC mode
+### Dữ liệu cần backup
 
-| Mode | Cách hoạt động | Dung lượng | Tốc độ |
+| Mức độ | Dữ liệu | Dung lượng | Tần suất backup |
 |---|---|---|---|
-| BTRFS | Snapshot (CoW) | Thấp | Rất nhanh |
-| RSYNC | Copy file | Cao | Chậm |
+| Quan trọng | Documents, Pictures, Config | Nhỏ (< 10GB) | Hàng tuần |
+| Quan trọng | Password manager database | Rất nhỏ | Hàng ngày |
+| Trung bình | Browser profile | Vài GB | Hàng tháng |
+| Thấp | Cache, log, packages | Lớn | Không cần backup |
+| Không cần | Hệ thống (có thể cài lại) | — | Snapshot là đủ |
 
-Chúng ta dùng **BTRFS mode** vì đã có BTRFS.
+### Backup config (dễ nhất)
 
-## Các bước thực hiện
-
-### Bước 1: Cài Timeshift
-
-```bash
-pacman -S timeshift
-```
-
-### Bước 2: Cấu hình Timeshift (lần đầu)
+Các file cấu hình đều nằm trong `~/.config/` và `/etc/`.
 
 ```bash
-sudo timeshift --first-run
+# Backup config vào thư mục riêng
+mkdir -p ~/backup/config
+
+# Copy config
+cp -r ~/.config/bspwm ~/backup/config/
+cp -r ~/.config/sxhkd ~/backup/config/
+cp -r ~/.config/polybar ~/backup/config/
+cp -r ~/.config/alacritty ~/backup/config/
+
+# System config (cần sudo)
+sudo cp /etc/default/grub ~/backup/config/
+sudo cp /etc/fstab ~/backup/config/
 ```
 
-Hoặc:
+### Backup danh sách gói
 
 ```bash
-sudo timeshift-gtk
+# Danh sách gói chính thức
+pacman -Qqen > ~/backup/pkglist-official.txt
+
+# Danh sách gói AUR
+pacman -Qqem > ~/backup/pkglist-aur.txt
 ```
 
-### Bước 3: Cấu hình trong GUI
-
-1. **Select Snapshot Type**: Chọn **BTRFS**.
-2. **Select BTRFS Devices**: Chọn `/dev/nvme0n1p2`.
-3. **Snapshot Location**: Chọn `/.snapshots` (Timeshift tự tạo).
-4. **Schedule**:
-   - Daily: 3 snapshots
-   - Weekly: 2 snapshots
-   - Monthly: 1 snapshot
-5. **User Home**: Exclude (bỏ qua) — vì @home là subvolume riêng.
-6. Nhấn **Create** để tạo snapshot đầu tiên.
-
-### Bước 4: Kiểm tra snapshot
+Để restore sau khi cài lại:
 
 ```bash
-timeshift --list
+# Cài gói chính thức
+pacman -S --needed - < ~/backup/pkglist-official.txt
+
+# Cài gói AUR
+yay -S --needed - < ~/backup/pkglist-aur.txt
 ```
 
-Output:
-
-```
-Num     Name                                Tags
-0    > 2025-06-19_20-00-01                  O
-```
-
-### Bước 5: Tạo snapshot thủ công
+### Backup toàn bộ home (rsync)
 
 ```bash
-sudo timeshift --create --comments "truoc-khi-update"
+# Backup ra ổ cứng ngoài (ví dụ mount tại /mnt/backup)
+rsync -avh --delete \
+  --exclude '.cache' \
+  --exclude '.local/share/Trash' \
+  --exclude 'Downloads' \
+  ~/ /mnt/backup/home/
 ```
 
-### Bước 6: Kiểm tra dung lượng snapshot
+## Công cụ backup
+
+### Rsync (đơn giản)
 
 ```bash
-sudo timeshift --list
+# Backup toàn bộ home, loại trừ cache
+rsync -avh --exclude '.cache' ~/ /mnt/backup/home/
 ```
 
-## Cấu hình qua CLI
-
-### File cấu hình
-
-File: `/etc/timeshift/timeshift.json`
-
-```json
-{
-  "backup_device_uuid": "uuid-cua-btrfs-partition",
-  "parent_device_uuid": "",
-  "do_first_run": false,
-  "btrfs_mode": true,
-  "include_btrfs_home": false,
-  "exclude": [
-    "/home/**",
-    "/var/cache/pacman/pkg/**",
-    "/swap/**"
-  ],
-  "stop_on_errors": false,
-  "schedule_monthly": "1",
-  "schedule_weekly": "2",
-  "schedule_daily": "3",
-  "count_monthly": "1",
-  "count_weekly": "2",
-  "count_daily": "3",
-  "count_boot": "5"
-}
-```
-
-## Best practices
-
-1. **Exclude @home**: Dữ liệu cá nhân không cần snapshot thường xuyên.
-2. **Exclude cache**: `@pkg` (pacman cache) không cần trong snapshot.
-3. **Exclude swap**: `@swap` có nodatacow, không snapshot được.
-4. **Snapshot hàng ngày**: Đủ cho desktop cá nhân.
-5. **Kiểm tra dung lượng**: Timeshift snapshot có thể rất lớn nếu không giới hạn.
-
-## Troubleshooting
-
-### Timeshift báo "BTRFS not detected"
+### Borg Backup (mạnh hơn)
 
 ```bash
-# Kiểm tra filesystem
-lsblk -f /dev/nvme0n1p2
-
-# Phải là btrfs
+pacman -S borg
 ```
 
-### Timeshift không thấy snapshot
+Borg hỗ trợ:
+- Deduplication: Chỉ lưu dữ liệu thay đổi.
+- Compression: Nén dữ liệu.
+- Encryption: Mã hóa backup.
 
 ```bash
-# Kiểm tra thư mục
-ls -la /timeshift/
+# Khởi tạo repo
+borg init --encryption=repokey /mnt/backup/borg/
 
-# Nếu snapshot ở /.snapshots → symlink
-ls -la /.snapshots
+# Backup
+borg create --stats --progress \
+  /mnt/backup/borg::{hostname}-{now:%Y-%m-%d} \
+  ~/Documents ~/Pictures ~/.config \
+  --exclude '*.cache'
+
+# Restore
+borg extract /mnt/backup/borg::archive-name
 ```
 
-### Dung lượng đầy do snapshot
+### Rclone (cloud)
 
 ```bash
-# Xóa snapshot cũ
-sudo timeshift --delete --snapshot '2025-06-01_20-00-01'
+pacman -S rclone
+```
+
+Rclone hỗ trợ: Google Drive, Dropbox, OneDrive, S3, v.v.
+
+```bash
+# Cấu hình
+rclone config
+
+# Sync lên cloud
+rclone sync ~/Documents remote:backup/Documents
+```
+
+## Lịch backup
+
+| Task | Công cụ | Tần suất |
+|---|---|---|
+| Snapshot BTRFS | Timeshift | Hàng ngày |
+| Danh sách gói | pacman -Qqen | Hàng tuần |
+| Config | rsync | Hàng tuần |
+| Home (quan trọng) | rsync / Borg | Hàng tuần |
+| Home (đầy đủ) | rsync | Hàng tháng |
+| Cloud (Documents) | rclone | Hàng tuần |
+
+## Kiểm tra backup
+
+Backup không kiểm tra = không có backup.
+
+```bash
+# Kiểm tra rsync
+rsync -avh --dry-run ~/ /mnt/backup/home/
+
+# Kiểm tra Borg
+borg list /mnt/backup/borg/
+borg check /mnt/backup/borg/
+
+# Kiểm tra file trên ổ backup
+ls -la /mnt/backup/home/
+```
+
+## Khôi phục từ backup
+
+### Restore config
+
+```bash
+cp -r ~/backup/config/bspwm ~/.config/
+```
+
+### Restore home từ rsync
+
+```bash
+rsync -avh /mnt/backup/home/ ~/
+```
+
+### Restore gói
+
+```bash
+pacman -S --needed - < pkglist-official.txt
+yay -S --needed - < pkglist-aur.txt
 ```
 
 ## Tổng kết
 
-- Timeshift tự động tạo snapshot BTRFS theo lịch.
-- Cấu hình GUI dễ dùng.
-- Exclude @home, @pkg, @swap để tiết kiệm dung lượng.
-- Có thể tạo snapshot thủ công trước update.
-- Snapshot là lớp bảo vệ đầu tiên — vẫn cần backup ra ổ ngoài.
+- Snapshot BTRFS bảo vệ khỏi lỗi cập nhật và cấu hình.
+- Backup ra ổ ngoài bảo vệ khỏi hỏng ổ cứng.
+- Backup config + danh sách gói cho phép cài lại nhanh.
+- 3-2-1 rule: 3 copies, 2 media, 1 offsite.
+- Kiểm tra backup định kỳ.

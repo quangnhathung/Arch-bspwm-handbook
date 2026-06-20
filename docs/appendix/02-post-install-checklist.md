@@ -1,170 +1,148 @@
-# Full Install Script
+# Post-Install Checklist
 
 ## Mục tiêu
 
-Script tự động hóa toàn bộ quá trình cài đặt Arch Linux trên Lenovo LOQ 15IAX9.
+Danh sách kiểm tra sau khi cài đặt để đảm bảo hệ thống hoạt động đúng.
 
-## Cảnh báo
+## Sau khi reboot
 
-Script này sẽ **xóa SẠCH toàn bộ dữ liệu trên ổ `/dev/nvme0n1`**.
-Chạy script này đồng nghĩa với việc bạn đồng ý mất toàn bộ dữ liệu cũ.
-
-**Chỉ chạy khi đã boot vào Arch live environment và đã có kết nối Internet.**
-
-## Script
-
-Tạo file `install-arch.sh`:
+### 1. Kiểm tra kết nối mạng
 
 ```bash
-#!/bin/bash
-#
-# install-arch.sh — Full Arch Linux installation for Lenovo LOQ 15IAX9
-# Usage: bash install-arch.sh
-#
-
-set -e
-
-# ===== Configuration =====
-DISK="/dev/nvme0n1"
-HOSTNAME="loq-arch"
-USERNAME="archuser"
-TIMEZONE="Asia/Ho_Chi_Minh"
-PASSWORD="archlinux"
-LOCALE="en_US.UTF-8"
-
-# ===== Warning =====
-echo "=========================================="
-echo " WARNING: This will COMPLETELY WIPE $DISK"
-echo "=========================================="
-echo ""
-echo "All data will be destroyed."
-echo "Press Ctrl+C to cancel (5 seconds)..."
-sleep 5
-
-# ===== Disk Partitioning =====
-echo ">>> Partitioning disk..."
-sgdisk --zap-all "$DISK"
-sgdisk --clear "$DISK"
-sgdisk --new=1:0:+1G --typecode=1:ef00 "$DISK"
-sgdisk --new=2:0:0 --typecode=2:8300 "$DISK"
-partprobe "$DISK"
-sleep 2
-
-# ===== Format ESP =====
-echo ">>> Formatting ESP..."
-mkfs.fat -F32 "${DISK}p1"
-
-# ===== Create BTRFS =====
-echo ">>> Creating BTRFS filesystem..."
-mkfs.btrfs -f "${DISK}p2"
-
-# ===== Create Subvolumes =====
-echo ">>> Creating BTRFS subvolumes..."
-mount "${DISK}p2" /mnt
-btrfs subvolume create /mnt/@
-btrfs subvolume create /mnt/@home
-btrfs subvolume create /mnt/@log
-btrfs subvolume create /mnt/@pkg
-btrfs subvolume create /mnt/@swap
-umount /mnt
-
-# ===== Mount Subvolumes =====
-echo ">>> Mounting subvolumes..."
-mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@ "${DISK}p2" /mnt
-mkdir -p /mnt/{home,var/log,var/cache/pacman/pkg,swap,efi}
-mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@home "${DISK}p2" /mnt/home
-mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@log "${DISK}p2" /mnt/var/log
-mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@pkg "${DISK}p2" /mnt/var/cache/pacman/pkg
-mount -o nodatacow,noatime,space_cache=v2,subvol=@swap "${DISK}p2" /mnt/swap
-mount "${DISK}p1" /mnt/efi
-
-# ===== Install Base System =====
-echo ">>> Installing base system..."
-pacman -Sy --noconfirm archlinux-keyring
-pacstrap -K /mnt base linux linux-firmware intel-ucode sof-firmware vim sudo networkmanager git base-devel btrfs-progs
-
-# ===== Generate Fstab =====
-echo ">>> Generating fstab..."
-genfstab -U /mnt >> /mnt/etc/fstab
-
-# ===== Chroot Commands =====
-echo ">>> Configuring system (chroot)..."
-
-arch-chroot /mnt /bin/bash <<'CHROOT_COMMANDS'
-    # Timezone
-    ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime
-    hwclock --systohc
-
-    # Locale
-    sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
-    locale-gen
-    echo "LANG=en_US.UTF-8" > /etc/locale.conf
-
-    # Hostname
-    echo "loq-arch" > /etc/hostname
-    cat > /etc/hosts <<EOF
-127.0.0.1   localhost
-::1         localhost
-127.0.1.1   loq-arch.localdomain loq-arch
-EOF
-
-    # User
-    echo "root:archlinux" | chpasswd
-    useradd -m -G wheel -s /bin/bash archuser
-    echo "archuser:archlinux" | chpasswd
-    echo "%wheel ALL=(ALL:ALL) ALL" >> /etc/sudoers
-
-    # Network
-    systemctl enable NetworkManager
-
-    # GRUB
-    pacman -S --noconfirm grub efibootmgr
-    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=".*"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet nvidia-drm.modeset=1 nowatchdog"/' /etc/default/grub
-    grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
-    grub-mkconfig -o /boot/grub/grub.cfg
-
-    # Initramfs
-    sed -i 's/^MODULES=(.*)/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
-    mkinitcpio -P
-CHROOT_COMMANDS
-
-# ===== Unmount =====
-echo ">>> Unmounting..."
-umount -R /mnt
-
-echo "=========================================="
-echo " Installation complete!"
-echo " Remove USB and reboot."
-echo "=========================================="
-echo ""
-echo "User:     archuser"
-echo "Password: archlinux"
-echo "Root:     archlinux"
-echo ""
-echo "After reboot, run:"
-echo "  1. nmcli device wifi connect <SSID> password <pass>"
-echo "  2. sudo pacman -S xorg bspwm sxhkd ..."
-echo "  3. Follow docs/04-desktop/ for desktop setup"
+ping -c 3 archlinux.org
+ip addr show
 ```
 
-## Cách dùng
+Nếu chưa có Wi-Fi → cắm LAN hoặc USB tethering.
+Sau đó cài driver Wi-Fi Realtek:
 
 ```bash
-# Boot vào Arch live environment
-# Có kết nối Internet
-# Chạy script
-bash install-arch.sh
+yay -S rtl8852be-dkms
+sudo modprobe 8852be
+nmcli device wifi list
+nmcli device wifi connect "SSID" password "password"
 ```
 
-## Sau khi script chạy xong
+### 2. Cập nhật hệ thống
 
-1. Reboot: `reboot`
-2. Login với `archuser` / `archlinux`.
-3. Chạy các bước tiếp theo theo tài liệu.
+```bash
+sudo pacman -Syu
+```
 
-## Lưu ý
+### 3. Cài yay (AUR helper)
 
-- Script đặt password mặc định. **Đổi password ngay sau khi cài xong**.
-- Script không cài Xorg/bspwm. Cần làm thủ công.
-- Script cài NVIDIA module trong initramfs.
-- Nếu Wi-Fi không hoạt động, cần cài driver Realtek riêng sau khi reboot.
+```bash
+git clone https://aur.archlinux.org/yay.git
+cd yay
+makepkg -si
+```
+
+### 4. Cài Xorg và bspwm
+
+```bash
+sudo pacman -S xorg xorg-server xorg-init xorg-xrandr
+sudo pacman -S bspwm sxhkd picom polybar rofi alacritty nitrogen
+```
+
+### 5. Cấu hình desktop
+
+- Copy file cấu hình từ docs/04-desktop/.
+- `chmod +x ~/.config/bspwm/bspwmrc`.
+- Tạo `~/.xinitrc` với nội dung `exec bspwm`.
+
+### 6. Kiểm tra desktop
+
+```bash
+startx
+```
+
+Nếu thành công → thấy bspwm với Polybar.
+
+### 7. Cài driver đồ họa
+
+```bash
+# Intel
+sudo pacman -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel intel-media-driver
+
+# NVIDIA
+sudo pacman -S nvidia nvidia-utils nvidia-settings
+```
+
+### 8. Kiểm tra GPU
+
+```bash
+glxinfo | grep "OpenGL renderer"
+nvidia-smi
+```
+
+### 9. Cài PipeWire (audio)
+
+```bash
+sudo pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber pavucontrol
+systemctl --user enable --now pipewire pipewire-pulse wireplumber
+```
+
+### 10. Cài Bluetooth
+
+```bash
+sudo pacman -S bluez bluez-utils blueman
+sudo systemctl enable --now bluetooth
+```
+
+### 11. Cài font
+
+```bash
+sudo pacman -S ttf-firacode-nerd noto-fonts noto-fonts-emoji ttf-font-awesome
+```
+
+### 12. Cài Timeshift
+
+```bash
+sudo pacman -S timeshift
+sudo timeshift --first-run
+```
+
+### 13. Tạo snapshot đầu tiên
+
+```bash
+sudo timeshift --create --comments "sau-cai-dat"
+```
+
+### 14. Kiểm tra và cấu hình GRUB
+
+```bash
+cat /proc/cmdline
+# Phải có nvidia-drm.modeset=1
+```
+
+### 15. Đổi password mặc định
+
+```bash
+passwd            # root
+passwd archuser   # user
+```
+
+## Các kiểm tra cuối
+
+| Check | Lệnh | Kết quả mong đợi |
+|---|---|---|
+| Network | `ip addr` | wlan0 hoặc eth0 có IP |
+| Wi-Fi | `nmcli device status` | wlan0 connected |
+| Audio | `speaker-test -l1 -c2` | Có tiếng |
+| GPU Intel | `glxinfo \| grep renderer` | Mesa Intel |
+| GPU NVIDIA | `nvidia-smi` | Thấy GPU |
+| Bluetooth | `bluetoothctl show` | Controller available |
+| BTRFS | `btrfs filesystem usage /` | Filesystem OK |
+| Timeshift | `timeshift --list` | Có snapshot |
+| GRUB | `efibootmgr -v` | GRUB boot entry |
+| bspwm | `pgrep -x bspwm` | bspwm running |
+
+## Chưa hoàn thành?
+
+Quay lại tài liệu tương ứng:
+
+- **Network**: docs/05-drivers/wifi.md
+- **Desktop**: docs/04-desktop/
+- **Audio**: docs/05-drivers/audio.md
+- **NVIDIA**: docs/05-drivers/nvidia.md
+- **Snapshot**: docs/07-btrfs/

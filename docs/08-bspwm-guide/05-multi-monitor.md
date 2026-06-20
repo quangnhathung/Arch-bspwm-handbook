@@ -1,263 +1,222 @@
-# Window Management — Quản lý cửa sổ
+# Multi-Monitor — Nhiều màn hình
 
 ## Mục tiêu
 
-Hiểu và làm chủ các thao tác quản lý cửa sổ trong bspwm.
+Cấu hình và sử dụng nhiều màn hình với bspwm.
 
-## Các khái niệm cơ bản
+## Kiến thức nền
 
-### Node
+### bspwm và multi-monitor
 
-Node là đơn vị cơ bản trong cấu trúc cây của bspwm. Mỗi node chứa một cửa sổ.
-Node có thể được chia thành hai node con (split).
+bspwm hỗ trợ multi-monitor tự nhiên:
 
-### Container
+- Mỗi monitor có cây node riêng.
+- Mỗi monitor có bộ workspace riêng.
+- Có thể di chuyển cửa sổ giữa các monitor.
+- Có thể có bar riêng cho mỗi monitor.
 
-Container là node chứa node khác (không phải cửa sổ). Khi chia một node,
-nó trở thành container.
+### Cơ chế
 
-### Tree (Cấu trúc cây)
+bspwm gán một tập workspace cho mỗi monitor.
 
-```
-Root (màn hình)
-├── Node A (cửa sổ 1)
-└── Container (chia dọc)
-    ├── Node B (cửa sổ 2)
-    └── Node C (cửa sổ 3)
-```
-
-## Các thao tác cơ bản
-
-### Focus (chọn cửa sổ)
+Ví dụ: laptop + màn hình ngoài
 
 ```
-Super + h   → focus sang trái
-Super + j   → focus xuống dưới
-Super + k   → focus lên trên
-Super + l   → focus sang phải
+eDP-1 (laptop, 1920x1080)
+  Workspace: I II III IV V
+HDMI-A-1 (màn hình ngoài, 1920x1080)
+  Workspace: VI VII VIII IX
 ```
 
-Focus di chuyển con trỏ chủ động đến cửa sổ lân cận theo hướng chỉ định.
+## Các bước thực hiện
 
-### Move (di chuyển cửa sổ)
-
-```
-Super + Shift + h → đẩy cửa sổ sang trái
-Super + Shift + j → đẩy cửa sổ xuống dưới
-Super + Shift + k → đẩy cửa sổ lên trên
-Super + Shift + l → đẩy cửa sổ sang phải
-```
-
-Di chuyển swap vị trí của cửa sổ hiện tại với cửa sổ lân cận.
-
-### Close (đóng cửa sổ)
-
-```
-Super + q   → đóng cửa sổ (gửi tín hiệu đóng)
-Super + Shift + q → kill ứng dụng (buộc dừng)
-```
-
-- `Super + q` gửi yêu cầu đóng → ứng dụng có thể hỏi "Save?".
-- `Super + Shift + q` dùng SIGKILL → ứng dụng tắt ngay, mất dữ liệu chưa save.
-
-### Fullscreen
-
-```
-Super + Shift + o → toggle fullscreen
-```
-
-Khi fullscreen, cửa sổ chiếm toàn màn hình, không thấy border, không thấy bar.
-
-## Node states
-
-Mỗi cửa sổ có thể ở một trong các state sau:
-
-| State | Mô tả | Phím tắt |
-|---|---|---|
-| **tiled** | Mặc định, cửa sổ tự động sắp xếp | `Super + t` |
-| **floating** | Cửa sổ tự do, có thể kéo thả | `Super + t` (toggle) |
-| **fullscreen** | Chiếm toàn màn hình | `Super + Shift + o` |
-| **pseudo_tiled** | Tiled nhưng giữ kích thước gốc | `Super + Shift + t` |
-
-### Tiled
-
-Mặc định. Cửa sổ tự động chia màn hình thành các ô.
-Khi mở thêm cửa sổ, node hiện tại bị chia làm hai.
-
-```
-┌──────────┬──────────┐
-│          │          │
-│  Term 1  │  Term 2  │
-│          │          │
-├──────────┼──────────┤
-│          │          │
-│  Term 3  │  Term 4  │
-│          │          │
-└──────────┴──────────┘
-```
-
-### Floating
-
-Cửa sổ không bị tile, có thể di chuyển và resize tự do.
-Dùng cho: dialogs, popups, Rofi, Polybar.
-
-Chuyển một cửa sổ từ tiled sang floating:
+### Bước 1: Xác định monitor
 
 ```bash
-# Toggle tiled/floating
-Super + t
-
-# Set floating
-bspc node -t floating
+xrandr --query
 ```
 
-Để kéo thả cửa sổ floating:
+Output:
+
+```
+eDP-1 connected primary 1920x1080+0+0 (normal)
+HDMI-A-1 connected 1920x1080+0+0 (normal)
+```
+
+### Bước 2: Cấu hình monitor trong bspwmrc
+
+Trong `bspwmrc`:
 
 ```bash
-# Giữ Super và kéo chuột
-# (cần cấu hình thêm nếu muốn)
+# Nếu có 1 monitor
+# bspc monitor eDP-1 -d I II III IV V VI VII VIII IX
+
+# Nếu có 2 monitor
+bspc monitor eDP-1 -d I II III IV V
+bspc monitor HDMI-A-1 -d VI VII VIII IX
+
+# Nếu monitor ngoài ở bên phải
+xrandr --output HDMI-A-1 --right-of eDP-1
 ```
 
-### Pseudo_tiled
+### Bước 3: Cấu hình Polybar cho multi-monitor
 
-Cửa sổ nằm trong lưới tile nhưng giữ kích thước ưa thích (như floating
-nhưng vẫn ở trong layout).
-
-### Fullscreen
-
-Cửa sổ chiếm toàn bộ màn hình. Không thấy bar, không thấy border.
-
-## Split (chia cửa sổ)
-
-### Preselect
-
-Preselect cho phép bạn chọn hướng chia trước khi mở cửa sổ mới.
-
-```
-Super + Ctrl + h → preselect split trái
-Super + Ctrl + j → preselect split dưới
-Super + Ctrl + k → preselect split trên
-Super + Ctrl + l → preselect split phải
-```
-
-Sau khi preselect, một đường màu đỏ xuất hiện ở cạnh được chọn.
-Khi mở cửa sổ mới, nó sẽ xuất hiện ở phía đó.
-
-### Split ratio
-
-Tỉ lệ chia mặc định là 0.5 (50/50). Có thể thay đổi:
+Trong `bspwmrc`:
 
 ```bash
-# Thay đổi ratio cho lần chia tiếp theo
-bspc node -i  # tăng kích thước node hiện tại (mở rộng)
-bspc node -o  # giảm kích thước node hiện tại (thu hẹp)
+# Polybar for each monitor
+if type "xrandr"; then
+    for m in $(xrandr --query | grep " connected" | cut -d" " -f1); do
+        MONITOR=$m polybar main &
+    done
+else
+    polybar main &
+fi
 ```
 
-Cấu hình mặc định trong bspwmrc:
+### Bước 4: Di chuyển cửa sổ giữa các monitor
 
 ```bash
-bspc config split_ratio 0.50
-```
-
-### Cancel preselect
-
-```
-Super + Ctrl + Space → cancel preselect
-```
-
-## Resize (thay đổi kích thước)
-
-```
-Super + Alt + h → thu hẹp sang trái (-20px)
-Super + Alt + j → mở rộng xuống dưới (+20px)
-Super + Alt + k → mở rộng lên trên (-20px)
-Super + Alt + l → mở rộng sang phải (+20px)
-```
-
-Resize thay đổi tỉ lệ giữa node hiện tại và node lân cận.
-
-## Sticky
-
-Sticky là trạng thái cửa sổ luôn hiện trên tất cả workspace.
-
-```bash
-bspc node -g sticky
-```
-
-Dùng cho: đồng hồ, nhạc, chat nhỏ.
-
-## Locked
-
-Locked ngăn không cho thao tác với cửa sổ (focus, close, move).
-
-```bash
-bspc node -g locked
-```
-
-## Private
-
-Private ẩn cửa sổ khỏi danh sách window switcher (Rofi window).
-
-```bash
-bspc node -g private
-```
-
-## Các lệnh hữu ích
-
-```bash
-# Đóng cửa sổ
-bspc node -c
-
-# Kill ứng dụng
-bspc node -k
-
-# Fullscreen toggle
-bspc node -t fullscreen
-
-# Toggle tiled/floating
-bspc node -t tiled
-bspc node -t floating
-
-# Di chuyển cửa sổ đến hướng
-bspc node -s east
-
-# Di chuyển cửa sổ đến monitor khác
+# Di chuyển sang monitor kế tiếp
 bspc node -m next
 
-# Gán cửa sổ luôn ở trên (above)
-bspc node -g above
+# Di chuyển đến monitor cụ thể
+bspc node -m eDP-1
 
-# Toggle sticky
-bspc node -g sticky
+# Di chuyển và focus theo
+bspc node -m next --follow
+```
+
+Phím tắt:
+
+```
+super + shift + m
+    bspc node -m next
+```
+
+### Bước 5: Focus giữa các monitor
+
+```bash
+# Focus monitor tiếp theo
+bspc monitor -f next
+
+# Focus monitor cụ thể
+bspc monitor -f eDP-1
+```
+
+### Bước 6: Gửi workspace giữa monitor
+
+```bash
+# Gửi workspace hiện tại sang monitor khác
+bspc desktop --send eDP-1
+```
+
+## Cấu hình thường dùng
+
+### Laptop + màn hình ngoài bên phải
+
+```bash
+#!/bin/bash
+# Trong bspwmrc
+
+# Set monitor layout
+xrandr --output eDP-1 --primary --mode 1920x1080 --rate 144
+xrandr --output HDMI-A-1 --mode 1920x1080 --rate 60 --right-of eDP-1
+
+# Assign workspaces
+bspc monitor eDP-1 -d I II III IV V
+bspc monitor HDMI-A-1 -d VI VII VIII IX
+```
+
+### Laptop + màn hình ngoài bên trái
+
+```bash
+xrandr --output HDMI-A-1 --mode 1920x1080 --rate 60 --left-of eDP-1
+```
+
+### Laptop + màn hình ngoài phía trên
+
+```bash
+xrandr --output HDMI-A-1 --mode 1920x1080 --rate 60 --above eDP-1
+```
+
+### Tự động cấu hình khi cắm màn hình
+
+Dùng `autorandr`:
+
+```bash
+pacman -S autorandr
+```
+
+```bash
+# Lưu cấu hình hiện tại
+autorandr --save work
+
+# Khi cắm màn hình, tự động load
+autorandr --change
+```
+
+Thêm vào `bspwmrc`:
+
+```bash
+autorandr --change
+```
+
+## Lệnh multi-monitor hữu ích
+
+```bash
+# Liệt kê monitor
+bspc query -M --names
+
+# Xem workspace trên mỗi monitor
+bspc query -D
+
+# Di chuyển tất cả cửa sổ từ monitor này sang monitor khác
+for wid in $(bspc query -N -m eDP-1); do
+    bspc node $wid -m HDMI-A-1
+done
 ```
 
 ## Best practices
 
-1. **Giữ số lượng cửa sổ mỗi workspace vừa phải** (2-4 cửa sổ).
-2. **Dùng floating cho dialog và popup** (đã có rule trong bspwmrc).
-3. **Dùng fullscreen cho ứng dụng toàn màn hình** (video, game).
-4. **Preselect trước khi mở cửa sổ mới** để kiểm soát layout.
+1. **Màn hình chính** (laptop) dùng workspace I-V.
+2. **Màn hình phụ** dùng workspace VI-IX.
+3. **Mỗi màn hình có bar riêng** (Polybar).
+4. **Di chuyển cửa sổ** bằng `Super + Shift + m`.
+5. **autorandr** để tự động chuyển đổi khi cắm/rút màn hình.
 
 ## Troubleshooting
 
-### Cửa sổ không tile được
+### Màn hình mới không được nhận
 
-- Kiểm tra state: `Super + t` để chuyển về tiled.
-- Rule trong bspwmrc có thể set floating.
+```bash
+# Quét lại màn hình
+xrandr --auto
 
-### Không di chuyển được cửa sổ floating
+# Kiểm tra
+xrandr --query
+```
 
-- Dùng Super + Shift + h/j/k/l chỉ hoạt động với tiled.
-- Với floating, cần cấu hình mouse binding hoặc dùng bspc resize.
+### Cửa sổ mất sau khi chuyển monitor
 
-### Cửa sổ bị mất sau khi chuyển workspace
+```bash
+# Tìm và focus
+bspc node -f any
+```
 
-- Nếu cửa sổ bị "kẹt", dùng `bspc node -d <workspace>` để đẩy đi.
+### Polybar không hiển thị trên monitor phụ
+
+- Kiểm tra cấu hình multi-monitor trong bspwmrc.
+- Set biến MONITOR trước khi chạy Polybar.
+
+### Workspace không hiển thị đúng trên Polybar
+
+- Mỗi monitor cần instance Polybar riêng.
 
 ## Tổng kết
 
-- bspwm quản lý cửa sổ qua cấu trúc cây (tree).
-- Mỗi cửa sổ có state: tiled, floating, fullscreen, pseudo_tiled.
-- Focus, move, resize, split, close đều qua phím tắt.
-- Sticky, locked, private là các flag đặc biệt.
-- Preselect cho phép kiểm soát layout trước khi mở cửa sổ.
+- bspwm hỗ trợ multi-monitor qua bspc monitor.
+- Mỗi monitor có workspace riêng.
+- Di chuyển cửa sổ, workspace, focus giữa các monitor.
+- Polybar có thể chạy instance riêng cho mỗi monitor.
+- autorandr tự động cấu hình khi cắm/rút monitor.

@@ -1,190 +1,150 @@
-# Backup Strategy
+# BTRFS Snapshots
 
 ## Mục tiêu
 
-Xây dựng chiến lược backup thực tế cho desktop cá nhân.
+Hiểu và tạo snapshot BTRFS thủ công.
 
 ## Kiến thức nền
 
-### Tại sao cần backup riêng ngoài snapshot?
+### Snapshot là gì?
 
-Snapshot BTRFS chỉ bảo vệ khỏi lỗi người dùng (xóa nhầm, cập nhật hỏng).
-Nó không bảo vệ khỏi:
+Snapshot là ảnh chụp trạng thái của một subvolume tại một thời điểm.
+Nó không phải bản sao dữ liệu — snapshot dùng CoW (Copy-on-Write) để
+chỉ lưu sự khác biệt so với bản gốc.
 
-- **Hỏng ổ cứng**: Nếu NVMe chết, snapshot cũng mất.
-- **Mất máy / trộm**: Mất toàn bộ dữ liệu vật lý.
-- **Lỗi filesystem**: Dù hiếm, BTRFS có thể gặp lỗi nghiêm trọng.
-
-### 3-2-1 Rule (chuẩn)
-
-- **3** bản sao dữ liệu.
-- **2** loại media khác nhau (ổ trong, ổ ngoài).
-- **1** bản ở nơi khác (offsite).
-
-## Chiến lược cho desktop cá nhân
-
-### Dữ liệu cần backup
-
-| Mức độ | Dữ liệu | Dung lượng | Tần suất backup |
-|---|---|---|---|
-| Quan trọng | Documents, Pictures, Config | Nhỏ (< 10GB) | Hàng tuần |
-| Quan trọng | Password manager database | Rất nhỏ | Hàng ngày |
-| Trung bình | Browser profile | Vài GB | Hàng tháng |
-| Thấp | Cache, log, packages | Lớn | Không cần backup |
-| Không cần | Hệ thống (có thể cài lại) | — | Snapshot là đủ |
-
-### Backup config (dễ nhất)
-
-Các file cấu hình đều nằm trong `~/.config/` và `/etc/`.
-
-```bash
-# Backup config vào thư mục riêng
-mkdir -p ~/backup/config
-
-# Copy config
-cp -r ~/.config/bspwm ~/backup/config/
-cp -r ~/.config/sxhkd ~/backup/config/
-cp -r ~/.config/polybar ~/backup/config/
-cp -r ~/.config/alacritty ~/backup/config/
-
-# System config (cần sudo)
-sudo cp /etc/default/grub ~/backup/config/
-sudo cp /etc/fstab ~/backup/config/
+```
+Ban đầu: [A][B][C][D]        (dữ liệu gốc)
+Snapshot: [A][B]              (chỉ trỏ đến A, B, chưa copy)
+Sau khi sửa C → C':
+Gốc:     [A][B][C'][D]
+Snapshot: [A][B][C]           (C được copy trước khi ghi đè)
 ```
 
-### Backup danh sách gói
+### Snapshot chiếm bao nhiêu dung lượng?
+
+- **Lúc tạo**: Gần như 0 byte (chỉ metadata).
+- **Sau khi thay đổi dữ liệu**: Chỉ lưu các block bị thay đổi.
+- **Càng nhiều thay đổi**: Snapshot càng lớn.
+
+### Tại sao dùng snapshot?
+
+- Rollback sau update lỗi.
+- Rollback sau cấu hình sai.
+- Rollback sau khi xóa nhầm file.
+
+## Các lệnh snapshot cơ bản
+
+### Tạo snapshot
 
 ```bash
-# Danh sách gói chính thức
-pacman -Qqen > ~/backup/pkglist-official.txt
+# Cú pháp
+btrfs subvolume snapshot -r <nguồn> <đích>
 
-# Danh sách gói AUR
-pacman -Qqem > ~/backup/pkglist-aur.txt
+# Snapshot subvolume @ (root)
+sudo btrfs subvolume snapshot -r / /.snapshots/@_$(date +%Y%m%d_%H%M%S)
+
+# Snapshot subvolume @home
+sudo btrfs subvolume snapshot -r /home /.snapshots/@home_$(date +%Y%m%d_%H%M%S)
 ```
 
-Để restore sau khi cài lại:
+Giải thích:
+- `-r`: Read-only snapshot (không thể sửa, an toàn).
+- `/.snapshots`: Thư mục chứa tất cả snapshot.
+- `@_20250619_120000`: Tên snapshot = subvolume + timestamp.
+
+### Liệt kê snapshot
 
 ```bash
-# Cài gói chính thức
-pacman -S --needed - < ~/backup/pkglist-official.txt
+# Liệt kê subvolume
+sudo btrfs subvolume list /
 
-# Cài gói AUR
-yay -S --needed - < ~/backup/pkglist-aur.txt
+# Lọc snapshot
+sudo btrfs subvolume list -s /
 ```
 
-### Backup toàn bộ home (rsync)
+### Xóa snapshot
 
 ```bash
-# Backup ra ổ cứng ngoài (ví dụ mount tại /mnt/backup)
-rsync -avh --delete \
-  --exclude '.cache' \
-  --exclude '.local/share/Trash' \
-  --exclude 'Downloads' \
-  ~/ /mnt/backup/home/
+sudo btrfs subvolume delete /.snapshots/@_20250601_120000
 ```
 
-## Công cụ backup
+## Thư mục chứa snapshot
 
-### Rsync (đơn giản)
+Tạo thư mục snapshot:
 
 ```bash
-# Backup toàn bộ home, loại trừ cache
-rsync -avh --exclude '.cache' ~/ /mnt/backup/home/
+sudo mkdir -p /.snapshots
 ```
 
-### Borg Backup (mạnh hơn)
+Snapshot có thể lưu ở bất kỳ đâu trên cùng filesystem BTRFS.
+Thường lưu trong `/.snapshots` hoặc `/.snapshots`.
+
+## Script snapshot nhanh
 
 ```bash
-pacman -S borg
+vim /usr/local/bin/snap
 ```
 
-Borg hỗ trợ:
-- Deduplication: Chỉ lưu dữ liệu thay đổi.
-- Compression: Nén dữ liệu.
-- Encryption: Mã hóa backup.
+Nội dung:
 
 ```bash
-# Khởi tạo repo
-borg init --encryption=repokey /mnt/backup/borg/
+#!/bin/bash
+# Quick snapshot tool
+SNAPSHOT_DIR="/.snapshots"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
-# Backup
-borg create --stats --progress \
-  /mnt/backup/borg::{hostname}-{now:%Y-%m-%d} \
-  ~/Documents ~/Pictures ~/.config \
-  --exclude '*.cache'
-
-# Restore
-borg extract /mnt/backup/borg::archive-name
+case "$1" in
+    root)
+        sudo btrfs subvolume snapshot -r / "$SNAPSHOT_DIR/@_$TIMESTAMP"
+        echo "Created: @_$TIMESTAMP"
+        ;;
+    home)
+        sudo btrfs subvolume snapshot -r /home "$SNAPSHOT_DIR/@home_$TIMESTAMP"
+        echo "Created: @home_$TIMESTAMP"
+        ;;
+    list)
+        sudo btrfs subvolume list -s /
+        ;;
+    *)
+        echo "Usage: snap {root|home|list}"
+        ;;
+esac
 ```
-
-### Rclone (cloud)
 
 ```bash
-pacman -S rclone
+sudo chmod +x /usr/local/bin/snap
 ```
 
-Rclone hỗ trợ: Google Drive, Dropbox, OneDrive, S3, v.v.
+Dùng:
 
 ```bash
-# Cấu hình
-rclone config
-
-# Sync lên cloud
-rclone sync ~/Documents remote:backup/Documents
+snap root         # Snapshot @
+snap home         # Snapshot @home
+snap list         # Liệt kê snapshot
 ```
 
-## Lịch backup
-
-| Task | Công cụ | Tần suất |
-|---|---|---|
-| Snapshot BTRFS | Timeshift | Hàng ngày |
-| Danh sách gói | pacman -Qqen | Hàng tuần |
-| Config | rsync | Hàng tuần |
-| Home (quan trọng) | rsync / Borg | Hàng tuần |
-| Home (đầy đủ) | rsync | Hàng tháng |
-| Cloud (Documents) | rclone | Hàng tuần |
-
-## Kiểm tra backup
-
-Backup không kiểm tra = không có backup.
+## Tạo snapshot trước update
 
 ```bash
-# Kiểm tra rsync
-rsync -avh --dry-run ~/ /mnt/backup/home/
-
-# Kiểm tra Borg
-borg list /mnt/backup/borg/
-borg check /mnt/backup/borg/
-
-# Kiểm tra file trên ổ backup
-ls -la /mnt/backup/home/
+#!/bin/bash
+# Trước khi chạy pacman -Syu
+snap root
+snap home
+sudo pacman -Syu
 ```
 
-## Khôi phục từ backup
+## Lưu ý
 
-### Restore config
-
-```bash
-cp -r ~/backup/config/bspwm ~/.config/
-```
-
-### Restore home từ rsync
-
-```bash
-rsync -avh /mnt/backup/home/ ~/
-```
-
-### Restore gói
-
-```bash
-pacman -S --needed - < pkglist-official.txt
-yay -S --needed - < pkglist-aur.txt
-```
+- Snapshot không thay thế backup (dữ liệu trên cùng ổ cứng).
+- Nếu ổ cứng hỏng, snapshot cũng mất.
+- Snapshot chiếm dung lượng dần dần.
+- Cần kiểm tra dung lượng thường xuyên.
+- Read-only snapshot an toàn hơn (không bị sửa).
 
 ## Tổng kết
 
-- Snapshot BTRFS bảo vệ khỏi lỗi cập nhật và cấu hình.
-- Backup ra ổ ngoài bảo vệ khỏi hỏng ổ cứng.
-- Backup config + danh sách gói cho phép cài lại nhanh.
-- 3-2-1 rule: 3 copies, 2 media, 1 offsite.
-- Kiểm tra backup định kỳ.
+- Snapshot là ảnh chụp subvolume, chiếm ít dung lượng ban đầu.
+- Tạo snapshot trước mọi thay đổi lớn.
+- Snapshot nằm trên cùng ổ BTRFS.
+- Không thay thế backup ra ổ ngoài.
+- Script snap giúp tạo snapshot nhanh.

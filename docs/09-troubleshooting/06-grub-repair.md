@@ -1,117 +1,115 @@
-# Không có Wi-Fi
+# GRUB không boot
 
 ## Symptoms
 
-- NetworkManager không thấy thiết bị Wi-Fi.
-- `nmcli device status` không hiện `wlan0`.
-- `iwctl` không thấy adapter.
-- Biểu tượng Wi-Fi trên Polybar báo "No Wi-Fi".
+- Sau khi bật máy, thấy `grub rescue>` prompt.
+- "No such partition" hoặc "File not found".
+- GRUB menu không xuất hiện, boot thẳng vào Windows (nếu còn).
+- Màn hình đen sau khi chọn GRUB.
 
 ## Cause
 
-1. **Driver Realtek chưa được cài hoặc load**.
-2. **RF kill switch đang block**.
-3. **Firmware thiếu hoặc lỗi**.
-4. **NetworkManager backend sai**.
-5. **Thiết bị Wi-Fi bị disable trong BIOS**.
+1. **GRUB bị hỏng do update kernel không đúng**.
+2. **EFI System Partition bị format/lỗi**.
+3. **fstab sai** — không mount được root.
+4. **GRUB không tìm thấy kernel** do sai subvolume.
+5. **BTRFS subvolume bị xóa hoặc thay đổi**.
+6. **Sau khi restore snapshot** — GRUB config cũ không khớp.
 
 ## Diagnosis
 
 ```bash
-# Kiểm tra PCI device
-lspci | grep -i network
+# Boot từ USB Arch
+# Mount hệ thống
+mount /dev/nvme0n1p2 /mnt
+mount -o subvol=@ /dev/nvme0n1p2 /mnt
+mount /dev/nvme0n1p1 /mnt/efi
 
-# Kiểm tra kernel module
-lsmod | grep 8852
-lsmod | grep rtw
+# Chroot
+arch-chroot /mnt
 
-# Kiểm tra RF kill
-rfkill list
+# Kiểm tra GRUB config
+cat /boot/grub/grub.cfg | head -20
 
-# Kiểm tra firmware
-dmesg | grep -i firmware
+# Kiểm tra kernel
+ls /boot/vmlinuz-linux
 
-# Kiểm tra NetworkManager
-systemctl status NetworkManager
-journalctl -u NetworkManager -n 20 --no-pager
+# Kiểm tra EFI
+ls /efi/EFI/GRUB/grubx64.efi
+
+# Kiểm tra boot entries
+efibootmgr -v
 ```
 
 ## Fix
 
-### Fix 1: Cài driver Realtek
+### Fix 1: Reinstall GRUB
 
 ```bash
-# Từ AUR
-yay -S rtl8852be-dkms
+# Trong chroot
+grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
 
-# Load module
-sudo modprobe 8852be
-
-# Kiểm tra
-lsmod | grep 8852
+# Sinh config mới
+grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
-### Fix 2: Unblock RF kill
+### Fix 2: Sửa fstab sai
 
 ```bash
-# Xem trạng thái
-rfkill list
+# Kiểm tra UUID
+blkid /dev/nvme0n1p2
+blkid /dev/nvme0n1p1
 
-# Unblock
-sudo rfkill unblock wifi
-sudo rfkill unblock all
+# Sửa fstab
+vim /etc/fstab
 
-# Kiểm tra lại
-rfkill list
+# Đảm bảo UUID đúng
 ```
 
-### Fix 3: Cài firmware
+### Fix 3: GRUB rescue mode
+
+Khi ở `grub rescue>`:
 
 ```bash
-sudo pacman -S linux-firmware
+# Tìm root
+ls
+# Sẽ hiện (hd0,gpt1) (hd0,gpt2) ...
 
-# Firmware Realtek riêng
-yay -S rtl8852be-firmware
+# Set root và boot thủ công
+set root=(hd0,gpt2)
+set prefix=(hd0,gpt2)/@/boot/grub
+insmod normal
+normal
 ```
 
-### Fix 4: Kiểm tra NetworkManager backend
+Sau khi boot được, chạy:
 
 ```bash
-# Xem backend hiện tại
-cat /etc/NetworkManager/conf.d/wifi-backend.conf
-
-# Nếu dùng iwd:
-sudo systemctl enable --now iwd
-
-# Nếu dùng wpa_supplicant (mặc định):
-sudo pacman -S wpa_supplicant
+sudo grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
+sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
-### Fix 5: Reset NetworkManager
+### Fix 4: Sau restore snapshot
+
+Sau khi restore snapshot BTRFS:
 
 ```bash
-sudo systemctl restart NetworkManager
-
-# Xóa các kết nối cũ (nếu cần)
-nmcli connection show
-nmcli connection delete "Tên Kết Nối"
+# Trong chroot
+mkinitcpio -P
+grub-mkconfig -o /boot/grub/grub.cfg
+grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
 ```
 
-### Fix 6: Kiểm tra BIOS
+### Fix 5: Thêm boot entry thủ công
 
-Vào BIOS → Configuration → Wireless → Enabled.
+```bash
+efibootmgr -c -d /dev/nvme0n1 -p 1 -L "GRUB" -l "\EFI\GRUB\grubx64.efi"
+```
 
 ## Prevention
 
-1. **Cài `rtl8852be-dkms` ngay sau khi cài hệ thống**.
-2. **Thêm module vào mkinitcpio** để load sớm
-
-```bash
-vim /etc/mkinitcpio.conf
-# Thêm 8852be vào MODULES
-MODULES=(8852be)
-mkinitcpio -P
-```
-
-3. **Enable và start iwd** nếu dùng backend iwd.
-4. **Luôn kiểm tra firmware** sau kernel update.
+1. **Tạo snapshot trước khi update GRUB**.
+2. **Sao lưu `/etc/default/grub`**.
+3. **Kiểm tra fstab** sau mỗi lần thay đổi partition.
+4. **Không format ESP** (nvme0n1p1) trừ khi biết rõ.
+5. **Sau restore snapshot, luôn rebuild GRUB**.

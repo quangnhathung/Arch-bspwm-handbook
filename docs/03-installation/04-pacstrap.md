@@ -1,195 +1,155 @@
-# GRUB Bootloader
+# Cài đặt Base System
 
 ## Mục tiêu
 
-Cài đặt GRUB làm bootloader cho UEFI và cấu hình kernel parameters.
+Cài đặt hệ thống nền tảng Arch Linux vào `/mnt` bằng pacstrap.
+
+## Điều kiện tiên quyết
+
+- Các partition đã mount đúng vào `/mnt`.
+- Có kết nối Internet trong live environment.
+- Đồng hồ đã đồng bộ.
 
 ## Kiến thức nền
 
-### Bootloader là gì?
+### pacstrap là gì?
 
-Bootloader là chương trình nhỏ chạy đầu tiên khi máy khởi động. Nó load kernel
-Linux từ ổ cứng vào RAM và chuyển quyền điều khiển cho kernel.
+`pacstrap` là script đi kèm arch-install-scripts, dùng để cài gói vào một thư mục
+thay vì vào hệ thống đang chạy. Nó tương đương với `pacman -r /mnt -S gói`.
 
-### GRUB (Grand Unified Bootloader)
+### Các gói base
 
-GRUB là bootloader phổ biến nhất trên Linux. GRUB 2 (phiên bản hiện tại) hỗ trợ:
+Chúng ta cài các gói sau:
 
-- UEFI và Legacy BIOS
-- BTRFS, ext4, XFS, ZFS
-- LVM, encryption
-- Boot từ network (PXE)
-- Kernel parameters
+| Gói | Vai trò |
+|---|---|
+| `base` | Hệ thống cơ bản (glibc, coreutils, bash, v.v.) |
+| `linux` | Linux kernel |
+| `linux-firmware` | Firmware cho phần cứng (Wi-Fi, GPU, v.v.) |
+| `intel-ucode` | Microcode cho CPU Intel (sửa lỗi CPU, bảo mật) |
+| `sof-firmware` | Firmware cho Intel Smart Sound Technology |
+| `vim` | Trình soạn thảo văn bản |
+| `sudo` | Cấp quyền root cho user thường |
+| `networkmanager` | Quản lý kết nối mạng (Wi-Fi, LAN) |
+| `git` | Công cụ phiên bản, cần cho AUR helper sau này |
+| `base-devel` | Công cụ biên dịch (make, gcc, v.v.) — cần cho AUR |
 
-### EFI System Partition (ESP)
+### Tại sao cần từng gói?
 
-ESP là partition FAT32 chứa bootloader. Khi máy bật, UEFI firmware đọc ESP,
-tìm file `.efi` trong `EFI/` và chạy nó.
+#### base
 
-```
-ESP (/efi)
-└── EFI/
-    └── GRUB/
-        └── grubx64.efi    (GRUB binary)
-```
+Nhóm gói nền tảng: `glibc` (thư viện C), `bash` (shell), `coreutils` (lệnh cơ bản
+như cp, mv, ls), `pacman` (quản lý gói), `systemd` (init system), `linux-api-headers`.
 
-### grub-install làm gì?
+Không thể thiếu. Nếu thiếu base, hệ thống không chạy được.
 
-1. Copy file `grubx64.efi` vào `ESP/EFI/GRUB/`.
-2. Tạo file cấu hình GRUB cơ bản trong ESP.
-3. Đăng ký GRUB với firmware UEFI (thêm vào boot menu).
+#### linux
 
-### grub-mkconfig làm gì?
+Kernel. Nếu cài linux-lts thì kernel sẽ ổn định hơn nhưng cũ hơn.
+Với máy mới (Alder Lake, RTX 4050), cần kernel mới nhất → dùng `linux`.
 
-1. Quét các kernel có trong `/boot`.
-2. Quét các OS khác (nếu có dual boot).
-3. Sinh file `/boot/grub/grub.cfg` chứa menu boot.
+#### linux-firmware
+
+Chứa firmware blob cho phần cứng: Wi-Fi, Bluetooth, GPU, NVMe, v.v.
+Thiếu gói này, Wi-Fi và nhiều thiết bị khác không hoạt động.
+
+#### intel-ucode
+
+Microcode là các bản vá lỗi cho CPU được Intel phát hành qua update.
+GRUB sẽ tự động load microcode nếu có gói này. Cực kỳ quan trọng cho bảo mật
+và ổn định.
+
+#### sof-firmware
+
+Sound Open Firmware — firmware cho Intel DSP (Digital Signal Processor).
+Cần cho âm thanh trên máy Intel Alder Lake. Nếu thiếu, loa trong không hoạt động.
+
+#### vim
+
+Cần một text editor trong hệ thống mới. `vi` có sẵn nhưng `vim` tốt hơn nhiều.
+Nếu bạn thích `nano`, có thể thay thế — nhưng vim là chuẩn thực tế.
+
+#### sudo
+
+Cho phép user thường chạy lệnh với quyền root. Cần để không phải login
+trực tiếp bằng root.
+
+#### networkmanager
+
+Công cụ quản lý mạng của systemd. Hỗ trợ Wi-Fi, LAN, USB tethering,
+VPN. Cung cấp `nmtui` (giao diện terminal) và `nmcli` (dòng lệnh).
+
+#### git
+
+Cần để clone AUR packages. Cũng cần cho yay (AUR helper).
+
+#### base-devel
+
+Nhóm gói phát triển: `gcc`, `make`, `autoconf`, `automake`, `pkg-config`.
+Cần để biên dịch gói từ AUR.
 
 ## Các bước thực hiện
 
-### Bước 1: Cài gói GRUB
+### Bước 1: Cập nhật keyring (quan trọng)
 
 ```bash
-pacman -S grub efibootmgr
+pacman -Sy archlinux-keyring
 ```
 
-- `grub`: Bootloader.
-- `efibootmgr`: Công cụ quản lý EFI boot entries (cần cho grub-install).
+Giải thích: Keyring chứa các GPG keys dùng để xác thực gói. Nếu ISO cũ,
+keyring có thể lỗi thời → cập nhật trước.
 
-### Bước 2: Cài GRUB vào ESP
+### Bước 2: Cài base system
 
 ```bash
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
+pacstrap -K /mnt base linux linux-firmware intel-ucode sof-firmware vim sudo networkmanager git base-devel
 ```
 
-Giải thích:
-- `--target=x86_64-efi`: Cài cho UEFI 64-bit.
-- `--efi-directory=/efi`: Thư mục ESP đã mount.
-- `--bootloader-id=GRUB`: Tên hiển thị trong UEFI boot menu.
+Giải thích option:
+- `-K`: Initialize keyring trong hệ thống mới.
+- `/mnt`: Thư mục đích.
 
-### Bước 3: Cấu hình kernel parameters
+### Bước 3: Chờ quá trình cài đặt
 
-Kernel parameters là các option truyền cho kernel khi boot. Chúng ta cần:
+Quá trình này tải khoảng 500MB-1GB gói. Thời gian tùy tốc độ mạng.
 
-- `nvidia-drm.modeset=1`: Cho NVIDIA DRM modesetting (chống tearing, cần cho Wayland/nvidia).
-- `nowatchdog`: Tắt watchdog timer (tiết kiệm pin, giảm CPU usage).
-
-Sửa file `/etc/default/grub`:
+Nếu mạng chậm hoặc cài lại, có thể dùng:
 
 ```bash
-vim /etc/default/grub
+pacstrap -K /mnt base base-devel linux linux-firmware intel-ucode sof-firmware vim sudo networkmanager git
 ```
 
-Tìm dòng:
-
-```
-GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"
-```
-
-Sửa thành:
-
-```
-GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet nvidia-drm.modeset=1 nowatchdog"
-```
-
-**Giải thích từng parameter:**
-
-| Parameter | Ý nghĩa |
-|---|---|
-| `loglevel=3` | Chỉ hiện log từ mức 3 (error) trở lên — bớt rác |
-| `quiet` | Ẩn kernel messages khi boot |
-| `nvidia-drm.modeset=1` | Kích hoạt DRM modesetting cho NVIDIA GPU |
-| `nowatchdog` | Tắt NMI watchdog (tiết kiệm năng lượng) |
-
-#### NVIDIA parameter quan trọng
-
-`nvidia-drm.modeset=1` bắt buộc cho:
-
-- Chống screen tearing.
-- Hoạt động đúng của NVIDIA driver.
-- Tương lai có thể chạy Wayland trên NVIDIA.
-
-### Bước 4: Sinh GRUB config
+### Bước 4: Kiểm tra cài đặt
 
 ```bash
-grub-mkconfig -o /boot/grub/grub.cfg
+ls /mnt/bin/bash
+ls /mnt/usr/bin/pacman
 ```
 
-Kết quả mong đợi:
-
-```
-Generating grub configuration file ...
-Found linux image: /boot/vmlinuz-linux
-Found initrd image: /boot/intel-ucode.img /boot/initramfs-linux.img
-Warning: os-prober will not be used to detect other bootable partitions ...
-done
-```
-
-Nếu không thấy `Found linux image`, kiểm tra `ls /boot/`.
-
-### Bước 5: Kiểm tra
-
-```bash
-# Kiểm tra file GRUB trong ESP
-ls /efi/EFI/GRUB/grubx64.efi
-
-# Kiểm tra boot entry
-efibootmgr -v
-```
-
-Output của `efibootmgr` sẽ có dòng:
-
-```
-Boot0001* GRUB    HD(1,GPT,xxx,0x800,0x80000)/File(\EFI\GRUB\grubx64.efi)
-```
-
-## Các kernel parameters có thể cần thêm
-
-### Cho Intel GPU
-
-```
-i915.enable_psr=0     # Tắt Panel Self Refresh (nếu gặp lỗi màn hình)
-i915.enable_fbc=1     # Bật Frame Buffer Compression
-```
-
-### Cho laptop
-
-```
-acpi_osi=             # Một số laptop cần để ACPI hoạt động đúng
-acpi_backlight=vendor # Cho phép điều chỉnh độ sáng bằng phím chức năng
-```
-
-### Khi cần debug
-
-```
-systemd.log_level=debug
-systemd.log_target=kmsg
-```
+Nếu có file → cài đặt thành công.
 
 ## Nếu có lỗi
 
-### "grub-install: error: cannot find EFI directory"
+### "Failed to install packages to /mnt"
 
-- ESP chưa mount đúng: `ls /efi/EFI` phải tồn tại.
-- Mount ESP: `mount /dev/nvme0n1p1 /efi`.
+- Kiểm tra mount: `lsblk` → /mnt phải có filesystem.
+- Thiếu Internet: `ping -c 3 archlinux.org`.
+- Keyring cũ: `pacman -Sy archlinux-keyring`.
 
-### "Failed to register the EFI boot entry"
-
-- Dùng `--no-nvram` nếu máy không cho ghi NVRAM:
+### "Signature from X is unknown trust"
 
 ```bash
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --no-nvram
+pacman -Sy archlinux-keyring
+# Sau đó chạy lại pacstrap
 ```
 
-- Boot entry vẫn có thể thêm bằng tay: `efibootmgr -c -d /dev/nvme0n1 -p 1 -L GRUB -l \EFI\GRUB\grubx64.efi`.
+### Hết dung lượng
 
-### GRUB không thấy kernel
-
-- `/boot` phải có `vmlinuz-linux` và `initramfs-linux.img`.
-- Nếu dùng BTRFS, đảm bảo subvolume `@` được mount đúng.
+- Cache trong live environment đầy → `pacman -Scc` để xóa cache.
+- Kiểm tra `df -h /mnt` — nếu thiếu dung lượng, subvolume chưa mount đúng.
 
 ## Tổng kết
 
-- GRUB đã được cài vào ESP và đăng ký với firmware UEFI.
-- Kernel parameters đã được cấu hình cho NVIDIA và laptop.
-- Sẵn sàng reboot vào Arch Linux mới cài.
+- Base system đã được cài vào `/mnt`.
+- Các gói cần thiết cho laptop Lenovo LOQ đã được thêm.
+- Sẵn sàng cấu hình fstab, locale, network, và chroot.

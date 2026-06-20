@@ -1,73 +1,62 @@
-# Keybindings — Danh sách phím tắt
+# Workspaces — Desktop ảo
 
 ## Mục tiêu
 
-Cung cấp danh sách đầy đủ các phím tắt cho bspwm/sxhkd để người mới dễ tra cứu.
+Hiểu khái niệm workspace và cách sử dụng chúng trong bspwm.
 
-## Ký hiệu
+## Kiến thức nền
 
-| Ký hiệu | Phím |
-|---|---|
-| `Super` | Windows key (Mod4) |
-| `Alt` | Alt (Mod1) |
-| `Shift` | Shift |
-| `Ctrl` | Control |
-| `Return` | Enter |
-| `Space` | Spacebar |
-| `{1-9}` | Phím số 1-9 |
-| `{h,j,k,l}` | h=trái, j=xuống, k=lên, l=phải |
-| `XF86...` | Phím đặc biệt (volume, brightness) |
+### Workspace là gì?
 
-## Tổng quan
+Workspace (còn gọi là desktop ảo) là màn hình ảo riêng biệt.
+Mỗi workspace có thể chứa một bộ cửa sổ riêng, không ảnh hưởng đến workspace khác.
 
 ```
-Super + Enter    → Mở terminal
-Super + d        → Mở launcher
-Super + q        → Đóng cửa sổ
-Super + 1-9      → Chuyển workspace
-Super + h/j/k/l  → Focus cửa sổ
+Workspace 1       Workspace 2       Workspace 3
++-----------+     +-----------+     +-----------+
+| Terminal  |     | Browser   |     | Music     |
+|           |     |           |     |           |
++-----------+     +-----------+     +-----------+
 ```
 
-## Chi tiết
+Bạn chỉ thấy một workspace tại một thời điểm. Chuyển workspace bằng phím tắt.
 
-### Terminal và Launcher
+### Tại sao dùng workspace?
 
-| Phím | Chức năng |
-|---|---|
-| `Super + Return` | Mở terminal (Alacritty) |
-| `Super + d` | Mở launcher ứng dụng (Rofi drun) |
-| `Super + Shift + d` | Mở launcher lệnh (Rofi run) |
-| `Super + r` | Mở launcher run |
-| `Super + Shift + r` | Chuyển đổi cửa sổ (Rofi window) |
+- **Tổ chức**: Mỗi không gian cho một công việc riêng.
+  - Workspace 1: Terminal + Code
+  - Workspace 2: Browser (tra cứu)
+  - Workspace 3: Nhạc / Chat
+  - Workspace 4: Email
+- **Tập trung**: Không bị phân tâm bởi các cửa sổ không liên quan.
+- **Đa màn hình**: Mỗi màn hình có bộ workspace riêng.
 
-### Đóng cửa sổ
+## Cấu hình workspace
 
-| Phím | Chức năng |
-|---|---|
-| `Super + q` | Đóng cửa sổ hiện tại (graceful) |
-| `Super + Shift + q` | Kill ứng dụng (force) |
+Trong `bspwmrc`:
 
-### Focus (Di chuyển giữa các cửa sổ)
+```bash
+bspc monitor -d I II III IV V VI VII VIII IX
+```
 
-| Phím | Chức năng |
-|---|---|
-| `Super + h` | Focus sang trái |
-| `Super + j` | Focus xuống dưới |
-| `Super + k` | Focus lên trên |
-| `Super + l` | Focus sang phải |
-| `Super + Tab` | Focus về cửa sổ trước đó |
+Dòng này tạo 9 workspace cho monitor đầu tiên (màn hình laptop), đặt tên
+là I, II, III, ..., IX.
 
-### Di chuyển cửa sổ
+Có thể dùng tên khác:
 
-| Phím | Chức năng |
-|---|---|
-| `Super + Shift + h` | Đẩy cửa sổ sang trái |
-| `Super + Shift + j` | Đẩy cửa sổ xuống dưới |
-| `Super + Shift + k` | Đẩy cửa sổ lên trên |
-| `Super + Shift + l` | Đẩy cửa sổ sang phải |
-| `Super + Shift + m` | Gửi cửa sổ sang màn hình khác |
+```bash
+bspc monitor -d term code web chat music files mail sys games
+```
 
-### Workspace
+Hoặc workspace hệ thống:
+
+```bash
+bspc monitor -d 1 2 3 4 5 6 7 8 9
+```
+
+## Thao tác với workspace
+
+### Chuyển workspace
 
 | Phím | Chức năng |
 |---|---|
@@ -75,108 +64,108 @@ Super + h/j/k/l  → Focus cửa sổ
 | `Super + 2` | Chuyển đến workspace 2 |
 | ... | ... |
 | `Super + 9` | Chuyển đến workspace 9 |
-| `Super + Shift + 1` | Di chuyển cửa sổ đến workspace 1 |
-| `Super + Shift + 2` | Di chuyển cửa sổ đến workspace 2 |
+| `Super + Tab` | Quay lại workspace trước đó |
+
+### Di chuyển cửa sổ đến workspace khác
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Shift + 1` | Gửi cửa sổ hiện tại đến workspace 1 và chuyển đến đó |
+| `Super + Shift + 2` | Gửi cửa sổ hiện tại đến workspace 2 |
 | ... | ... |
-| `Super + Shift + 9` | Di chuyển cửa sổ đến workspace 9 |
+| `Super + Shift + 9` | Gửi cửa sổ hiện tại đến workspace 9 |
 
-### Window State
-
-| Phím | Chức năng |
-|---|---|
-| `Super + t` | Chuyển tiled ↔ floating |
-| `Super + Shift + t` | Pseudo-tiled |
-| `Super + o` | Floating |
-| `Super + Shift + o` | Fullscreen |
-| `Super + f` | Fullscreen (toggle) |
-| `Super + Space` | Float + sticky |
-| `Super + m` | Monocle mode (xếp chồng) |
-
-### Split Direction (Preselect)
-
-| Phím | Chức năng |
-|---|---|
-| `Super + Ctrl + h` | Preselect split trái |
-| `Super + Ctrl + j` | Preselect split dưới |
-| `Super + Ctrl + k` | Preselect split trên |
-| `Super + Ctrl + l` | Preselect split phải |
-| `Super + Ctrl + Space` | Cancel preselect |
-| `Super + s` | Preselect east + ratio 0.5 |
-
-### Resize
-
-| Phím | Chức năng |
-|---|---|
-| `Super + Alt + h` | Resize sang trái -20px |
-| `Super + Alt + j` | Resize xuống dưới +20px |
-| `Super + Alt + k` | Resize lên trên -20px |
-| `Super + Alt + l` | Resize sang phải +20px |
-
-### Hệ thống
-
-| Phím | Chức năng |
-|---|---|
-| `Super + Escape` | Reload bspwm + sxhkd |
-| `Super + Shift + Escape` | Lock screen |
-| `Super + Shift + x` | Power menu (rofi) |
-
-### Media và Âm thanh
-
-| Phím | Chức năng |
-|---|---|
-| `XF86AudioRaiseVolume` | Tăng volume 5% |
-| `XF86AudioLowerVolume` | Giảm volume 5% |
-| `XF86AudioMute` | Toggle mute |
-| `XF86MonBrightnessUp` | Tăng độ sáng 5% |
-| `XF86MonBrightnessDown` | Giảm độ sáng 5% |
-| `XF86AudioPlay` | Play/Pause media |
-| `XF86AudioNext` | Next track |
-| `XF86AudioPrev` | Previous track |
-
-### Ứng dụng
-
-| Phím | Chức năng |
-|---|---|
-| `Super + b` | Mở Firefox |
-| `Super + e` | Mở file manager (PCManFM) |
-
-## Cheat Sheet nhanh
-
-```
-# Di chuyển / Focus
-    h ←       j ↓       k ↑       l →
-    Super + h/j/k/l         → focus
-    Super + Shift + h/j/k/l → move window
-    Super + Alt + h/j/k/l   → resize
-
-# Workspace
-    Super + 1-9          → go to workspace
-    Super + Shift + 1-9  → send to workspace
-
-# Cửa sổ
-    Super + q       → close
-    Super + t       → toggle tiled/floating
-    Super + f       → toggle fullscreen
-    Super + m       → monocle mode
-
-# Hệ thống
-    Super + Return  → terminal
-    Super + d       → launcher
-    Super + Escape  → reload config
-```
-
-## Tùy chỉnh
-
-Để thêm/sửa keybinding:
+### Lệnh CLI
 
 ```bash
-vim ~/.config/sxhkd/sxhkdrc
+# Chuyển đến workspace
+bspc desktop -f 5
+
+# Di chuyển cửa sổ đến workspace
+bspc node -d 5
+
+# Di chuyển và chuyển đến
+bspc node -d 5 --follow
 ```
 
-Sau đó reload:
+## Trạng thái workspace
+
+Polybar hiển thị trạng thái workspace:
+
+| Trạng thái | Hiển thị | Ý nghĩa |
+|---|---|---|
+| Focused | Màu xanh | Workspace đang dùng |
+| Unfocused | Màu xám | Workspace khác có cửa sổ |
+| Empty | Không hiện | Workspace trống |
+| Urgent | Màu đỏ | Ứng dụng cần chú ý |
+| Occupied | Màu nhạt | Có cửa sổ nhưng không focus |
+
+## Gán ứng dụng vào workspace
+
+Trong `bspwmrc`:
 
 ```bash
-pkill -USR1 -x sxhkd
+bspc rule -a firefox desktop='^2'
+bspc rule -a Alacritty desktop='^1'
+bspc rule -a thunderbird desktop='^5'
 ```
 
-Xem thêm bài sxhkd.md trong 04-desktop.
+- `desktop='^2'`: Mở trên workspace 2.
+- `^` có nghĩa là "workspace số 2 của monitor hiện tại".
+
+## Multi-monitor
+
+Mỗi monitor có bộ workspace riêng.
+
+```
+Monitor eDP-1 (laptop)
+  Workspace: I II III IV V
+Monitor HDMI-A-1 (ngoài)
+  Workspace: VI VII VIII IX
+```
+
+Chuyển workspace qua lại:
+
+```bash
+# Chuyển workspace giữa các màn hình
+bspc node -m next
+```
+
+Xem thêm bài multi-monitor.md.
+
+## Best practices
+
+1. **Dành workspace cố định cho ứng dụng thường dùng**:
+   - WS 1: Terminal
+   - WS 2: Trình duyệt
+   - WS 3: Chat (Telegram, Discord)
+   - WS 4: File manager
+
+2. **Dùng workspace cuối** cho ứng dụng tạm thời (WS 9).
+
+3. **Không nhồi nhét quá nhiều cửa sổ vào một workspace**.
+   Nếu cần nhiều cửa sổ, chia ra nhiều workspace.
+
+4. **Dùng `Super + Tab` để quay lại workspace trước** khi cần
+   so sánh nhanh.
+
+## Troubleshooting
+
+### Workspace không hiển thị trên Polybar
+
+- Kiểm tra module `bspwm` trong config Polybar.
+- Restart Polybar: `killall polybar; polybar main &`.
+
+### Không chuyển workspace được
+
+- Kiểm tra sxhkd có chạy không.
+- Kiểm tra phím tắt trong sxhkdrc.
+
+## Tổng kết
+
+- 9 workspace mặc định, có thể đặt tên tùy ý.
+- Chuyển bằng `Super + 1-9`.
+- Di chuyển cửa sổ bằng `Super + Shift + 1-9`.
+- Mỗi monitor có bộ workspace riêng.
+- Polybar hiển thị trạng thái workspace.
+- Có thể gán ứng dụng vào workspace cụ thể.

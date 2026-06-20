@@ -1,155 +1,137 @@
-# Cài đặt Base System
+# Tạo User và Cấp quyền Sudo
 
 ## Mục tiêu
 
-Cài đặt hệ thống nền tảng Arch Linux vào `/mnt` bằng pacstrap.
-
-## Điều kiện tiên quyết
-
-- Các partition đã mount đúng vào `/mnt`.
-- Có kết nối Internet trong live environment.
-- Đồng hồ đã đồng bộ.
+Tạo user thường (không phải root), cấp quyền sudo, và thiết lập password.
 
 ## Kiến thức nền
 
-### pacstrap là gì?
+### Tại sao không dùng root hàng ngày?
 
-`pacstrap` là script đi kèm arch-install-scripts, dùng để cài gói vào một thư mục
-thay vì vào hệ thống đang chạy. Nó tương đương với `pacman -r /mnt -S gói`.
+- **Bảo mật**: Nếu dùng root, mọi ứng dụng đều có toàn quyền.
+- **An toàn**: Lỡ gõ `rm -rf /` sẽ xóa toàn bộ hệ thống. Với user thường,
+  chỉ xóa được file của mình.
+- **Best practice**: Unix truyền thống dùng root chỉ cho quản trị.
 
-### Các gói base
+### Root vs User thường
 
-Chúng ta cài các gói sau:
-
-| Gói | Vai trò |
-|---|---|
-| `base` | Hệ thống cơ bản (glibc, coreutils, bash, v.v.) |
-| `linux` | Linux kernel |
-| `linux-firmware` | Firmware cho phần cứng (Wi-Fi, GPU, v.v.) |
-| `intel-ucode` | Microcode cho CPU Intel (sửa lỗi CPU, bảo mật) |
-| `sof-firmware` | Firmware cho Intel Smart Sound Technology |
-| `vim` | Trình soạn thảo văn bản |
-| `sudo` | Cấp quyền root cho user thường |
-| `networkmanager` | Quản lý kết nối mạng (Wi-Fi, LAN) |
-| `git` | Công cụ phiên bản, cần cho AUR helper sau này |
-| `base-devel` | Công cụ biên dịch (make, gcc, v.v.) — cần cho AUR |
-
-### Tại sao cần từng gói?
-
-#### base
-
-Nhóm gói nền tảng: `glibc` (thư viện C), `bash` (shell), `coreutils` (lệnh cơ bản
-như cp, mv, ls), `pacman` (quản lý gói), `systemd` (init system), `linux-api-headers`.
-
-Không thể thiếu. Nếu thiếu base, hệ thống không chạy được.
-
-#### linux
-
-Kernel. Nếu cài linux-lts thì kernel sẽ ổn định hơn nhưng cũ hơn.
-Với máy mới (Alder Lake, RTX 4050), cần kernel mới nhất → dùng `linux`.
-
-#### linux-firmware
-
-Chứa firmware blob cho phần cứng: Wi-Fi, Bluetooth, GPU, NVMe, v.v.
-Thiếu gói này, Wi-Fi và nhiều thiết bị khác không hoạt động.
-
-#### intel-ucode
-
-Microcode là các bản vá lỗi cho CPU được Intel phát hành qua update.
-GRUB sẽ tự động load microcode nếu có gói này. Cực kỳ quan trọng cho bảo mật
-và ổn định.
-
-#### sof-firmware
-
-Sound Open Firmware — firmware cho Intel DSP (Digital Signal Processor).
-Cần cho âm thanh trên máy Intel Alder Lake. Nếu thiếu, loa trong không hoạt động.
-
-#### vim
-
-Cần một text editor trong hệ thống mới. `vi` có sẵn nhưng `vim` tốt hơn nhiều.
-Nếu bạn thích `nano`, có thể thay thế — nhưng vim là chuẩn thực tế.
-
-#### sudo
-
-Cho phép user thường chạy lệnh với quyền root. Cần để không phải login
-trực tiếp bằng root.
-
-#### networkmanager
-
-Công cụ quản lý mạng của systemd. Hỗ trợ Wi-Fi, LAN, USB tethering,
-VPN. Cung cấp `nmtui` (giao diện terminal) và `nmcli` (dòng lệnh).
-
-#### git
-
-Cần để clone AUR packages. Cũng cần cho yay (AUR helper).
-
-#### base-devel
-
-Nhóm gói phát triển: `gcc`, `make`, `autoconf`, `automake`, `pkg-config`.
-Cần để biên dịch gói từ AUR.
+| Đặc điểm | Root | User thường |
+|---|---|---|
+| Quyền | Vô hạn | Giới hạn |
+| Sudo | Không cần | Cần password |
+| Home | /root | /home/username |
+| Shell mặc định | /bin/bash | /bin/bash |
 
 ## Các bước thực hiện
 
-### Bước 1: Cập nhật keyring (quan trọng)
+### Bước 1: Đặt password cho root (không bắt buộc)
 
 ```bash
-pacman -Sy archlinux-keyring
+passwd
 ```
 
-Giải thích: Keyring chứa các GPG keys dùng để xác thực gói. Nếu ISO cũ,
-keyring có thể lỗi thời → cập nhật trước.
+Nhập password cho root. Có thể để trống nếu không có nhu cầu dùng root trực tiếp.
+Tuy nhiên, nên đặt phòng trường hợp sudo hỏng.
 
-### Bước 2: Cài base system
+### Bước 2: Tạo user mới
 
 ```bash
-pacstrap -K /mnt base linux linux-firmware intel-ucode sof-firmware vim sudo networkmanager git base-devel
+useradd -m -G wheel -s /bin/bash archuser
 ```
 
-Giải thích option:
-- `-K`: Initialize keyring trong hệ thống mới.
-- `/mnt`: Thư mục đích.
+Giải thích:
+- `useradd`: Lệnh tạo user mới.
+- `-m`: Tạo home directory (`/home/archuser`).
+- `-G wheel`: Thêm user vào group `wheel`. Group wheel được sudo cho phép
+  chạy lệnh với quyền root.
+- `-s /bin/bash`: Shell mặc định là bash.
+- `archuser`: Tên user. Bạn có thể đổi tên khác.
 
-### Bước 3: Chờ quá trình cài đặt
-
-Quá trình này tải khoảng 500MB-1GB gói. Thời gian tùy tốc độ mạng.
-
-Nếu mạng chậm hoặc cài lại, có thể dùng:
+### Bước 3: Đặt password cho user
 
 ```bash
-pacstrap -K /mnt base base-devel linux linux-firmware intel-ucode sof-firmware vim sudo networkmanager git
+passwd archuser
 ```
 
-### Bước 4: Kiểm tra cài đặt
+Nhập password (xác nhận 2 lần). Lưu ý: khi gõ password, không có gì hiện trên màn hình
+(đây là tính năng bảo mật mặc định).
+
+### Bước 4: Cấp quyền sudo
 
 ```bash
-ls /mnt/bin/bash
-ls /mnt/usr/bin/pacman
+EDITOR=vim visudo
 ```
 
-Nếu có file → cài đặt thành công.
+Tìm và bỏ comment dòng (xóa dấu `#` ở đầu):
+
+```
+%wheel ALL=(ALL:ALL) ALL
+```
+
+Giải thích:
+- `EDITOR=vim`: Dùng vim để edit (mặc định có thể là nano).
+- `visudo`: Lệnh an toàn để edit sudoers file. Nó kiểm tra syntax trước khi save,
+  tránh lock mình khỏi sudo.
+- `%wheel`: Group wheel.
+- `ALL=(ALL:ALL) ALL`: Cho phép chạy mọi lệnh với tư cách mọi user.
+
+Cuối cùng, dòng sẽ là:
+
+```
+%wheel ALL=(ALL:ALL) ALL
+```
+
+**Lưu ý**: Nếu muốn sudo không cần password (tiện nhưng kém an toàn hơn):
+
+```
+%wheel ALL=(ALL:ALL) NOPASSWD: ALL
+```
+
+### Bước 5: Kiểm tra
+
+```bash
+# Kiểm tra user đã được tạo
+id archuser
+
+# Kiểm tra group
+groups archuser
+
+# Output phải bao gồm "wheel"
+```
+
+## Các lệnh hữu ích liên quan đến user
+
+```bash
+# Đổi tên user
+usermod -l newname oldname
+
+# Thêm user vào group khác
+usermod -aG video,audio,storage,optical archuser
+
+# Xóa user
+userdel -r archuser
+```
 
 ## Nếu có lỗi
 
-### "Failed to install packages to /mnt"
+### "useradd: command not found"
 
-- Kiểm tra mount: `lsblk` → /mnt phải có filesystem.
-- Thiếu Internet: `ping -c 3 archlinux.org`.
-- Keyring cũ: `pacman -Sy archlinux-keyring`.
+Trong chroot, useradd phải có sẵn. Nếu không, kiểm tra base package.
 
-### "Signature from X is unknown trust"
+### "visudo: syntax error"
+
+Nếu lỡ làm hỏng sudoers, fix bằng cách:
 
 ```bash
-pacman -Sy archlinux-keyring
-# Sau đó chạy lại pacstrap
+# Chạy với tư cách root
+pkexec visudo
+# Hoặc boot vào live environment, mount và sửa trực tiếp
 ```
-
-### Hết dung lượng
-
-- Cache trong live environment đầy → `pacman -Scc` để xóa cache.
-- Kiểm tra `df -h /mnt` — nếu thiếu dung lượng, subvolume chưa mount đúng.
 
 ## Tổng kết
 
-- Base system đã được cài vào `/mnt`.
-- Các gói cần thiết cho laptop Lenovo LOQ đã được thêm.
-- Sẵn sàng cấu hình fstab, locale, network, và chroot.
+- User `archuser` đã được tạo với home directory.
+- User có quyền sudo qua group wheel.
+- Password đã được đặt.
+
+Sẵn sàng cài bootloader.

@@ -1,150 +1,195 @@
-# BTRFS Snapshots
+# Restore từ Snapshot
 
 ## Mục tiêu
 
-Hiểu và tạo snapshot BTRFS thủ công.
+Khôi phục hệ thống từ snapshot BTRFS khi gặp sự cố.
 
 ## Kiến thức nền
 
-### Snapshot là gì?
+### Restore là gì?
 
-Snapshot là ảnh chụp trạng thái của một subvolume tại một thời điểm.
-Nó không phải bản sao dữ liệu — snapshot dùng CoW (Copy-on-Write) để
-chỉ lưu sự khác biệt so với bản gốc.
+Restore là quá trình đưa subvolume về trạng thái của một snapshot.
+Điều này sẽ undo tất cả thay đổi kể từ khi snapshot được tạo.
 
-```
-Ban đầu: [A][B][C][D]        (dữ liệu gốc)
-Snapshot: [A][B]              (chỉ trỏ đến A, B, chưa copy)
-Sau khi sửa C → C':
-Gốc:     [A][B][C'][D]
-Snapshot: [A][B][C]           (C được copy trước khi ghi đè)
-```
+### Cách restore hoạt động
 
-### Snapshot chiếm bao nhiêu dung lượng?
+BTRFS không cho phép sửa read-only snapshot.
+Thay vào đó, chúng ta:
 
-- **Lúc tạo**: Gần như 0 byte (chỉ metadata).
-- **Sau khi thay đổi dữ liệu**: Chỉ lưu các block bị thay đổi.
-- **Càng nhiều thay đổi**: Snapshot càng lớn.
+1. Tạo snapshot từ snapshot cũ thành subvolume mới (hoặc ghi đè).
+2. Hoặc đổi tên subvolume hiện tại thành backup, và rename snapshot thành subvolume mới.
 
-### Tại sao dùng snapshot?
+### Có 2 cách restore
 
-- Rollback sau update lỗi.
-- Rollback sau cấu hình sai.
-- Rollback sau khi xóa nhầm file.
+| Cách | Mô tả | Khi nào dùng |
+|---|---|---|
+| **Rollback** | Đổi tên subvolume + snapshot | Khi cần restore nhanh từ live system |
+| **Boot từ snapshot** | Boot kernel từ snapshot | Khi hệ thống không boot được |
 
-## Các lệnh snapshot cơ bản
+Chúng ta focus vào rollback từ live environment (khi boot từ USB).
 
-### Tạo snapshot
+## Các bước thực hiện
 
-```bash
-# Cú pháp
-btrfs subvolume snapshot -r <nguồn> <đích>
+### Bước 1: Boot vào Arch live USB
 
-# Snapshot subvolume @ (root)
-sudo btrfs subvolume snapshot -r / /.snapshots/@_$(date +%Y%m%d_%H%M%S)
+Boot từ USB Arch, mount filesystem.
 
-# Snapshot subvolume @home
-sudo btrfs subvolume snapshot -r /home /.snapshots/@home_$(date +%Y%m%d_%H%M%S)
-```
-
-Giải thích:
-- `-r`: Read-only snapshot (không thể sửa, an toàn).
-- `/.snapshots`: Thư mục chứa tất cả snapshot.
-- `@_20250619_120000`: Tên snapshot = subvolume + timestamp.
-
-### Liệt kê snapshot
+### Bước 2: Mount BTRFS partition
 
 ```bash
-# Liệt kê subvolume
-sudo btrfs subvolume list /
-
-# Lọc snapshot
-sudo btrfs subvolume list -s /
+mount /dev/nvme0n1p2 /mnt
 ```
 
-### Xóa snapshot
+### Bước 3: Liệt kê snapshot
 
 ```bash
-sudo btrfs subvolume delete /.snapshots/@_20250601_120000
+btrfs subvolume list /mnt
 ```
 
-## Thư mục chứa snapshot
+Output:
 
-Tạo thư mục snapshot:
+```
+ID 256 gen 123 top level 5 path @
+ID 257 gen 124 top level 5 path @home
+ID 258 gen 125 top level 5 path @log
+ID 259 gen 126 top level 5 path @pkg
+ID 260 gen 127 top level 5 path @swap
+ID 261 gen 128 top level 5 path .snapshots/@_20250601_120000
+ID 262 gen 129 top level 5 path .snapshots/@_20250615_120000
+```
+
+### Bước 4: Chọn snapshot để restore
+
+Giả sử cần restore về snapshot `@_20250615_120000`.
+
+### Bước 5: Đổi tên subvolume hiện tại
 
 ```bash
-sudo mkdir -p /.snapshots
+# Backup subvolume hiện tại
+mv /mnt/@ /mnt/@_broken
+
+# Đổi tên snapshot thành @
+mv /mnt/.snapshots/@_20250615_120000 /mnt/@
 ```
 
-Snapshot có thể lưu ở bất kỳ đâu trên cùng filesystem BTRFS.
-Thường lưu trong `/.snapshots` hoặc `/.snapshots`.
-
-## Script snapshot nhanh
+### Bước 6: Mount và chroot
 
 ```bash
-vim /usr/local/bin/snap
+# Mount subvolume mới
+mount -o subvol=@ /dev/nvme0n1p2 /mnt
+
+# Mount các subvolume khác
+mount -o subvol=@home /dev/nvme0n1p2 /mnt/home
+mount -o subvol=@log /dev/nvme0n1p2 /mnt/var/log
+mount -o subvol=@pkg /dev/nvme0n1p2 /mnt/var/cache/pacman/pkg
+mount -o subvol=@swap /dev/nvme0n1p2 /mnt/swap
+mount /dev/nvme0n1p1 /mnt/efi
+
+# Chroot
+arch-chroot /mnt
 ```
 
-Nội dung:
+### Bước 7: Rebuild initramfs và GRUB
 
 ```bash
-#!/bin/bash
-# Quick snapshot tool
-SNAPSHOT_DIR="/.snapshots"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+# Rebuild initramfs
+mkinitcpio -P
 
-case "$1" in
-    root)
-        sudo btrfs subvolume snapshot -r / "$SNAPSHOT_DIR/@_$TIMESTAMP"
-        echo "Created: @_$TIMESTAMP"
-        ;;
-    home)
-        sudo btrfs subvolume snapshot -r /home "$SNAPSHOT_DIR/@home_$TIMESTAMP"
-        echo "Created: @home_$TIMESTAMP"
-        ;;
-    list)
-        sudo btrfs subvolume list -s /
-        ;;
-    *)
-        echo "Usage: snap {root|home|list}"
-        ;;
-esac
+# Rebuild GRUB
+grub-mkconfig -o /boot/grub/grub.cfg
 ```
+
+### Bước 8: Reboot
 
 ```bash
-sudo chmod +x /usr/local/bin/snap
+exit
+umount -R /mnt
+reboot
 ```
 
-Dùng:
+## Restore bằng Timeshift
+
+Nếu Timeshift hoạt động, có thể restore từ boot menu:
+
+1. Boot vào GRUB → Advanced Options.
+2. Chọn kernel với `timeshift` trong tên.
+3. Timeshift sẽ hiện menu chọn snapshot.
+4. Chọn snapshot → Enter.
+
+Hoặc từ live system với Timeshift CLI:
 
 ```bash
-snap root         # Snapshot @
-snap home         # Snapshot @home
-snap list         # Liệt kê snapshot
+# Boot live USB
+# Cài Timeshift nếu chưa có
+pacman -S timeshift
+
+# Restore snapshot
+sudo timeshift --restore --snapshot '2025-06-15_12-00-00'
 ```
 
-## Tạo snapshot trước update
+## Restore @home (dữ liệu cá nhân)
+
+Nếu chỉ cần restore home:
 
 ```bash
-#!/bin/bash
-# Trước khi chạy pacman -Syu
-snap root
-snap home
-sudo pacman -Syu
+# Từ live USB
+mount /dev/nvme0n1p2 /mnt
+
+# Backup @home cũ
+mv /mnt/@home /mnt/@home_broken
+
+# Restore từ snapshot
+mv /mnt/.snapshots/@home_20250601_120000 /mnt/@home
 ```
 
-## Lưu ý
+## Xóa snapshot cũ
 
-- Snapshot không thay thế backup (dữ liệu trên cùng ổ cứng).
-- Nếu ổ cứng hỏng, snapshot cũng mất.
-- Snapshot chiếm dung lượng dần dần.
-- Cần kiểm tra dung lượng thường xuyên.
-- Read-only snapshot an toàn hơn (không bị sửa).
+Sau khi restore thành công:
+
+```bash
+# Xóa subvolume hỏng
+btrfs subvolume delete /mnt/@_broken
+
+# Xóa snapshot cũ không cần
+btrfs subvolume delete /mnt/.snapshots/@_20250601_120000
+```
+
+## Troubleshooting
+
+### Snapshot không tìm thấy
+
+```bash
+btrfs subvolume list -s /mnt
+```
+
+Nếu không thấy, lưu ý snapshot có đuôi `-r` (read-only) hoặc nằm ở đường dẫn khác.
+
+### Không mount được sau khi restore
+
+- Kiểm tra fstab (UUID có thay đổi không? → không, vì trên cùng partition).
+- Kiểm tra subvol= option trong fstab.
+
+### "Device or resource busy"
+
+```bash
+# Unmount tất cả
+umount -R /mnt
+sleep 1
+mount /dev/nvme0n1p2 /mnt
+```
+
+## Lưu ý quan trọng
+
+- Restore snapshot sẽ xóa tất cả thay đổi kể từ khi snapshot được tạo.
+- File mới tạo sau snapshot sẽ biến mất.
+- Dữ liệu trong @home không bị ảnh hưởng nếu bạn chỉ restore @.
+- Luôn backup @home riêng nếu cần.
+- Sau restore, cần rebuild initramfs và GRUB.
 
 ## Tổng kết
 
-- Snapshot là ảnh chụp subvolume, chiếm ít dung lượng ban đầu.
-- Tạo snapshot trước mọi thay đổi lớn.
-- Snapshot nằm trên cùng ổ BTRFS.
-- Không thay thế backup ra ổ ngoài.
-- Script snap giúp tạo snapshot nhanh.
+- Restore bằng rename subvolume (nhanh và an toàn).
+- Có thể restore từ Timeshift (GUI hoặc CLI).
+- Luôn backup subvolume cũ trước khi restore (đề phòng).
+- Rebuild initramfs và GRUB sau khi restore @.
+- Restore @home riêng nếu cần.

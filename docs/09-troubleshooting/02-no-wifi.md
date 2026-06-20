@@ -1,106 +1,117 @@
-# bspwm không khởi động
+# Không có Wi-Fi
 
 ## Symptoms
 
-- Chạy `startx` → màn hình đen, không thấy bar.
-- Quay lại terminal với error message.
-- Màn hình treo ở trạng thái X nhưng không có WM.
+- NetworkManager không thấy thiết bị Wi-Fi.
+- `nmcli device status` không hiện `wlan0`.
+- `iwctl` không thấy adapter.
+- Biểu tượng Wi-Fi trên Polybar báo "No Wi-Fi".
 
 ## Cause
 
-1. **bspwmrc chưa có execute permission**.
-2. **sxhkd chưa được cài**.
-3. **Lỗi syntax trong bspwmrc hoặc sxhkdrc**.
-4. **Thiếu chương trình gọi trong bspwmrc** (polybar, picom, v.v.).
-5. **~/.xinitrc chưa đúng**.
-6. **Xorg không được cài đúng**.
+1. **Driver Realtek chưa được cài hoặc load**.
+2. **RF kill switch đang block**.
+3. **Firmware thiếu hoặc lỗi**.
+4. **NetworkManager backend sai**.
+5. **Thiết bị Wi-Fi bị disable trong BIOS**.
 
 ## Diagnosis
 
 ```bash
-# Kiểm tra permission
-ls -la ~/.config/bspwm/bspwmrc
-# Phải có -rwxr-xr-x (quyền 755)
+# Kiểm tra PCI device
+lspci | grep -i network
 
-# Kiểm tra xinitrc
-cat ~/.xinitrc
+# Kiểm tra kernel module
+lsmod | grep 8852
+lsmod | grep rtw
 
-# Kiểm tra log Xorg
-cat ~/.local/share/xorg/Xorg.0.log
-# Hoặc
-cat /var/log/Xorg.0.log
+# Kiểm tra RF kill
+rfkill list
 
-# Chạy bspwm thủ công để xem lỗi
-bspwm 2>&1
+# Kiểm tra firmware
+dmesg | grep -i firmware
 
-# Chạy sxhkd foreground
-sxhkd -t 5
+# Kiểm tra NetworkManager
+systemctl status NetworkManager
+journalctl -u NetworkManager -n 20 --no-pager
 ```
 
 ## Fix
 
-### Fix 1: Cấp execute permission
+### Fix 1: Cài driver Realtek
 
 ```bash
-chmod +x ~/.config/bspwm/bspwmrc
+# Từ AUR
+yay -S rtl8852be-dkms
+
+# Load module
+sudo modprobe 8852be
+
+# Kiểm tra
+lsmod | grep 8852
 ```
 
-### Fix 2: Cài sxhkd
+### Fix 2: Unblock RF kill
 
 ```bash
-sudo pacman -S sxhkd
+# Xem trạng thái
+rfkill list
+
+# Unblock
+sudo rfkill unblock wifi
+sudo rfkill unblock all
+
+# Kiểm tra lại
+rfkill list
 ```
 
-### Fix 3: Sửa lỗi syntax trong bspwmrc
+### Fix 3: Cài firmware
 
 ```bash
-# Check syntax
-bash -n ~/.config/bspwm/bspwmrc
+sudo pacman -S linux-firmware
 
-# Nếu có lỗi → sửa
+# Firmware Realtek riêng
+yay -S rtl8852be-firmware
 ```
 
-### Fix 4: Comment dòng chương trình lỗi
+### Fix 4: Kiểm tra NetworkManager backend
 
 ```bash
-# Trong bspwmrc, comment từng dòng để xác định chương trình nào gây lỗi
-# polybar main &
-# picom --config ... &
+# Xem backend hiện tại
+cat /etc/NetworkManager/conf.d/wifi-backend.conf
+
+# Nếu dùng iwd:
+sudo systemctl enable --now iwd
+
+# Nếu dùng wpa_supplicant (mặc định):
+sudo pacman -S wpa_supplicant
 ```
 
-### Fix 5: Sửa .xinitrc
+### Fix 5: Reset NetworkManager
 
 ```bash
-echo "exec bspwm" > ~/.xinitrc
+sudo systemctl restart NetworkManager
+
+# Xóa các kết nối cũ (nếu cần)
+nmcli connection show
+nmcli connection delete "Tên Kết Nối"
 ```
 
-### Fix 6: Chạy từng bước thủ công
+### Fix 6: Kiểm tra BIOS
 
-```bash
-# Bước 1: Khởi động X thuần
-xinit
-
-# Nếu X chạy được, thoat (Ctrl+Alt+Backspace hoặc Ctrl+C)
-# Bước 2: Chạy bspwm từ terminal (không xinit)
-X &
-sleep 1
-DISPLAY=:0 bspwm &
-DISPLAY=:0 sxhkd &
-DISPLAY=:0 alacritty &
-
-# Xem có lỗi gì không
-```
+Vào BIOS → Configuration → Wireless → Enabled.
 
 ## Prevention
 
-1. **Kiểm tra permission bspwmrc** ngay sau khi tạo.
-2. **Chạy `bash -n bspwmrc`** sau mỗi lần sửa.
-3. **Test cấu hình trước khi reboot**:
+1. **Cài `rtl8852be-dkms` ngay sau khi cài hệ thống**.
+2. **Thêm module vào mkinitcpio** để load sớm
 
 ```bash
-startx
-# Nếu lỗi → Ctrl+Alt+Backspace để kill X
+vim /etc/mkinitcpio.conf
+# Thêm 8852be vào MODULES
+MODULES=(8852be)
+mkinitcpio -P
 ```
 
-4. **Luôn cài sxhkd cùng bspwm**.
-5. **Kiểm tra log Xorg** khi gặp lỗi.
+3. **Enable và start iwd** nếu dùng backend iwd.
+4. **Luôn kiểm tra firmware** sau kernel update.

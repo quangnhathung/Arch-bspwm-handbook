@@ -1,150 +1,135 @@
-# Fstab
+# Mount hệ thống
 
 ## Mục tiêu
 
-Tạo file `/etc/fstab` để hệ thống tự động mount các partition và subvolume khi khởi động.
+Mount các subvolume BTRFS và EFI System Partition vào đúng vị trí trước khi cài base.
+
+## Điều kiện tiên quyết
+
+- Partition BTRFS đã format và có subvolume.
+- EFI System Partition đã format FAT32.
 
 ## Kiến thức nền
 
-### fstab là gì?
+### Mount options
 
-`/etc/fstab` (File System Table) là file cấu hình của Linux chứa danh sách các
-filesystem sẽ được tự động mount khi boot.
+Chúng ta mount các subvolume với các option:
 
-Mỗi dòng trong fstab có format:
+- **BTRFS subvolume**: Mount với `subvol=` để chỉ định subvolume.
+- **Compress zstd**: Nén dữ liệu.
+- **Noatime**: Tắt access time tracking.
+- **Space_cache=v2**: Cache không gian trống.
+- **Autodefrag**: Tự động chống phân mảnh.
 
-```
-<device>    <mountpoint>    <fstype>    <options>    <dump>    <pass>
-```
-
-| Field | Ý nghĩa |
-|---|---|
-| device | Thiết bị (UUID hoặc /dev/...) |
-| mountpoint | Thư mục mount |
-| fstype | Loại filesystem (btrfs, vfat, ...) |
-| options | Mount options (compress=zstd, noatime, subvol=@, ...) |
-| dump | Backup flag (0 = không backup) |
-| pass | fsck order (0 = không check, 1 = root, 2 = others) |
-
-### Tại sao dùng UUID?
-
-UUID là mã định danh duy nhất của partition, không thay đổi ngay cả khi
-thêm/bớt ổ cứng. Không dùng `/dev/nvme0n1p1` vì có thể thay đổi.
+Riêng subvolume `@swap` mount với `nodatacow` vì swap không tương thích CoW.
 
 ## Các bước thực hiện
 
-### Bước 1: Sinh fstab
+### Bước 1: Format EFI System Partition
 
 ```bash
-genfstab -U /mnt >> /mnt/etc/fstab
+mkfs.fat -F32 /dev/nvme0n1p1
 ```
 
 Giải thích:
-- `genfstab`: Script sinh fstab tự động dựa trên mount hiện tại.
-- `-U`: Dùng UUID thay vì device path.
-- `/mnt`: Thư mục gốc của hệ thống mới.
-- `>>`: Append vào file fstab.
+- `mkfs.fat`: Tạo FAT32 filesystem.
+- `-F32`: Chỉ định FAT32.
+- `/dev/nvme0n1p1`: EFI System Partition (1GB).
 
-### Bước 2: Kiểm tra nội dung
+### Bước 2: Mount root subvolume
 
 ```bash
-cat /mnt/etc/fstab
+mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@ /dev/nvme0n1p2 /mnt
+```
+
+### Bước 3: Tạo thư mục mount cho các subvolume khác
+
+```bash
+mkdir -p /mnt/{home,var/log,var/cache/pacman/pkg,swap,efi}
+```
+
+### Bước 4: Mount các subvolume còn lại
+
+```bash
+mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@home /dev/nvme0n1p2 /mnt/home
+mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@log /dev/nvme0n1p2 /mnt/var/log
+mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@pkg /dev/nvme0n1p2 /mnt/var/cache/pacman/pkg
+mount -o nodatacow,noatime,space_cache=v2,subvol=@swap /dev/nvme0n1p2 /mnt/swap
+```
+
+### Bước 5: Mount EFI System Partition
+
+```bash
+mount /dev/nvme0n1p1 /mnt/efi
+```
+
+### Bước 6: Kiểm tra kết quả
+
+```bash
+lsblk
 ```
 
 Kết quả mong đợi:
 
 ```
-# /dev/nvme0n1p2
-UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /              btrfs   rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@ 0 0
-
-# /dev/nvme0n1p2
-UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /home          btrfs   rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@home 0 0
-
-# /dev/nvme0n1p2
-UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /var/log       btrfs   rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@log 0 0
-
-# /dev/nvme0n1p2
-UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /var/cache/pacman/pkg btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@pkg 0 0
-
-# /dev/nvme0n1p2
-UUID=xxxx-xxxx-xxxx-xxxx-xxxx  /swap          btrfs   rw,noatime,space_cache=v2,nodatacow,subvol=@swap 0 0
-
-# /dev/nvme0n1p1
-UUID=yyyy-yyyy-yyyy-yyyy-yyyy  /efi           vfat    rw,noatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro 0 2
+NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
+nvme0n1     259:0    0 476.9G  0 disk
+├─nvme0n1p1 259:1    0     1G  0 part /mnt/efi
+└─nvme0n1p2 259:2    0 475.9G  0 part /mnt
 ```
 
-Kiểm tra:
+Kiểm tra thêm:
 
 ```bash
-vim /mnt/etc/fstab
+btrfs subvolume list /mnt
 ```
 
-Đảm bảo các mount options chính xác:
+Output sẽ hiện 5 subvolume với ID tương ứng.
 
-- `compress=zstd`: Có trên các subvolume BTRFS (trừ @swap).
-- `nodatacow`: Có trên `@swap`.
-- `subvol=@...`: Mỗi dòng đúng subvolume.
-- `fmask=0022,dmask=0022`: FAT32 mount options chuẩn cho ESP.
+## Cấu trúc mount hoàn chỉnh
 
-### Bước 3: Kiểm tra UUID
+```
+/mnt
+├── (BTRFS subvolume @)        → root filesystem
+├── home/                      → (BTRFS subvolume @home)
+├── var/log/                   → (BTRFS subvolume @log)
+├── var/cache/pacman/pkg/      → (BTRFS subvolume @pkg)
+├── swap/                      → (BTRFS subvolume @swap, nodatacow)
+└── efi/                       → (FAT32, EFI System Partition)
+```
+
+## Xác minh mount options
 
 ```bash
-blkid
+mount | grep nvme0n1
 ```
 
-So UUID trong fstab với output của blkid. Phải khớp.
-
-## Swap entry trong fstab
-
-Swap không có trong fstab lúc này. Sau khi tạo swapfile (trong chroot),
-chúng ta sẽ thêm thủ công. Swapfile cần entry trong fstab:
-
-```
-/swap/swapfile  none  swap  sw  0  0
-```
-
-## Xác minh
-
-```bash
-# Kiểm tra các mount trong fstab có đúng không
-mount -a --fake
-# Nếu không có lỗi → fstab hợp lệ
-```
+Output sẽ hiển thị các option đã mount. Kiểm tra xem `compress=zstd` và `noatime`
+có xuất hiện không.
 
 ## Nếu có lỗi
 
-### genfstab không tạo đúng subvolume
+### "mount: /mnt: /dev/nvme0n1p2 already mounted"
 
-Có thể genfstab không nhận diện đúng subvol option. Kiểm tra và sửa thủ công
-bằng vim nếu cần.
-
-### Thiếu dòng
-
-Nếu thiếu dòng mount cho `/var/log` hoặc `/var/cache/pacman/pkg`, thêm bằng tay.
-
-### Sai UUID
-
-Kiểm tra blkid và sửa UUID trong fstab.
-
-## File fstab mẫu hoàn chỉnh
-
-```
-# /etc/fstab: static file system information
-# <file system> <dir> <type> <options> <dump> <pass>
-
-UUID=ABC / btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@ 0 0
-UUID=ABC /home btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@home 0 0
-UUID=ABC /var/log btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@log 0 0
-UUID=ABC /var/cache/pacman/pkg btrfs rw,noatime,compress=zstd,space_cache=v2,autodefrag,subvol=@pkg 0 0
-UUID=ABC /swap btrfs rw,noatime,space_cache=v2,nodatacow,subvol=@swap 0 0
-UUID=DEF /efi vfat rw,noatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro 0 2
-/swap/swapfile none swap sw 0 0
+```bash
+umount -R /mnt
+# Sau đó mount lại từ đầu
 ```
 
-(ABC và DEF là UUID thật — mỗi máy khác nhau, không copy mẫu này.)
+### "wrong fs type, bad option, bad superblock"
+
+- Chưa format BTRFS → chạy `mkfs.btrfs -f /dev/nvme0n1p2`.
+- Partition bị hỏng → kiểm tra lại partition table.
+
+### "FAT32 not supported"
+
+```bash
+pacman -S dosfstools
+# Sau đó chạy lại mkfs.fat
+```
 
 ## Tổng kết
 
-- fstab đã được sinh với UUID và mount options chính xác.
-- Kiểm tra và sửa thủ công nếu cần.
-- Sẵn sàng chroot vào hệ thống mới.
+- EFI partition đã format FAT32 và mount tại `/mnt/efi`.
+- Các subvolume BTRFS đã mount đúng vị trí với option tối ưu.
+- Sẵn sàng để cài base system bằng pacstrap.

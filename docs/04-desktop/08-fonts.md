@@ -1,225 +1,244 @@
-# Themes — Giao diện
+# Fonts
 
 ## Mục tiêu
 
-Cài đặt theme cho GTK, icon, và cursor để có giao diện đồng bộ.
+Cài đặt font chữ cho terminal, UI desktop, và hỗ trợ hiển thị tiếng Việt đầy đủ.
 
 ## Kiến thức nền
 
-### Themes trong Linux
+### Các loại font trên Linux
 
-- **GTK Theme**: Giao diện của ứng dụng GTK (Firefox, Thunar, v.v.).
-- **Icon Theme**: Bộ icon cho ứng dụng và hệ thống.
-- **Cursor Theme**: Hình dạng con trỏ chuột.
-- **Qt Theme**: Giao diện ứng dụng Qt (có thể dùng chung GTK theme qua qt5ct/qt6ct).
+- **Bitmap font**: Font dạng pixel, cũ, ít dùng.
+- **TrueType (.ttf)**: Font vector phổ biến nhất, hỗ trợ hinting.
+- **OpenType (.otf)**: Kế thừa TrueType, hỗ trợ nhiều tính năng typography hơn.
 
-### Mặc định
+### Font chữ Việt Nam
 
-Arch không có theme mặc định. Ứng dụng GTK sẽ hiển thị theme mặc định xấu.
-Cần cài theme riêng.
+Font Unicode (thường là .ttf) có đầy đủ bảng mã UTF-8 bao gồm các ký tự có dấu
+(ă, â, ê, ô, ơ, ư, đ, v.v.). Hầu hết font hiện đại đều có sẵn, nhưng cần
+chọn font hỗ trợ **Latin Extended** để hiển thị đúng.
+
+### Fallback Font
+
+Khi một font không có ký tự cần hiển thị, fontconfig tự động dùng font khác
+(fallback) có ký tự đó. Cấu hình fallback rất quan trọng để không bị lỗi ô vuông
+(□) khi gặp ký tự đặc biệt hoặc emoji.
 
 ## Các bước thực hiện
 
-### Bước 1: Cài GTK theme
+### Bước 1: Cài đặt font packages
 
 ```bash
-pacman -S arc-gtk-theme materia-gtk-theme nordic-theme
+pacman -S \
+  ttf-dejavu \
+  noto-fonts \
+  ttf-liberation \
+  ttf-jetbrains-mono \
+  noto-fonts-cjk \
+  noto-fonts-emoji \
+  ttf-nerd-fonts-symbols-mono
 ```
 
-| Theme | Đặc điểm |
+Giải thích từng font:
+
+| Gói | Mục đích |
 |---|---|
-| Arc | Phổ biến, phẳng, đẹp |
-| Materia | Material Design, tối |
-| Nordic | Bảng màu nord, tối, dễ chịu |
+| `ttf-dejavu` | Font mặc định cho terminal/UI, hỗ trợ Latin Extended |
+| `noto-fonts` | Font đa ngôn ngữ của Google, phủ hầu hết Unicode |
+| `ttf-liberation` | Tương thích với Arial/Times/ Courier, dùng cho văn phòng |
+| `ttf-jetbrains-mono` | Font monospace cho coding, có ràng buộc (ligatures) |
+| `noto-fonts-cjk` | Hỗ trợ tiếng Trung/Nhật/Hàn (gián tiếp hỗ trợ Hán-Nôm) |
+| `noto-fonts-emoji` | Emoji đầy đủ màu sắc |
+| `ttf-nerd-fonts-symbols-mono` | Icon symbols cho polybar, rofi, terminal |
 
-Chọn **Nordic** vì hợp với Dracula/Nord scheme của bspwm-config ở trên.
-
-### Bước 2: Cài icon theme
+### Bước 2: Xem danh sách font đã cài
 
 ```bash
-pacman -S papirus-icon-theme adwaita-icon-theme
+# Liệt kê tất cả font
+fc-list | less
+
+# Đếm số lượng font
+fc-list | wc -l
+
+# Tìm font cụ thể
+fc-list | grep -i "JetBrains"
+
+# Xem chi tiết một font
+fc-list --format="%{file}\n" | grep "JetBrains"
+fc-query /path/to/font.ttf
 ```
 
-Papirus là icon theme đẹp, hiện đại, hỗ trợ folder màu.
+### Bước 3: Kiểm tra font hỗ trợ tiếng Việt
 
-### Bước 3: Cài cursor theme
+Dùng lệnh sau để kiểm tra xem font có glyph cho ký tự tiếng Việt không:
 
 ```bash
-pacman -S capitaine-cursors bibata-cursor-theme
+# Kiểm tra Noto Sans có hỗ trợ ơ, ư, đ không
+echo "Tiếng Việt: ơ ư đ ê ô ă â" | fc-match -a | head -5
+
+# Kiểm tra font mặc định
+fc-match
 ```
 
-### Bước 4: Cấu hình GTK theme
+Kết quả `fc-match` cho biết font mặc định của hệ thống. Thường là
+`DejaVu Sans.ttf` hoặc `NotoSans-Regular.ttf`.
 
-#### Cấu hình cho GTK3
+### Bước 4: Cấu hình font fallback (nếu cần)
 
-```bash
-su - archuser
-mkdir -p ~/.config/gtk-3.0
-exit
-```
+Tạo file `~/.config/fontconfig/fonts.conf`:
 
 ```bash
-vim /home/archuser/.config/gtk-3.0/settings.ini
+mkdir -p ~/.config/fontconfig
+vim ~/.config/fontconfig/fonts.conf
 ```
 
 Nội dung:
 
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+
+  <!-- Thêm Noto Sans làm fallback cho DejaVu Sans -->
+  <alias>
+    <family>DejaVu Sans</family>
+    <prefer>
+      <family>Noto Sans</family>
+      <family>Noto Color Emoji</family>
+    </prefer>
+  </alias>
+
+  <!-- Fallback cho monospace -->
+  <alias>
+    <family>JetBrains Mono</family>
+    <prefer>
+      <family>Noto Sans Mono</family>
+      <family>Noto Color Emoji</family>
+    </prefer>
+  </alias>
+
+</fontconfig>
+```
+
+Sau đó cập nhật cache font:
+
+```bash
+fc-cache -fv
+```
+
+### Bước 5: Cài font bổ sung (tùy chọn)
+
+Có thể cài thêm font từ AUR hoặc tải thủ công:
+
+```bash
+# Font từ AUR (cần yay)
+yay -S ttf-ms-win11-auto     # Microsoft font (Windows tương thích)
+yay -S ttf-google-fonts-git  # Toàn bộ Google Fonts
+
+# Font từ file .ttf tải về
+mkdir -p ~/.local/share/fonts
+cp /path/to/font.ttf ~/.local/share/fonts/
+fc-cache -fv
+```
+
+### Bước 6: Cấu hình font cho terminal
+
+Các terminal emulator thường dùng font monospace.
+
+Ví dụ với Alacritty (`~/.config/alacritty/alacritty.toml`):
+
+```toml
+[font]
+size = 11
+
+[font.normal]
+family = "JetBrains Mono"
+style = "Regular"
+
+[font.bold]
+family = "JetBrains Mono"
+style = "Bold"
+
+[font.italic]
+family = "JetBrains Mono"
+style = "Italic"
+```
+
+### Bước 7: Cấu hình font cho Polybar
+
+Trong `~/.config/polybar/config.ini`:
+
 ```ini
-[Settings]
-gtk-theme-name=Nordic
-gtk-icon-theme-name=Papirus-Dark
-gtk-cursor-theme-name=Bibata-Modern-Ice
-gtk-font-name=Noto Sans 10
-gtk-application-prefer-dark-theme=1
+[bar/main]
+font-0 = "JetBrains Mono:size=10"
+font-1 = "DejaVu Sans:size=10"
+font-2 = "Noto Color Emoji:size=10"
+font-3 = "Symbols Nerd Font Mono:size=10"
 ```
 
-#### Cấu hình cho GTK4
+### Bước 8: Cấu hình font cho GTK
 
-```bash
-mkdir -p /home/archuser/.config/gtk-4.0
-```
-
-```bash
-vim /home/archuser/.config/gtk-4.0/settings.ini
-```
-
-Nội dung giống GTK3.
-
-### Bước 5: Cấu hình Qt theme (nếu cần)
-
-Nếu có ứng dụng Qt (như qBittorrent, v.v.):
-
-```bash
-pacman -S qt5ct qt6ct
-```
-
-```bash
-vim /etc/environment
-```
-
-Thêm:
-
-```
-QT_QPA_PLATFORMTHEME=qt5ct
-```
-
-Sau đó chạy `qt5ct` để chọn theme.
-
-Hoặc dùng kvantum:
-
-```bash
-pacman -S kvantum
-```
-
-### Bước 6: Cấu hình cursor theme toàn hệ thống
-
-```bash
-vim /etc/environment
-```
-
-Thêm:
-
-```
-XCURSOR_THEME=Bibata-Modern-Ice
-XCURSOR_SIZE=24
-```
-
-### Bước 7: Cài theme cho các ứng dụng cụ thể
-
-#### Alacritty
-
-```bash
-vim /home/archuser/.config/alacritty/alacritty.yml
-```
-
-Thêm colorscheme (ví dụ Dracula):
-
-```yaml
-colors:
-  primary:
-    background: '#282A36'
-    foreground: '#F8F8F2'
-  normal:
-    black:   '#21222C'
-    red:     '#FF5555'
-    green:   '#50FA7B'
-    yellow:  '#FFB86C'
-    blue:    '#BD93F9'
-    magenta: '#FF79C6'
-    cyan:    '#8BE9FD'
-    white:   '#F8F8F2'
-  bright:
-    black:   '#6272A4'
-    red:     '#FF6E6E'
-    green:   '#69FF94'
-    yellow:  '#FFCA80'
-    blue:    '#CAA9FA'
-    magenta: '#FF92D0'
-    cyan:    '#A4FFFF'
-    white:   '#FFFFFF'
-```
-
-#### Rofi
-
-Trong `config.rasi` đã set theme:
-
-```
-@theme "/usr/share/rofi/themes/nord.rasi"
-```
-
-## Công cụ quản lý theme
-
-### Lxappearance
-
-Công cụ GUI để chọn GTK theme, icon, cursor:
+Dùng `lxappearance` để chọn font cho GTK:
 
 ```bash
 pacman -S lxappearance
+lxappearance
 ```
 
-Chạy `lxappearance` sau khi có X → chọn theme từ dropdown.
+Hoặc sửa trực tiếp file `~/.config/gtk-3.0/settings.ini`:
 
-### Cập nhật theme sau khi thay đổi
-
-Sau khi sửa file cấu hình, cần logout và login lại X để thấy thay đổi.
-
-```bash
-# Hoặc dùng lệnh để apply ngay (không cần logout)
-gsettings set org.gnome.desktop.interface gtk-theme Nordic
+```ini
+[Settings]
+gtk-font-name=DejaVu Sans 10
 ```
-
-## Danh sách theme khuyên dùng
-
-| Loại | Theme khuyên dùng |
-|---|---|
-| GTK | Nordic |
-| Icon | Papirus-Dark |
-| Cursor | Bibata-Modern-Ice |
-| Terminal | Dracula (Alacritty) |
-| Rofi | Nord |
-| Polybar | Dracula (tự cấu hình) |
 
 ## Troubleshooting
 
-### Theme không apply
+### Font bị lỗi ô vuông (□) thay vì ký tự
 
-- Kiểm tra file `~/.config/gtk-3.0/settings.ini` tồn tại.
-- Kiểm tra theme đã được cài: `ls /usr/share/themes/`.
-- Chạy `lxappearance` và chọn lại theme.
+Nguyên nhân: Fallback font không có glyph cho ký tự đó.
 
-### Icon không hiển thị
+Cách xử lý:
+1. Cài thêm `noto-fonts-cjk` và `noto-fonts-emoji`.
+2. Cấu hình fallback trong `fonts.conf` như Bước 4.
 
-- Kiểm tra `ls /usr/share/icons/`.
-- Papirus phải được cài.
+### Font chữ bị rỗ (không anti-alias)
 
-### Cursor không đổi
+```bash
+# Kiểm tra cấu hình anti-aliasing
+xrdb -query | grep Xft
 
-- Kiểm tra `ls /usr/share/icons/`.
-- Thêm `XCURSOR_THEME` vào `/etc/environment`.
+# Thêm vào ~/.Xresources nếu chưa có
+echo "Xft.antialias: 1" >> ~/.Xresources
+echo "Xft.hinting: full" >> ~/.Xresources
+xrdb -merge ~/.Xresources
+```
+
+### Không tìm thấy font sau khi cài
+
+```bash
+fc-cache -fv   # Force rebuild cache
+fc-list | grep -i "ten-font"
+```
+
+### Font chữ quá nhỏ trên màn hình 1080p
+
+Tăng DPI trong `~/.Xresources`:
+
+```
+Xft.dpi: 120
+```
+
+Hoặc trong `bspwmrc`:
+
+```bash
+xrandr --output eDP-1 --mode 1920x1080 --rate 144 --dpi 120
+```
 
 ## Tổng kết
 
-- GTK theme Nordic cho giao diện tối, dễ chịu.
-- Icon Papirus-Dark cho icon đồng bộ.
-- Cursor Bibata hiện đại.
-- Cấu hình cho GTK3, GTK4, Qt, và các ứng dụng cụ thể.
+- Đã cài đủ font cho terminal, desktop, và tiếng Việt.
+- Font monospace (JetBrains Mono) dùng cho coding.
+- Font UI (DejaVu Sans, Noto Sans) dùng cho giao diện.
+- Font icon (Nerd Font Symbols) dùng cho polybar/rofi.
+- Fontconfig cấu hình fallback để tránh lỗi hiển thị.

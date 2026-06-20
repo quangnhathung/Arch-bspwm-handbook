@@ -1,178 +1,245 @@
-# Rofi — Launcher
+# Picom — Compositor
 
 ## Mục tiêu
 
-Cài đặt và cấu hình Rofi — application launcher, window switcher, và nhiều
-chức năng khác.
+Cài đặt và cấu hình Picom — compositor cho Xorg, xử lý đổ bóng, chống tearing.
 
 ## Kiến thức nền
 
-### Rofi là gì?
+### Compositor là gì?
 
-Rofi là một launcher cho X11/Wayland. Ban đầu là bản fork của dmenu,
-Rofi có thể:
+Compositor là chương trình quản lý cách các cửa sổ được hiển thị lên màn hình.
+Nó thêm các hiệu ứng:
 
-- Tìm kiếm và chạy ứng dụng (drun mode).
-- Chạy lệnh tùy ý (run mode).
-- Chuyển đổi giữa các cửa sổ (window mode).
-- Thay thế cho các menu truyền thống.
+- **Đổ bóng (shadow)**: Bóng đổ phía sau cửa sổ.
+- **Trong suốt (transparency/fade)**: Làm mờ cửa sổ không focus.
+- **Chống xé hình (vsync)**: Đồng bộ với tốc độ làm tươi màn hình.
+- **Animation**: Hiệu ứng chuyển động khi mở/đóng cửa sổ.
 
-Rofi hoạt động như một popup overlay, không phải cửa sổ thông thường.
-Phím tắt `Super + d` (cấu hình trong sxhkdrc) để mở.
+### Tại sao cần compositor cho bspwm?
+
+bspwm không có compositor tích hợp. Nếu không có picom (hoặc compositor khác):
+
+- Không có đổ bóng → giao diện phẳng, khó phân biệt cửa sổ.
+- Có thể bị **screen tearing** (xé hình) khi di chuyển cửa sổ hay xem video.
+- Không có animation → chuyển cảnh khô cứng.
 
 ## Các bước thực hiện
 
-### Bước 1: Cài Rofi
+### Bước 1: Cài Picom
 
 ```bash
-pacman -S rofi
+pacman -S picom
 ```
 
-### Bước 2: Tạo thư mục config
+### Bước 2: Tạo thư mục và file config
 
 ```bash
 su - archuser
-mkdir -p ~/.config/rofi
+mkdir -p ~/.config/picom
 exit
 ```
 
-### Bước 3: Tạo file cấu hình
-
-Rofi có hai loại config: Xresources (cũ) và config.rasi (mới, dùng chung).
-
 ```bash
-vim /home/archuser/.config/rofi/config.rasi
+vim /home/archuser/.config/picom/picom.conf
 ```
 
-Nội dung:
+### Bước 3: File cấu hình picom.conf
 
+```conf
+#################################
+#         Animations            #
+#################################
+
+animations = true;
+animation-window-mass = 0.5;
+animation-for-open-window = "zoom";
+animation-for-workspace-switch-in = "slide-left";
+animation-for-workspace-switch-out = "slide-right";
+
+#################################
+#          Shadows              #
+#################################
+
+shadow = true;
+shadow-radius = 12;
+shadow-offset-x = -8;
+shadow-offset-y = -8;
+shadow-opacity = 0.4;
+shadow-red = 0.0;
+shadow-green = 0.0;
+shadow-blue = 0.0;
+shadow-exclude = [
+    "name = 'Notification'",
+    "class_g = 'Polybar'",
+    "class_g = 'Rofi'",
+    "class_g = 'Dunst'",
+    "class_g = 'Nitrogen'",
+    "name = 'picom'"
+];
+
+#################################
+#       Fading                  #
+#################################
+
+fading = true;
+fade-in-step = 0.03;
+fade-out-step = 0.03;
+fade-delta = 3;
+no-fading-openclose = true;
+fade-exclude = [];
+
+#################################
+#      Opacity                  #
+#################################
+
+inactive-opacity = 0.95;
+active-opacity = 1.0;
+frame-opacity = 1.0;
+inactive-opacity-override = false;
+opacity-rule = [
+    "90:class_g = 'Alacritty' && focused",
+    "80:class_g = 'Alacritty' && !focused"
+];
+
+#################################
+#      VSync / Tearing          #
+#################################
+
+vsync = true;
+
+#################################
+#     Window type settings      #
+#################################
+
+wintypes:
+{
+    tooltip = { fade = true; shadow = false; opacity = 0.85; };
+    dock = { shadow = false; };
+    desktop = { shadow = false; };
+    menu = { opacity = 0.95; };
+    popup_menu = { opacity = 0.95; };
+    dropdown_menu = { opacity = 0.95; };
+};
+
+#################################
+#      Blur                     #
+#################################
+
+blur-method = "none";
+blur-size = 12;
+blur-deviation = 5;
+blur-strength = 5;
+blur-background = false;
+blur-background-frame = false;
+blur-background-fixed = false;
+blur-kern = "3x3box";
+blur-background-exclude = [];
+
+#################################
+#      Miscellaneous            #
+#################################
+
+detect-rounded-corners = true;
+detect-transient = true;
+detect-client-opacity = true;
+refresh-rate = 144;
+use-damage = true;
+
+# NVIDIA-specific
+unredir-if-possible = false;
 ```
-configuration {
-    modi: "drun,run,window,power-menu";
-    icon-theme: "Papirus";
-    show-icons: true;
-    terminal: "alacritty";
-    drun-display-format: "{name}";
-    font: "FiraCode Nerd Font 12";
-    location: 0;
-    x-offset: 0;
-    y-offset: 0;
-    width: 40;
-    lines: 12;
-    columns: 1;
-    matching: "fuzzy";
-    sort: true;
-    sorting-method: "normal";
-    case-sensitive: false;
-    cycle: true;
-    sidebar-mode: false;
-    kb-mode-next: "Alt+Tab";
-    kb-mode-previous: "Alt+Shift+Tab";
-    kb-row-up: "Up,Control+p";
-    kb-row-down: "Down,Control+n";
-    kb-accept-entry: "Return,KP_Enter";
-    kb-cancel: "Escape,Control+c";
-}
 
-@theme "/usr/share/rofi/themes/nord.rasi"
-```
+### Bước 4: Cấu hình cho NVIDIA
 
-### Bước 4: Theme
-
-Rofi có sẵn nhiều theme:
-
-```bash
-ls /usr/share/rofi/themes/
-```
-
-Các theme phổ biến: `nord.rasi`, `gruvbox-dark.rasi`, `solarized.rasi`.
-
-Để dùng theme khác, sửa dòng `@theme` trong config.rasi.
-
-Nếu muốn tự tạo theme:
-
-```bash
-vim /home/archuser/.config/rofi/theme.rasi
-```
-
-### Bước 5: Power menu (tùy chọn)
-
-Cài rofi-power-menu:
-
-```bash
-pacman -S rofi-power-menu
-```
-
-Cấu hình trong sxhkdrc:
-
-```
-super + shift + x
-    rofi -show power-menu -modi power-menu:rofi-power-menu
-```
-
-## Các mode của Rofi
-
-| Mode | Chức năng | Phím tắt (trong sxhkdrc) |
-|---|---|---|
-| `drun` | Tìm kiếm và chạy ứng dụng (desktop files) | `Super + d` |
-| `run` | Chạy lệnh tùy ý | `Super + Shift + d` |
-| `window` | Chuyển đổi cửa sổ | `Super + Shift + r` |
-| `power-menu` | Tắt máy, reboot, logout | `Super + Shift + x` |
-
-## Tùy chỉnh
-
-### Kích thước
+Nếu dùng NVIDIA làm GPU chính, thêm option:
 
 ```ini
-width: 40;    # % màn hình
-lines: 12;    # số dòng hiển thị
+vsync = true;
+unredir-if-possible = false;
 ```
 
-### Fuzzy matching
+`unredir-if-possible = false` rất quan trọng với NVIDIA:
+Khi true, picom sẽ tắt compositor khi cửa sổ fullscreen → gây tearing.
+Đặt false để luôn bật compositor.
 
-```ini
-matching: "fuzzy";   # Tìm kiếm mờ (tolerant với lỗi chính tả)
-```
+### Bước 5: Kích hoạt trong bspwmrc
 
-### Icon theme
-
-```ini
-icon-theme: "Papirus";
-show-icons: true;
-```
-
-Cần cài icon theme:
+Trong `bspwmrc` đã có dòng:
 
 ```bash
-pacman -S papirus-icon-theme
+picom --config ~/.config/picom/picom.conf &
+```
+
+Nếu chưa có, thêm trước dòng `exec`.
+
+### Bước 6: Kiểm tra
+
+```bash
+# Khởi động picom thử
+picom --config ~/.config/picom/picom.conf
+
+# Kiểm tra lỗi
+picom --config ~/.config/picom/picom.conf --log-file /tmp/picom.log
+cat /tmp/picom.log
+```
+
+## Performance tuning
+
+### Giảm tải cho GPU
+
+```ini
+detect-rounded-corners = true;
+refresh-rate = 144;
+use-damage = true;
+```
+
+### Tắt animation nếu lag
+
+```ini
+animations = false;
+```
+
+### Tắt shadow cho terminal (tăng performance)
+
+```ini
+shadow-exclude = [
+    "class_g = 'Alacritty'"
+];
 ```
 
 ## Troubleshooting
 
-### Rofi không hiển thị icon
+### Screen tearing vẫn còn
 
-```bash
-# Kiểm tra icon theme
-rofi -show drun -icon-theme Papirus
+```ini
+vsync = true;
+unredir-if-possible = false;
 ```
 
-### Rofi không tìm thấy ứng dụng
-
-- Cache desktop files: `sudo update-desktop-database`.
-- Kiểm tra thư mục: `ls /usr/share/applications/`.
-
-### Rofi bị tile trên bspwm
-
-Trong bspwmrc đã có rule:
+Nếu vẫn bị tearing, thử backend khác:
 
 ```bash
-bspc rule -a Rofi:* state=floating
+picom --backend glx --config ~/.config/picom/picom.conf
 ```
 
-Nếu chưa, thêm vào.
+### Picom làm chậm ứng dụng
+
+Thử backend xrender thay vì glx:
+
+```ini
+backend = "xrender";
+```
+
+### Picom crash
+
+- Kiểm tra log: `cat /tmp/picom.log`.
+- Tắt animation và blur.
+- Dùng backend cũ hơn.
 
 ## Tổng kết
 
-- Rofi đã được cài với cấu hình cơ bản.
-- Hỗ trợ tìm kiếm ứng dụng, chạy lệnh, chuyển cửa sổ, power menu.
-- Giao diện Nord theme, hỗ trợ icon và fuzzy matching.
+- Picom đã được cài với cấu hình có shadow, fade, animation.
+- VSync được bật để chống tearing.
+- Cấu hình NVIDIA-specific để tránh lỗi fullscreen.
+- Picom tự động chạy cùng bspwm.

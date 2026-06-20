@@ -1,191 +1,110 @@
-# Khôi phục khẩn cấp
+# Không có âm thanh
 
-## Mục tiêu
+## Symptoms
 
-Hướng dẫn khôi phục hệ thống từ USB live khi không thể boot.
+- Không có tiếng từ loa trong.
+- Tai nghe không hoạt động.
+- HDMI audio không có.
+- Volume icon báo muted hoặc không thấy thiết bị.
 
-## Các bước khôi phục cơ bản
+## Cause
 
-### Bước 1: Boot USB Arch Live
+1. **PipeWire chưa chạy** hoặc chưa được enable.
+2. **ALSA card sai** — card mặc định là HDMI thay vì analog.
+3. **SOF firmware thiếu** — Intel SST không hoạt động.
+4. **Muted trong alsamixer**.
+5. **WirePlumber chưa chạy**.
+6. **Module sai** — pipewire-alsa hoặc pipewire-pulse thiếu.
 
-- Cắm USB Arch.
-- Boot từ USB (F12).
-- Chọn Arch Linux install medium.
-
-### Bước 2: Mount hệ thống
-
-```bash
-# Tìm partition BTRFS
-lsblk
-
-# Mount BTRFS partition
-mount /dev/nvme0n1p2 /mnt
-
-# Mount subvolume @ (root)
-mount -o subvol=@ /dev/nvme0n1p2 /mnt
-
-# Mount các subvolume khác
-mount -o subvol=@home /dev/nvme0n1p2 /mnt/home || mkdir -p /mnt/home
-mount -o subvol=@log /dev/nvme0n1p2 /mnt/var/log || mkdir -p /mnt/var/log
-mount -o subvol=@pkg /dev/nvme0n1p2 /mnt/var/cache/pacman/pkg || mkdir -p /mnt/var/cache/pacman/pkg
-mount -o subvol=@swap /dev/nvme0n1p2 /mnt/swap || mkdir -p /mnt/swap
-
-# Mount ESP
-mount /dev/nvme0n1p1 /mnt/efi
-```
-
-### Bước 3: Chroot
+## Diagnosis
 
 ```bash
-arch-chroot /mnt
+# Kiểm tra PipeWire
+systemctl --user status pipewire
+systemctl --user status pipewire-pulse
+systemctl --user status wireplumber
+
+# Kiểm tra ALSA cards
+cat /proc/asound/cards
+
+# Kiểm tra output devices
+pactl list sinks short
+
+# Kiểm tra SOF firmware
+dmesg | grep -i sof
+
+# Kiểm tra alsamixer
+alsamixer
+# Nhấn F6 để chọn card, kiểm tra Master và PCM
 ```
 
-### Bước 4: Xác định vấn đề
+## Fix
+
+### Fix 1: Start PipeWire
 
 ```bash
-# Kiểm tra kernel
-ls /boot/vmlinuz-linux
-ls /boot/initramfs-linux.img
-
-# Kiểm tra fstab
-cat /etc/fstab
-
-# Kiểm tra log
-journalctl -p 3 -xb --no-pager | tail -30
-
-# Kiểm tra disk
-df -h
-btrfs filesystem usage /
+systemctl --user enable --now pipewire pipewire-pulse wireplumber
 ```
 
-### Bước 5: Sửa lỗi
-
-Tùy theo lỗi:
-
-#### GRUB hỏng
+### Fix 2: Kiểm tra và chọn đúng card
 
 ```bash
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
-grub-mkconfig -o /boot/grub/grub.cfg
+# Xem card
+aplay -l
+
+# Set card mặc định
+cat /etc/asound.conf
+
+# Hoặc set bằng pactl
+pactl set-default-sink <tên-sink>
 ```
 
-#### Kernel hỏng
+### Fix 3: Cài lại SOF firmware
 
 ```bash
-pacman -S linux
-mkinitcpio -P
+sudo pacman -S sof-firmware alsa-firmware
+sudo reboot
 ```
 
-#### fstab sai
+### Fix 4: Unmute trong alsamixer
 
 ```bash
-vim /etc/fstab
-# Sửa UUID hoặc mount options
+alsamixer
+# F6 → chọn card HDA Intel PCH
+# Phím m → mute/unmute
+# Đảm bảo Master, PCM, Headphone không có chữ MM
+# ↑ để tăng volume
 ```
 
-#### NVIDIA lỗi
+### Fix 5: Kiểm tra kernel module
 
 ```bash
-# Blacklist NVIDIA
-echo -e "blacklist nvidia\nblacklist nvidia_modeset\nblacklist nvidia_uvm\nblacklist nvidia_drm" > /etc/modprobe.d/blacklist-nvidia.conf
-mkinitcpio -P
+lsmod | grep snd_hda_intel
+lsmod | grep snd_sof
+
+# Nếu thiếu
+sudo modprobe snd_hda_intel
 ```
 
-#### BTRFS filesystem lỗi
+### Fix 6: Cài PipeWire components đầy đủ
 
 ```bash
-# Kiểm tra
-btrfs device stats /
-
-# Sửa lỗi (cẩn thận)
-btrfs scrub start /
+sudo pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber
 ```
 
-### Bước 6: Restore từ snapshot
-
-Nếu có Timeshift snapshot (xem docs/07-btrfs/restore.md):
+### Fix 7: Restart âm thanh
 
 ```bash
-# Liệt kê snapshot
-timeshift --list
-
-# Restore
-timeshift --restore --snapshot 'TÊN-SNAPSHOT'
+systemctl --user restart pipewire pipewire-pulse wireplumber
 ```
-
-Hoặc thủ công:
-
-```bash
-cd /mnt
-mv @ @_broken
-mv .snapshots/@_GOOD_SNAPSHOT @
-```
-
-### Bước 7: Rebuild initramfs và GRUB
-
-```bash
-mkinitcpio -P
-grub-mkconfig -o /boot/grub/grub.cfg
-```
-
-### Bước 8: Reboot
-
-```bash
-exit
-umount -R /mnt
-reboot
-```
-
-## Các tình huống khẩn cấp
-
-### Mất hoàn toàn GRUB (ESP bị format)
-
-```bash
-# Tạo lại ESP
-mkfs.fat -F32 /dev/nvme0n1p1
-
-# Mount
-mount /dev/nvme0n1p1 /mnt/efi
-
-# Cài GRUB
-arch-chroot /mnt
-pacman -S grub efibootmgr
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
-grub-mkconfig -o /boot/grub/grub.cfg
-```
-
-### BTRFS subvolume @ bị xóa
-
-```bash
-# Tạo lại từ snapshot
-cd /mnt
-btrfs subvolume create @
-
-# Hoặc restore từ snapshot
-btrfs subvolume snapshot .snapshots/@_GOOD_SNAPSHOT @
-```
-
-### Kernel panic liên tục
-
-```bash
-# Boot vào kernel cũ từ GRUB advanced options
-# Hoặc chọn fallback initramfs
-# Hoặc dùng kernel linux-lts
-pacman -S linux-lts
-grub-mkconfig -o /boot/grub/grub.cfg
-```
-
-## Kit khẩn cấp nên có trên USB
-
-1. **Arch ISO** luôn cập nhật.
-2. **Backup config** (bspwmrc, sxhkdrc, grub, fstab).
-3. **Danh sách gói** (pkglist-official.txt, pkglist-aur.txt).
-4. **Script restore nhanh** (tự viết).
 
 ## Prevention
 
-1. **Timeshift snapshot tự động hàng ngày**.
-2. **Backup config ra ổ ngoài**.
-3. **Luôn có USB Arch bên mình**.
-4. **Đừng panic** — hầu hết lỗi đều sửa được từ USB.
-5. **Ghi chép lại những gì đã làm** trước khi hỏng.
+1. **Cài đầy đủ PipeWire + WirePlumber ngay từ đầu**.
+2. **Cài sof-firmware trong pacstrap** (đã làm).
+3. **Kiểm tra alsamixer sau mỗi lần update kernel**.
+4. **Enable user services** ngay sau khi cài:
+
+```bash
+systemctl --user enable pipewire pipewire-pulse wireplumber
+```

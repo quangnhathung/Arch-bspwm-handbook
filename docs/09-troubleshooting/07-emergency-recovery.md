@@ -1,113 +1,191 @@
-# NVIDIA Issues
+# Khôi phục khẩn cấp
 
-## Symptoms
+## Mục tiêu
 
-- Màn hình đen hoặc treo sau khi boot với NVIDIA.
-- `nvidia-smi` không thấy GPU.
-- Screen tearing.
-- Hiệu năng đồ họa kém.
-- Nhiệt độ cao / quạt chạy liên tục (do NVIDIA không tắt).
+Hướng dẫn khôi phục hệ thống từ USB live khi không thể boot.
 
-## Cause
+## Các bước khôi phục cơ bản
 
-1. **Kernel module không được load**.
-2. **Kernel parameter `nvidia-drm.modeset` thiếu hoặc sai**.
-3. **Xung đột giữa Intel và NVIDIA**.
-4. **NVIDIA không tắt khi dùng Intel mode**.
-5. **NVIDIA driver không tương thích với kernel mới**.
+### Bước 1: Boot USB Arch Live
 
-## Diagnosis
+- Cắm USB Arch.
+- Boot từ USB (F12).
+- Chọn Arch Linux install medium.
+
+### Bước 2: Mount hệ thống
 
 ```bash
-# Kiểm tra module
-lsmod | grep nvidia
+# Tìm partition BTRFS
+lsblk
 
-# Kiểm tra kernel parameter
-cat /proc/cmdline
+# Mount BTRFS partition
+mount /dev/nvme0n1p2 /mnt
 
-# Kiểm tra Xorg log
-cat /var/log/Xorg.0.log | grep -i nvidia
+# Mount subvolume @ (root)
+mount -o subvol=@ /dev/nvme0n1p2 /mnt
 
-# Kiểm tra GPU
-lspci | grep -i nvidia
+# Mount các subvolume khác
+mount -o subvol=@home /dev/nvme0n1p2 /mnt/home || mkdir -p /mnt/home
+mount -o subvol=@log /dev/nvme0n1p2 /mnt/var/log || mkdir -p /mnt/var/log
+mount -o subvol=@pkg /dev/nvme0n1p2 /mnt/var/cache/pacman/pkg || mkdir -p /mnt/var/cache/pacman/pkg
+mount -o subvol=@swap /dev/nvme0n1p2 /mnt/swap || mkdir -p /mnt/swap
 
-# Kiểm tra nhiệt độ
-nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader
+# Mount ESP
+mount /dev/nvme0n1p1 /mnt/efi
 ```
 
-## Fix
-
-### Fix 1: Kernel module không load
+### Bước 3: Chroot
 
 ```bash
-# Load thủ công
-sudo modprobe nvidia
-sudo modprobe nvidia_modeset
-sudo modprobe nvidia_uvm
-sudo modprobe nvidia_drm
-
-# Thêm vào mkinitcpio
-vim /etc/mkinitcpio.conf
-# MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
-mkinitcpio -P
+arch-chroot /mnt
 ```
 
-### Fix 2: Kernel parameter
+### Bước 4: Xác định vấn đề
 
 ```bash
-vim /etc/default/grub
-# GRUB_CMDLINE_LINUX_DEFAULT="... nvidia-drm.modeset=1 ..."
+# Kiểm tra kernel
+ls /boot/vmlinuz-linux
+ls /boot/initramfs-linux.img
+
+# Kiểm tra fstab
+cat /etc/fstab
+
+# Kiểm tra log
+journalctl -p 3 -xb --no-pager | tail -30
+
+# Kiểm tra disk
+df -h
+btrfs filesystem usage /
+```
+
+### Bước 5: Sửa lỗi
+
+Tùy theo lỗi:
+
+#### GRUB hỏng
+
+```bash
+grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
 grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
-### Fix 3: Screen tearing
+#### Kernel hỏng
 
 ```bash
-# Tạo /etc/X11/xorg.conf.d/10-nvidia.conf
-Section "OutputClass"
-    Identifier "nvidia"
-    MatchDriver "nvidia-drm"
-    Driver "nvidia"
-    Option "AllowEmptyInitialConfiguration"
-    Option "PrimaryGPU" "yes"
-    Option "SLI" "Off"
-    Option "MetaModes" "nvidia-auto-select +0+0 {ForceFullCompositionPipeline=On}"
-EndSection
-
-# Picom
-vim ~/.config/picom/picom.conf
-# unredir-if-possible = false
+pacman -S linux
+mkinitcpio -P
 ```
 
-### Fix 4: NVIDIA không tắt ở Intel mode
+#### fstab sai
+
+```bash
+vim /etc/fstab
+# Sửa UUID hoặc mount options
+```
+
+#### NVIDIA lỗi
+
+```bash
+# Blacklist NVIDIA
+echo -e "blacklist nvidia\nblacklist nvidia_modeset\nblacklist nvidia_uvm\nblacklist nvidia_drm" > /etc/modprobe.d/blacklist-nvidia.conf
+mkinitcpio -P
+```
+
+#### BTRFS filesystem lỗi
 
 ```bash
 # Kiểm tra
-nvidia-smi
-# Nếu có process → NVIDIA đang hoạt động
+btrfs device stats /
 
-# Dùng envycontrol để tắt
-sudo envycontrol -s intel
-sudo reboot
-
-# Hoặc tắt thủ công
-sudo tee /proc/acpi/bbswitch <(echo OFF)
+# Sửa lỗi (cẩn thận)
+btrfs scrub start /
 ```
 
-### Fix 5: Driver không tương thích
+### Bước 6: Restore từ snapshot
+
+Nếu có Timeshift snapshot (xem docs/07-btrfs/restore.md):
 
 ```bash
-# Cài nvidia-dkms (tự rebuild với kernel mới)
-sudo pacman -S nvidia-dkms
+# Liệt kê snapshot
+timeshift --list
 
-# Hoặc downgrade driver
-sudo pacman -U /var/cache/pacman/pkg/nvidia-xxx.pkg.tar.zst
+# Restore
+timeshift --restore --snapshot 'TÊN-SNAPSHOT'
 ```
+
+Hoặc thủ công:
+
+```bash
+cd /mnt
+mv @ @_broken
+mv .snapshots/@_GOOD_SNAPSHOT @
+```
+
+### Bước 7: Rebuild initramfs và GRUB
+
+```bash
+mkinitcpio -P
+grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+### Bước 8: Reboot
+
+```bash
+exit
+umount -R /mnt
+reboot
+```
+
+## Các tình huống khẩn cấp
+
+### Mất hoàn toàn GRUB (ESP bị format)
+
+```bash
+# Tạo lại ESP
+mkfs.fat -F32 /dev/nvme0n1p1
+
+# Mount
+mount /dev/nvme0n1p1 /mnt/efi
+
+# Cài GRUB
+arch-chroot /mnt
+pacman -S grub efibootmgr
+grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
+grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+### BTRFS subvolume @ bị xóa
+
+```bash
+# Tạo lại từ snapshot
+cd /mnt
+btrfs subvolume create @
+
+# Hoặc restore từ snapshot
+btrfs subvolume snapshot .snapshots/@_GOOD_SNAPSHOT @
+```
+
+### Kernel panic liên tục
+
+```bash
+# Boot vào kernel cũ từ GRUB advanced options
+# Hoặc chọn fallback initramfs
+# Hoặc dùng kernel linux-lts
+pacman -S linux-lts
+grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+## Kit khẩn cấp nên có trên USB
+
+1. **Arch ISO** luôn cập nhật.
+2. **Backup config** (bspwmrc, sxhkdrc, grub, fstab).
+3. **Danh sách gói** (pkglist-official.txt, pkglist-aur.txt).
+4. **Script restore nhanh** (tự viết).
 
 ## Prevention
 
-1. **Luôn dùng `nvidia-drm.modeset=1`**.
-2. **Cấu hình ForceFullCompositionPipeline** để chống tearing.
-3. **Dùng nvidia-dkms** nếu kernel update thường xuyên.
-4. **Kiểm tra nvidia-smi** sau mỗi update.
-5. **Snapshot trước update NVIDIA driver**.
+1. **Timeshift snapshot tự động hàng ngày**.
+2. **Backup config ra ổ ngoài**.
+3. **Luôn có USB Arch bên mình**.
+4. **Đừng panic** — hầu hết lỗi đều sửa được từ USB.
+5. **Ghi chép lại những gì đã làm** trước khi hỏng.

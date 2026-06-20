@@ -1,225 +1,156 @@
-# Dọn dẹp gói
+# Yay — AUR Helper
 
 ## Mục tiêu
 
-Giữ hệ thống sạch sẽ bằng cách xóa các gói và file không cần thiết.
+Cài đặt và sử dụng yay để truy cập Arch User Repository (AUR).
 
 ## Kiến thức nền
 
-### Tại sao cần dọn dẹp?
+### AUR là gì?
 
-- Cache pacman có thể lên đến vài GB.
-- Orphan packages (gói mồ côi) chiếm dung lượng.
-- Gói không dùng làm chậm hệ thống (dependencies check).
-- Dọn dẹp = bảo trì hệ thống.
+Arch User Repository (AUR) là kho lưu trữ cộng đồng do người dùng Arch đóng góp.
+Nó chứa các gói không có trong repository chính thức.
 
-### Orphan packages là gì?
+AUR chứa các `PKGBUILD` — script hướng dẫn cách build gói từ source.
+Khi bạn "cài từ AUR", thực chất bạn đang tải PKGBUILD, kiểm tra, build,
+và cài bằng makepkg.
 
-Orphan packages là gói được cài tự động như dependency của một gói khác,
-nhưng gói đó đã bị xóa. Chúng không còn được sử dụng bởi bất kỳ gói nào.
+### Tại sao cần AUR helper?
 
-## Các bước dọn dẹp
+AUR helper tự động hóa quy trình:
+1. Tìm kiếm gói trên AUR.
+2. Clone PKGBUILD.
+3. Kiểm tra (tùy chọn).
+4. Cài dependencies.
+5. Build và cài.
 
-### Bước 1: Xóa cache pacman
+### yay
+
+yay (Yet Another Yogurt) là AUR helper phổ biến nhất.
+Cú pháp tương tự pacman:
 
 ```bash
-# Giữ 3 phiên bản gần nhất của mỗi gói
-paccache -r
-
-# Giữ 1 phiên bản
-paccache -rk 1
-
-# Xóa tất cả cache (không khuyên dùng)
-pacman -Scc
+yay -S gói       # Cài từ AUR hoặc chính thức
+yay -Syu         # Cập nhật tất cả (AUR + chính thức)
+yay -Ss từ_khóa  # Tìm trong AUR + chính thức
 ```
 
-### Bước 2: Xóa orphan packages
+### Lưu ý về bảo mật AUR
+
+Gói AUR do cộng đồng đóng góp, không được kiểm duyệt chính thức.
+**Rủi ro**: Mã độc có thể được đưa vào PKGBUILD.
+
+An toàn:
+- Chỉ cài gói AUR phổ biến (nhiều vote).
+- Đọc PKGBUILD trước khi build.
+- Tin tưởng maintainer có uy tín.
+
+## Các bước thực hiện
+
+### Bước 1: Cài yay từ AUR
 
 ```bash
-# Kiểm tra orphan
-pacman -Qtd
-
-# Xóa orphan (nếu có)
-pacman -Rns $(pacman -Qtdq)
+pacman -S --needed base-devel git
+git clone https://aur.archlinux.org/yay.git
+cd yay
+makepkg -si
 ```
 
 Giải thích:
-- `-Qtd`: Query packages không cần thiết (orphan) + không có gói nào phụ thuộc.
-- `-Qtdq`: Chỉ xuất tên gói.
-- `$(...)`: Command substitution — kết quả làm input cho pacman -Rns.
+- `git clone`: Tải PKGBUILD của yay từ AUR.
+- `makepkg -si`: Build gói (`-s`: tự động cài dependencies, `-i`: cài gói).
 
-### Bước 3: Xóa cache yay
+### Bước 2: Xác nhận cài đặt
 
 ```bash
-# Xóa các PKGBUILD đã clone
+yay --version
+```
+
+### Bước 3: Cấu hình yay (tùy chọn)
+
+```bash
+yay --save --answerclean None --answerdiff None
+```
+
+Các option:
+
+| Option | Mô tả |
+|---|---|
+| `--answerclean None` | Không hỏi về xóa file build |
+| `--answerdiff None` | Không hỏi về diff PKGBUILD |
+| `--answeredit None` | Không hỏi về edit PKGBUILD |
+| `--answerupgrade None` | Không hỏi về upgrade AUR |
+
+Cẩn thận: Không xem diff có thể bỏ lỡ code độc. Chỉ dùng các option này
+khi đã quen.
+
+## Các lệnh yay thường dùng
+
+```bash
+# Cập nhật tất cả (pacman + AUR)
+yay -Syu
+
+# Cài gói (tự động tìm trong AUR hoặc chính thức)
+yay -S gói
+
+# Cài gói từ AUR (không tìm trong chính thức)
+yay -Sa gói
+
+# Tìm kiếm gói
+yay -Ss từ_khóa
+
+# Tìm trong AUR
+yay -Ssa từ_khóa
+
+# Xóa gói
+yay -Rns gói
+
+# Xóa cache và file build
 yay -Sc
 ```
 
-### Bước 4: Xóa journal cũ
+## Khi nào dùng pacman vs yay
 
-```bash
-# Xem dung lượng journal
-journalctl --disk-usage
-
-# Giữ journal 100MB
-journalctl --vacuum-size=100M
-
-# Giữ journal 2 tuần
-journalctl --vacuum-time=2weeks
-```
-
-### Bước 5: Xóa log cũ
-
-```bash
-# Xem dung lượng log
-du -sh /var/log/
-
-# Xóa log journal
-sudo journalctl --vacuum-time=1month
-
-# Xóa log cũ trong /var/log (cẩn thận)
-find /var/log -name "*.log.*" -mtime +30 -delete
-```
-
-## Tự động dọn dẹp
-
-### Tạo script dọn dẹp
-
-```bash
-vim /usr/local/bin/cleanup-arch
-```
-
-Nội dung:
-
-```bash
-#!/bin/bash
-# System cleanup script
-
-echo "=== Cleaning pacman cache ==="
-paccache -rk1
-
-echo "=== Removing orphan packages ==="
-if pacman -Qtdq &>/dev/null; then
-    pacman -Rns $(pacman -Qtdq) --noconfirm
-else
-    echo "No orphan packages found."
-fi
-
-echo "=== Cleaning yay cache ==="
-yay -Sc --noconfirm 2>/dev/null || true
-
-echo "=== Cleaning journal ==="
-journalctl --vacuum-size=100M 2>/dev/null
-
-echo "=== Done ==="
-```
-
-Cấp quyền:
-
-```bash
-chmod +x /usr/local/bin/cleanup-arch
-```
-
-Chạy:
-
-```bash
-sudo cleanup-arch
-```
-
-### Cron job (nếu có cron)
-
-Hoặc dùng systemd timer:
-
-```bash
-vim /etc/systemd/system/cleanup.timer
-```
-
-Nội dung:
-
-```ini
-[Unit]
-Description=Weekly cleanup
-
-[Timer]
-OnCalendar=weekly
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-```bash
-vim /etc/systemd/system/cleanup.service
-```
-
-Nội dung:
-
-```ini
-[Unit]
-Description=System cleanup
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/cleanup-arch
-```
-
-Enable:
-
-```bash
-systemctl enable --now cleanup.timer
-```
-
-## Xem dung lượng hệ thống
-
-```bash
-# Tổng quan
-du -sh / 2>/dev/null | sort -rh
-
-# Thư mục lớn
-du -sh /* 2>/dev/null | sort -rh | head -10
-
-# Xem cụ thể thư mục nào lớn
-du -sh /var/* 2>/dev/null | sort -rh | head -10
-du -sh /home/* 2>/dev/null | sort -rh | head -10
-```
-
-## Kiểm tra định kỳ
-
-| Task | Tần suất |
+| Tình huống | Dùng |
 |---|---|
-| `paccache -r` | Hàng tháng |
-| Xóa orphan | Hàng tháng |
-| `journalctl --vacuum-size=100M` | Hàng tháng |
-| `yay -Sc` | Hàng tháng |
-| Kiểm tra dung lượng ổ | Hàng tháng |
+| Gói có trong repo chính thức | `pacman -S` |
+| Gói chỉ có trong AUR | `yay -S` |
+| Cập nhật toàn bộ hệ thống | `yay -Syu` |
+| Tìm gói | `yay -Ss` (tìm cả 2) |
+| Xóa gói | `pacman -Rns` hoặc `yay -Rns` |
 
 ## Troubleshooting
 
-### "failed to prepare transaction (could not satisfy dependencies)"
+### "fatal: could not create work tree dir"
+
+Cần git: `pacman -S git`.
+
+### "PKGBUILD not found"
+
+Gói AUR không tồn tại hoặc tên sai → kiểm tra trên https://aur.archlinux.org.
+
+### Build fail vì thiếu dependencies
 
 ```bash
-# Kiểm tra xung đột
-pacman -Qtd
-
-# Xóa thủ công từng cái
-pacman -Rns gói
+# yay tự động cài dependencies, nhưng nếu lỗi:
+yay -S gói --makepkg-opt=-s
 ```
 
-### "error: target not found"
+### "Could not find all required packages"
 
-Gói không tồn tại trong database → kiểm tra tên.
+Một số dependencies chỉ có trong AUR → phải cài từng cái.
 
-### Cache quá lớn (paccache không xóa được)
+## Best practices
 
-```bash
-# Xóa trực tiếp
-rm -rf /var/cache/pacman/pkg/*.pkg.tar.zst
-```
+1. **Thường xuyên update**: `yay -Syu` hàng tuần.
+2. **Đọc PKGBUILD** của gói AUR trước khi cài lần đầu.
+3. **Không dùng yay làm root** (yay tự động dùng sudo khi cần).
+4. **Dọn cache**: `yay -Sc` định kỳ.
+5. **Kiểm tra orphan**: `yay -Yc`.
 
 ## Tổng kết
 
-- Xóa cache pacman định kỳ.
-- Xóa orphan packages.
-- Xóa journal cũ.
-- Script tự động cleanup.
-- Kiểm tra dung lượng định kỳ để phát hiện sớm.
+- yay là AUR helper phổ biến, cú pháp giống pacman.
+- Cài từ source thông qua AUR.
+- Cập nhật đồng thời pacman + AUR với `yay -Syu`.
+- Cần thận trọng với bảo mật khi dùng AUR.

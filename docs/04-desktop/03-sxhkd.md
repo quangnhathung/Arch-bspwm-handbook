@@ -1,166 +1,256 @@
-# Nitrogen — Wallpaper
+# Sxhkd — Keybinding
 
 ## Mục tiêu
 
-Cài đặt Nitrogen để quản lý hình nền (wallpaper).
+Cấu hình sxhkd (Simple X Hotkey Daemon) để điều khiển bspwm và ứng dụng
+bằng bàn phím.
 
 ## Kiến thức nền
 
-### Nitrogen là gì?
+### sxhkd là gì?
 
-Nitrogen là chương trình quản lý wallpaper cho X11. Nó hỗ trợ:
+sxhkd là một daemon (chương trình nền) lắng nghe sự kiện bàn phím và thực thi
+lệnh khi phím tắt được nhấn.
 
-- Đặt hình nền từ thư mục.
-- Tự động restore wallpaper sau khi reboot.
-- Hỗ trợ multi-monitor.
-- Các chế độ: center, zoom, fill, fit, span, tile.
+```
+Nhấn phím → sxhkd nhận sự kiện → tra cứu trong sxhkdrc → thực thi lệnh
+```
 
-### Nitrogen vs feh vs hsetroot
+### Cú pháp sxhkdrc
 
-| Công cụ | Loại | Đặc điểm |
-|---|---|---|
-| Nitrogen | GUI | Có giao diện để chọn wallpaper |
-| feh | CLI | Không GUI, dùng được cho slideshow |
-| hsetroot | CLI | Nhẹ nhất, chỉ set màu nền |
+```
+# Comment
+modifier + key
+    command
 
-Dùng Nitrogen vì dễ chọn wallpaper, lưu cấu hình tự động.
+# Ví dụ:
+super + Return
+    alacritty
+```
+
+- `super`: Windows key (còn gọi là Mod4).
+- Các modifier: `super`, `alt`, `control`, `shift`.
+- Có thể kết hợp nhiều modifier: `super + shift + Return`.
+- Lệnh thụt vào đầu dòng bằng tab (không phải space).
 
 ## Các bước thực hiện
 
-### Bước 1: Cài Nitrogen
+### Bước 1: Cấu hình sxhkdrc
 
 ```bash
-pacman -S nitrogen
+vim /home/archuser/.config/sxhkd/sxhkdrc
 ```
 
-### Bước 2: Tạo thư mục chứa wallpaper
+### Bước 2: File sxhkdrc đầy đủ
 
 ```bash
-su - archuser
-mkdir -p ~/Pictures/wallpapers
-exit
+#
+# sxhkdrc — bspwm keybindings
+#
+
+# ---- Terminal ----
+super + Return
+    alacritty
+
+# ---- Launcher ----
+super + d
+    rofi -show drun
+super + shift + d
+    rofi -show run
+
+# ---- Close window ----
+super + q
+    bspc node -c
+
+# ---- Kill application ----
+super + shift + q
+    bspc node -k
+
+# ---- Focus ----
+super + {h,j,k,l}
+    bspc node -f {west,south,north,east}
+
+super + Tab
+    bspc node -f last
+
+# ---- Move window ----
+super + shift + {h,j,k,l}
+    bspc node -s {west,south,north,east}
+
+# ---- Swap with other monitor ----
+super + shift + m
+    bspc node -m next
+
+# ---- Split mode ----
+super + {t,o}
+    bspc node -t {tiled,floating}
+super + shift + {t,o}
+    bspc node -t {pseudo_tiled,fullscreen}
+
+# ---- Split ratio ----
+super + {1,2}
+    bspc node -i # expand window
+    bspc node -o # shrink window
+
+# ---- Workspace ----
+super + {1-9}
+    bspc desktop -f '{1-9}'
+
+# ---- Move to workspace ----
+super + shift + {1-9}
+    bspc node -d '{1-9}'
+
+# ---- Resize window ----
+super + alt + {h,j,k,l}
+    bspc node -z {left -20 0,bottom 0 20,top 0 -20,right 20 0}
+
+# ---- Reload configs ----
+super + Escape
+    pkill -USR1 -x sxhkd && bspc wm -r
+
+# ---- Screenshot ----
+Print
+    maim -u ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
+
+super + Print
+    maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
+
+# ---- Lock screen ----
+super + shift + Escape
+    betterlockscreen -l
+
+# ---- Power menu ----
+super + shift + x
+    rofi -show power-menu -modi power-menu:rofi-power-menu
+
+# ---- Volume ----
+XF86AudioRaiseVolume
+    pamixer -i 5
+XF86AudioLowerVolume
+    pamixer -d 5
+XF86AudioMute
+    pamixer -t
+
+# ---- Brightness ----
+XF86MonBrightnessUp
+    brightnessctl set +5%
+XF86MonBrightnessDown
+    brightnessctl set 5%-
+
+# ---- Media ----
+XF86AudioPlay
+    playerctl play-pause
+XF86AudioNext
+    playerctl next
+XF86AudioPrev
+    playerctl previous
+
+# ---- Program shortcuts ----
+super + b
+    firefox
+super + e
+    pcmanfm
+super + r
+    rofi -show run
+super + shift + r
+    rofi -show window
+
+# ---- Float / Unfloat ----
+super + space
+    bspc node -t floating; bspc node -g sticky
+
+# ---- Stack / Unstack ----
+super + s
+    bspc node --presel-dir east; bspc node --presel-ratio 0.5
+
+# ---- Toggle monocle ----
+super + m
+    bspc desktop -l next
 ```
 
-### Bước 3: Copy wallpaper vào thư mục
+### Bước 3: Thêm sxhkd vào bspwmrc
 
-Bạn có thể dùng wget để tải wallpaper hoặc copy từ USB.
+Kiểm tra file `bspwmrc` đã có dòng:
 
 ```bash
-# Ví dụ tải wallpaper từ internet (trong user session)
-wget -O ~/Pictures/wallpapers/default.jpg https://example.com/wallpaper.jpg
+sxhkd &
 ```
 
-### Bước 4: Cấu hình Nitrogen lần đầu
+Nếu chưa, thêm vào trước `exec` (hoặc đơn giản là chạy nền).
 
-Mở Nitrogen (sau khi có X):
+### Bước 4: Kiểm tra và reload
+
+Sau khi chỉnh sửa sxhkdrc, reload:
 
 ```bash
-nitrogen ~/Pictures/wallpapers/
+pkill -USR1 -x sxhkd
 ```
 
-Hoặc chạy từ Rofi → tìm "Nitrogen".
+## Giải thích các phím tắt quan trọng
 
-Trong Nitrogen:
-1. **Preferences** → Add thư mục `~/Pictures/wallpapers`.
-2. Chọn wallpaper.
-3. Chọn chế độ: **Scaled** (fit), **Zoomed** (crop), **Centered**.
-4. Nhấn **Apply**.
+### Cơ bản
 
-Nitrogen sẽ tự động tạo file `~/.config/nitrogen/bg-saved.cfg`
-và `~/.config/nitrogen/nitrogen.cfg`.
+| Phím | Chức năng |
+|---|---|
+| `Super + Enter` | Mở terminal (Alacritty) |
+| `Super + d` | Mở launcher (Rofi) |
+| `Super + q` | Đóng cửa sổ |
+| `Super + h/j/k/l` | Focus sang trái/xuống/lên/phải |
 
-### Bước 5: Restore wallpaper khi khởi động
+### Workspace
 
-Trong `bspwmrc`, đã có dòng:
+| Phím | Chức năng |
+|---|---|
+| `Super + 1-9` | Chuyển sang workspace 1-9 |
+| `Super + Shift + 1-9` | Di chuyển cửa sổ sang workspace 1-9 |
 
-```bash
-nitrogen --restore &
-```
+### Window management
 
-Dòng này đọc file config và đặt lại wallpaper như lần cuối.
+| Phím | Chức năng |
+|---|---|
+| `Super + t` | Chuyển tiled/floating |
+| `Super + Shift + t` | Pseudo-tiled / fullscreen |
+| `Super + o` | Toggle floating |
+| `Super + Space` | Float + sticky |
 
-### Bước 6: Kiểm tra
+### Resize
 
-```bash
-# Khởi động nitrogen để chọn wallpaper
-nitrogen ~/Pictures/wallpapers/
+| Phím | Chức năng |
+|---|---|
+| `Super + Alt + h/j/k/l` | Resize window |
 
-# Restore
-nitrogen --restore
-```
+## Ký hiệu trong sxhkdrc
 
-## File cấu hình
-
-### bg-saved.cfg
-
-```ini
-[:0.0]
-file=/home/archuser/Pictures/wallpapers/default.jpg
-mode=4
-bgcolor=#000000
-```
-
-- `:0.0`: Monitor (có thể thay đổi với multi-monitor).
-- `file`: Đường dẫn wallpaper.
-- `mode`: 4 = zoomed crop.
-- `bgcolor`: Màu nền (nếu ảnh không fill hết).
-
-### nitrogen.cfg
-
-```ini
-[geometry]
-posx=0
-posy=0
-sizex=800
-sizey=600
-
-[nitrogen]
-view=icon
-recurse=true
-sort=alpha
-icon_caps=false
-dirs=/home/archuser/Pictures/wallpapers;
-```
-
-## Chế độ hiển thị
-
-| Mode | Giá trị | Mô tả |
-|---|---|---|
-| Centered | 1 | Ảnh ở giữa, không scale |
-| Scaled | 2 | Scale vừa màn hình (có thể méo) |
-| Stretched | 3 | Kéo giãn fill màn hình |
-| Zoomed | 4 | Scale giữ tỉ lệ, crop phần thừa |
-| Tiled | 5 | Lặp ảnh |
-
-## Không có hình nền (chỉ màu nền)
-
-Nếu chưa có wallpaper hoặc không muốn dùng ảnh:
-
-```bash
-nitrogen --set-zoom-fill /path/to/image.jpg
-```
-
-Hoặc dùng hsetroot cho đơn giản:
-
-```bash
-pacman -S hsetroot
-hsetroot -solid "#282A36"
-```
+- `super`: Mod4 (Windows key).
+- `{h,j,k,l}`: Batch syntax — sinh ra 4 binding riêng biệt.
+  ```super + {h,j,k,l}``` tương đương 4 dòng riêng lẻ.
+- `{1-9}`: Range syntax — sinh ra 9 binding.
 
 ## Troubleshooting
 
-### Nitrogen không restore wallpaper
+### sxhkd không hoạt động
 
-- Kiểm tra `~/.config/nitrogen/bg-saved.cfg` tồn tại.
-- Kiểm tra file wallpaper còn tồn tại.
-- Kiểm tra đường dẫn trong file config.
+```bash
+# Kiểm tra sxhkd có chạy không
+pgrep -x sxhkd
 
-### Nitrogen không tìm thấy thư mục
+# Nếu không chạy, start
+sxhkd &
 
-Thêm thư mục trong Preferences hoặc sửa `nitrogen.cfg`.
+# Kiểm tra lỗi
+killall sxhkd
+sxhkd -t 10   # Chạy foreground với timeout 10s, log lỗi ra terminal
+```
+
+### Phím tắt không hoạt động
+
+- Kiểm tra syntax trong sxhkdrc (dùng tab, không space cho lệnh).
+- Reload: `pkill -USR1 -x sxhkd`.
+- Kiểm tra xem phím tắt có bị conflict với ứng dụng khác không.
 
 ## Tổng kết
 
-- Nitrogen đã được cài để quản lý wallpaper.
-- Wallpaper tự động restore khi khởi động.
-- Hỗ trợ các chế độ hiển thị khác nhau.
+- sxhkdrc đã được cấu hình với các phím tắt quan trọng.
+- sxhkd chạy nền và lắng nghe phím.
+- Các phím tắt bao gồm: terminal, launcher, window management, workspace,
+  resize, volume, brightness, media.

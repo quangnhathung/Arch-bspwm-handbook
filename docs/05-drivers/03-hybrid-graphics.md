@@ -1,217 +1,214 @@
-# EnvyControl — Quản lý GPU
+# Hybrid Graphics — Intel + NVIDIA
 
 ## Mục tiêu
 
-Cài đặt EnvyControl để dễ dàng chuyển đổi giữa Intel và NVIDIA.
+Hiểu và cấu hình hybrid graphics: Intel UHD + NVIDIA RTX 4050 hoạt động
+cùng nhau trên cùng một máy.
 
 ## Kiến thức nền
 
-### EnvyControl là gì?
+### Hybrid Graphics là gì?
 
-EnvyControl là công cụ CLI cho phép chuyển đổi chế độ đồ họa trên laptop
-NVIDIA Optimus. Nó hỗ trợ:
+Laptop có hai GPU:
+- **Integrated (iGPU)**: Intel UHD Graphics — tiết kiệm pin, đủ cho desktop và video.
+- **Discrete (dGPU)**: NVIDIA RTX 4050 — mạnh, dùng cho render, game (sau này).
 
-- **Intel mode**: Chỉ dùng Intel iGPU, NVIDIA tắt hoàn toàn.
-- **NVIDIA mode**: Chỉ dùng NVIDIA dGPU, Intel tắt.
-- **Hybrid mode**: Cả hai đều hoạt động, NVIDIA render offload.
+Hai GPU kết nối với nhau và với màn hình qua các đường:
 
-### Tại sao dùng EnvyControl?
+```
+Intel iGPU ────┤ Màn hình laptop (eDP)
+NVIDIA dGPU ───┤
+```
 
-Thay vì cấu hình thủ công Xorg, kernel params, EnvyControl tự động hóa
-việc chuyển đổi. Một lệnh duy nhất chuyển chế độ, EnvyControl:
+Trên máy Lenovo LOQ, màn hình laptop được kết nối trực tiếp với Intel iGPU.
+NVIDIA render ra framebuffer rồi copy qua Intel để hiển thị (kiến trúc Optimus).
 
-1. Sửa file Xorg config.
-2. Cập nhật GRUB.
-3. Rebuild initramfs.
-4. Reboot (bắt buộc sau khi chuyển).
+### Cách hoạt động
 
-### Rủi ro
+```
+Ứng dụng → Nvidia GPU (render) → framebuffer → Intel GPU (display) → màn hình
+```
 
-- **Phải reboot sau mỗi lần chuyển** (không thể chuyển nóng).
-- Nếu chọn sai chế độ → màn hình đen → cần recovery.
-- EnvyControl ghi đè Xorg config → nếu đã cấu hình thủ công, có thể bị mất.
+### Các chế độ hoạt động
+
+| Chế độ | iGPU | dGPU | Pin | Hiệu năng |
+|---|---|---|---|---|
+| Intel Only | Hoạt động | Tắt | Tốt nhất | Thấp (dùng Intel) |
+| NVIDIA Only | Tắt | Hoạt động | Thấp nhất | Cao nhất |
+| Hybrid | Hoạt động | Hoạt động | Trung bình | Linh hoạt |
+| On-Demand | Hoạt động | Ngủ, thức khi cần | Tốt | Cao khi cần |
 
 ## Các bước thực hiện
 
-### Bước 1: Cài EnvyControl từ AUR
+### Bước 1: Cài driver (đã làm)
+
+- Intel driver: đã cài ở bài intel.md.
+- NVIDIA driver: đã cài ở bài nvidia.md.
+
+### Bước 2: Xác nhận cả hai GPU
 
 ```bash
-pacman -S --needed base-devel git
-git clone https://aur.archlinux.org/envycontrol.git
-cd envycontrol
-makepkg -si
-```
-
-Hoặc nếu đã có yay:
-
-```bash
-yay -S envycontrol
-```
-
-### Bước 2: Kiểm tra trạng thái hiện tại
-
-```bash
-envycontrol --query
+lspci | grep -E "VGA|3D"
 ```
 
 Output:
 
 ```
-Current graphics mode: hybrid
+00:02.0 VGA compatible controller: Intel Corporation Alder Lake-P Integrated Graphics Controller
+01:00.0 3D controller: NVIDIA Corporation AD107M [GeForce RTX 4050 Max-Q] (rev a1)
 ```
 
-### Bước 3: Chuyển sang Intel mode
+### Bước 3: Cấu hình PRIME (NVIDIA render offload)
+
+Tạo file Xorg để cho phép render offload:
 
 ```bash
-sudo envycontrol -s intel
+vim /etc/X11/xorg.conf.d/10-nvidia-prime.conf
 ```
 
-Sau đó reboot:
+Nội dung:
 
-```bash
-sudo reboot
+```
+Section "ServerLayout"
+    Identifier "layout"
+    Option "AllowEmptyInitialConfiguration"
+EndSection
+
+Section "Device"
+    Identifier "intel"
+    Driver "modesetting"
+    BusID  "PCI:0:2:0"
+    Option "AccelMethod" "none"
+EndSection
+
+Section "Device"
+    Identifier "nvidia"
+    Driver "nvidia"
+    BusID  "PCI:1:0:0"
+    Option "AllowEmptyInitialConfiguration"
+    Option "AllowExternalGpus"
+    Option "PrimaryGPU" "no"
+EndSection
+
+Section "Screen"
+    Identifier "screen"
+    Device "intel"
+EndSection
 ```
 
-**Kết quả**:
-- NVIDIA tắt hoàn toàn → pin tốt nhất.
-- Hiệu năng đồ họa 3D kém hơn (dùng Intel).
-- Nhiệt độ thấp hơn.
+Lưu ý: `BusID` phải đúng với output của `lspci`.
+- Intel: `00:02.0` → `PCI:0:2:0`
+- NVIDIA: `01:00.0` → `PCI:1:0:0`
 
-### Bước 4: Chuyển sang NVIDIA mode
+Định dạng BusID: `PCI:domain:bus:device:function`, thường là `PCI:0:2:0`.
+
+### Bước 4: Cấu hình biến môi trường
+
+Thêm vào `/etc/environment` hoặc `~/.bashrc`:
 
 ```bash
-sudo envycontrol -s nvidia
-sudo reboot
+# Dùng Intel làm primary display
+export __GLX_VENDOR_LIBRARY_NAME=mesa
+export DRI_PRIME=0
+
+# Khi muốn chạy ứng dụng trên NVIDIA
+# __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia
 ```
 
-**Kết quả**:
-- Intel tắt.
-- NVIDIA làm mọi thứ.
-- Hiệu năng cao nhất.
-- Pin nhanh hết hơn.
-
-### Bước 5: Chuyển sang Hybrid mode (khuyên dùng)
+### Bước 5: Kiểm tra chế độ hiện tại
 
 ```bash
-sudo envycontrol -s hybrid
-sudo reboot
-```
-
-**Kết quả**:
-- Cả hai GPU hoạt động.
-- Intel làm display, NVIDIA render offload.
-- Cân bằng giữa hiệu năng và pin.
-
-### Bước 6: Kiểm tra sau khi chuyển
-
-```bash
-# Kiểm tra GPU active
-envycontrol --query
-
-# Kiểm tra OpenGL renderer
+# Xem GPU nào đang active cho display
 glxinfo | grep "OpenGL renderer"
+```
 
-# Kiểm tra NVIDIA có active không
+Nếu đang dùng Intel:
+
+```
+OpenGL renderer string: Mesa Intel(R) Graphics (ADL GT2)
+```
+
+Nếu đang dùng NVIDIA:
+
+```
+OpenGL renderer string: NVIDIA GeForce RTX 4050 Laptop GPU/PCIe/SSE2
+```
+
+### Bước 6: Chạy ứng dụng trên NVIDIA (render offload)
+
+```bash
+# Render offload method
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia alacritty
+
+# Hoặc
+prime-run alacritty
+```
+
+`prime-run` là script từ gói `nvidia-prime`:
+
+```bash
+pacman -S nvidia-prime
+```
+
+Sau đó chỉ cần:
+
+```bash
+prime-run alacritty
+```
+
+## Kiểm tra ứng dụng đang dùng GPU nào
+
+```bash
+# Trong ứng dụng đó (ví dụ glxgears)
+prime-run glxgears
+
+# Xem process sử dụng NVIDIA
 nvidia-smi
 ```
 
-## Chi tiết từng chế độ
+## Chọn chế độ mặc định
 
-### Intel mode
-
-```
-GPU: Chỉ Intel
-Pin: ++++ (5/5)
-Nhiệt: Thấp
-Hiệu năng 3D: Thấp
-Dùng khi: Lướt web, xem phim, văn phòng, lúc di chuyển
-```
-
-### NVIDIA mode
-
-```
-GPU: Chỉ NVIDIA
-Pin: + (1/5)
-Nhiệt: Cao
-Hiệu năng 3D: Cao nhất
-Dùng khi: Cần GPU mạnh (render, game — sau này)
-```
-
-### Hybrid mode
-
-```
-GPU: Intel (display) + NVIDIA (render offload)
-Pin: ++ (2/5)
-Nhiệt: Trung bình
-Hiệu năng 3D: Theo nhu cầu
-Dùng khi: Sử dụng hàng ngày, thi thoảng cần GPU
-```
-
-## Log của EnvyControl
+### Chạy toàn bộ desktop trên NVIDIA
 
 ```bash
-cat /var/log/envycontrol.log
+# Sửa Xorg config để PrimaryGPU=yes
+vim /etc/X11/xorg.conf.d/10-nvidia.conf
+# Option "PrimaryGPU" "yes"
 ```
 
-## Gỡ EnvyControl
-
-Nếu muốn quay lại cấu hình thủ công:
+### Chạy toàn bộ desktop trên Intel
 
 ```bash
-# Kiểm tra các file đã backup
-ls /etc/envycontrol/
-
-# Restore Xorg config gốc
-sudo envycontrol --restore-xorg
-
-# Hoặc gỡ hoàn toàn
-sudo pacman -R envycontrol
+# Đảm bảo không có file Xorg nào set PrimaryGPU cho NVIDIA
+# Xóa hoặc comment dòng đó
 ```
 
 ## Troubleshooting
 
-### Màn hình đen sau khi chuyển chế độ
+### Màn hình đen khi chạy NVIDIA
 
-**Symptoms**: Sau reboot, màn hình đen, không vào được X.
+- BusID sai → kiểm tra `lspci` và sửa.
+- Thiếu kernel parameter → kiểm tra `nvidia-drm.modeset=1`.
 
-**Cause**: EnvyControl đã cấu hình sai Xorg hoặc kernel params.
-
-**Fix**:
-1. Boot vào single-user mode (thêm `systemd.unit=multi-user.target` vào GRUB).
-2. Chuyển về hybrid:
+### Render offload không hoạt động
 
 ```bash
-sudo envycontrol -s hybrid
-sudo reboot
+# Kiểm tra biến môi trường
+echo $__NV_PRIME_RENDER_OFFLOAD
+
+# Nếu không set → set thủ công
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
 ```
 
-3. Nếu vẫn đen, gỡ envycontrol và cấu hình thủ công.
+### Ứng dụng không dùng được GPU rời
 
-### EnvyControl báo lỗi "NVIDIA module not loaded"
-
-```bash
-# Load module thủ công
-modprobe nvidia
-modprobe nvidia_modeset
-modprobe nvidia_uvm
-modprobe nvidia_drm
-```
-
-## Khuyên dùng
-
-Với máy Lenovo LOQ 15IAX9:
-
-- **Mặc định**: Hybrid mode (dùng hàng ngày).
-- **Khi di chuyển**: Intel mode (tiết kiệm pin).
-- **Khi cần hiệu năng**: NVIDIA mode (render nặng, game).
-
-Tuy nhiên, hybrid mode thường là lựa chọn tốt nhất vì không cần reboot
-khi muốn chạy ứng dụng trên NVIDIA (dùng `prime-run`).
+- Kiểm tra ứng dụng có hỗ trợ GPU không.
+- Dùng `nvidia-smi` để kiểm tra process.
 
 ## Tổng kết
 
-- EnvyControl đã được cài từ AUR.
-- Ba chế độ: intel, nvidia, hybrid.
-- Chuyển đổi bằng một lệnh + reboot.
-- Hybrid mode khuyên dùng cho sử dụng hàng ngày.
-- Có rủi ro màn hình đen nếu chuyển sai chế độ.
+- Hybrid graphics hoạt động với Intel (display) + NVIDIA (render).
+- Render offload cho phép chọn GPU cho từng ứng dụng.
+- Có thể chạy toàn bộ desktop trên Intel hoặc NVIDIA.
+- prime-run là cách dễ nhất để chạy ứng dụng trên NVIDIA.

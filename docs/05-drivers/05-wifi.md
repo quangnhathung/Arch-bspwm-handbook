@@ -1,194 +1,220 @@
-# Intel GPU — UHD Graphics
+# Wi-Fi — Realtek RTL8852BE
 
 ## Mục tiêu
 
-Cấu hình Intel UHD Graphics (Alder Lake) cho hiệu suất tối ưu trên laptop.
+Cấu hình Wi-Fi cho card Realtek RTL8852BE (Wi-Fi 6).
 
 ## Kiến thức nền
 
-### iGPU Intel
+### Realtek RTL8852BE
 
-Intel UHD Graphics trên CPU i5-12450HX là GPU tích hợp (integrated),
-dùng chung RAM với hệ thống. Nó phụ trách:
+Card Wi-Fi trên Lenovo LOQ 15IAX9 là Realtek RTL8852BE (RTL8852BE).
 
-- Hiển thị desktop hàng ngày.
-- Xem video (có hardware acceleration).
-- Chạy các ứng dụng đồ họa nhẹ.
+- Chuẩn: 802.11ax (Wi-Fi 6)
+- Băng tần: 2.4GHz + 5GHz
+- Bluetooth đi kèm
 
-### Modesetting (KMS)
+### Tại sao cần driver riêng?
 
-Kernel Mode Setting (KMS) là cơ chế kernel quản lý độ phân giải, màu sắc,
-và các thông số màn hình. Intel driver trong kernel (`i915`) tự động kích hoạt
-KMS.
+Kernel Linux mới nhất đã có driver cho RTL8852BE (`rtw88_8852be`)
+nhưng có thể chưa ổn định hoặc bị thiếu firmware.
 
-### Tearing
+Driver ổn định nhất là `rtl8852be-dkms` từ AUR.
 
-Tearing (xé hình) xảy ra khi GPU render frame mới trong khi màn hình đang
-refresh → hình ảnh bị xé ngang. Với Intel iGPU, tearing thường do thiếu
-vsync hoặc compositor (picom đã giải quyết).
+### Các cách kết nối Wi-Fi
+
+1. **iwd** (iNet Wireless Daemon): Trình quản lý Wi-Fi độc lập, nhẹ.
+2. **NetworkManager**: Dùng qua backend iwd hoặc wpa_supplicant.
+3. **iwctl**: Công cụ CLI của iwd.
+4. **nmtui**: Giao diện text của NetworkManager.
 
 ## Các bước thực hiện
 
-### Bước 1: Xác nhận Intel GPU
+### Bước 1: Xác nhận card Wi-Fi
 
 ```bash
-lspci | grep -E "VGA|3D|Display"
+lspci | grep -i network
 ```
 
 Output:
 
 ```
-00:02.0 VGA compatible controller: Intel Corporation Alder Lake-P Integrated Graphics Controller (rev 0c)
+02:00.0 Network controller: Realtek Semiconductor Co., Ltd. RTL8852BE PCIe 802.11ax Wireless Network Controller
 ```
 
-### Bước 2: Cài driver Intel
+### Bước 2: Kiểm tra driver hiện tại
 
 ```bash
-pacman -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel intel-media-driver
+lsmod | grep rtw
 ```
 
-| Gói | Vai trò |
-|---|---|
-| `mesa` | OpenGL driver mã nguồn mở |
-| `lib32-mesa` | OpenGL 32-bit (cho ứng dụng 32-bit) |
-| `vulkan-intel` | Vulkan driver cho Intel (cần cho nhiều ứng dụng) |
-| `lib32-vulkan-intel` | Vulkan 32-bit |
-| `intel-media-driver` | Hardware video acceleration (VA-API) |
+Nếu có `rtw88_8852be` → kernel driver đã load. Nếu không → cần driver riêng.
 
-### Bước 3: Cấu hình kernel parameters (tùy chọn)
-
-Thêm vào `/etc/default/grub` (dòng `GRUB_CMDLINE_LINUX_DEFAULT`):
+Kiểm tra firmware:
 
 ```bash
-i915.enable_psr=0 i915.enable_fbc=1
+dmesg | grep -i rtw
 ```
 
-| Parameter | Ý nghĩa |
-|---|---|
-| `i915.enable_psr=0` | Tắt Panel Self Refresh (gây lỗi trên một số laptop) |
-| `i915.enable_fbc=1` | Bật Frame Buffer Compression (tiết kiệm băng thông) |
+### Bước 3: Cài driver từ AUR
+
+Cài yay trước (nếu chưa có):
+
+```bash
+pacman -S --needed base-devel git
+git clone https://aur.archlinux.org/yay.git
+cd yay
+makepkg -si
+```
 
 Sau đó:
 
 ```bash
-grub-mkconfig -o /boot/grub/grub.cfg
+yay -S rtl8852be-dkms
 ```
 
-### Bước 4: Kiểm tra hardware acceleration
+### Bước 4: Load module
 
 ```bash
-# Kiểm tra VA-API
-sudo pacman -S libva-utils
-vainfo
+# Load module
+sudo modprobe 8852be
 
-# Output mẫu:
-# vainfo: VA-API version: 1.20 (libva 2)
-# vainfo: Driver version: Intel iHD driver for Intel(R) Gen Graphics - 24.x.x
-# vainfo: Supported profile and entrypoints:
-#       VAProfileNone                   : VAEntrypointVideoProc
-#       VAProfileMPEG2Simple            : VAEntrypointVLD
-#       VAProfileMPEG2Main              : VAEntrypointVLD
-#       ...
+# Kiểm tra
+lsmod | grep 8852be
 ```
 
-Nếu `vainfo` không thấy driver → `intel-media-driver` chưa đúng.
+### Bước 5: Kiểm tra Wi-Fi
 
 ```bash
-# Đảm bảo dùng iHD driver (không phải i965)
-export LIBVA_DRIVER_NAME=iHD
-vainfo
+# Kiểm tra interface
+ip link show
+
+# Sẽ thấy wlan0 (hoặc wlp2s0)
 ```
 
-### Bước 5: Kiểm tra OpenGL
+### Bước 6: Kết nối Wi-Fi
 
 ```bash
-glxinfo | grep "OpenGL renderer"
+# Dùng NetworkManager
+nmcli device status
+nmcli device wifi list
+nmcli device wifi connect "MyWiFi" password "mypassword"
 ```
 
-Output:
-
-```
-OpenGL renderer string: Mesa Intel(R) Graphics (ADL GT2)
-```
+Hoặc dùng iwctl:
 
 ```bash
-glxinfo | grep "OpenGL version"
+iwctl
+station wlan0 scan
+station wlan0 get-networks
+station wlan0 connect "MyWiFi"
 ```
 
-Output:
+### Bước 7: Cấu hình NetworkManager (đã enable)
 
-```
-OpenGL version string: 4.6 (Compatibility Profile) Mesa 24.x.x
-```
-
-## Cấu hình cho laptop
-
-### Brightness
-
-Điều chỉnh độ sáng màn hình:
+NetworkManager đã được enable trong quá trình cài (bài 03-installation/network.md).
 
 ```bash
-# Cài brightnessctl
-pacman -S brightnessctl
-
-# Giảm độ sáng
-brightnessctl set 50%
-
-# Tăng
-brightnessctl set +5%
-
-# Giảm
-brightnessctl set 5%-
+systemctl status NetworkManager
 ```
 
-Phím tắt đã cấu hình trong sxhkdrc:
-
-```
-XF86MonBrightnessUp
-    brightnessctl set +5%
-XF86MonBrightnessDown
-    brightnessctl set 5%-
-```
-
-### Backlight
-
-Nếu phím brightness không hoạt động, kiểm tra:
+### Bước 8: Kiểm tra kết nối
 
 ```bash
-ls /sys/class/backlight/
+ip addr show wlan0
+ping -c 3 archlinux.org
 ```
-
-Nếu có `intel_backlight` hoặc `amdgpu_bl0` → backlight driver đang hoạt động.
 
 ## Troubleshooting
 
-### Màn hình nhấp nháy
+### "No Wi-Fi adapter found"
 
-- Tắt PSR: `i915.enable_psr=0` trong kernel params.
-- Tắt FBC: `i915.enable_fbc=0`.
+**Symptoms**: NetworkManager báo không thấy thiết bị Wi-Fi.
 
-### Độ sáng không điều chỉnh được
+**Cause**: Driver chưa được load hoặc chưa cài.
 
-```bash
-# Thử acpi_backlight
-acpi_listen
-# Nhấn phím brightness → xem có event không
-# Thêm kernel parameter:
-acpi_backlight=vendor
-```
-
-### OpenGL không hoạt động
+**Diagnosis**:
 
 ```bash
-# Kiểm tra mesa
-pacman -Q mesa
-# Reinstall nếu cần
-pacman -S mesa
+# Kiểm tra RF kill
+rfkill list
+
+# Kiểm tra module
+lsmod | grep 8852be
+
+# Kiểm tra kernel messages
+dmesg | grep -i rtw
 ```
+
+**Fix**:
+1. Cài `rtl8852be-dkms`.
+2. Load module: `sudo modprobe 8852be`.
+3. Soft block: `rfkill unblock wifi`.
+
+### "Firmware not found"
+
+**Symptoms**: dmesg báo firmware missing.
+
+**Fix**:
+
+```bash
+# Cài firmware
+pacman -S linux-firmware
+
+# Hoặc cài firmware riêng từ AUR
+yay -S rtl8852be-firmware
+```
+
+### Wi-Fi chập chờn, thường xuyên mất kết nối
+
+**Fix**:
+
+```bash
+# Tắt power saving
+iw dev wlan0 set power_save off
+
+# Hoặc qua NetworkManager
+nmcli connection modify "MyWiFi" 802-11-wireless.powersave 2
+```
+
+### "Operation not permitted"
+
+```bash
+# Kiểm tra block
+rfkill list
+
+# Unblock
+sudo rfkill unblock wifi
+sudo rfkill unblock bluetooth
+```
+
+### Card Wi-Fi không được kernel nhận
+
+```bash
+# Xem PCI device có được nhận không
+lspci -vnn | grep -A 10 "RTL8852BE"
+```
+
+Nếu PCI không detect → có thể card bị disabled trong BIOS.
+
+## Dùng USB tethering như fallback
+
+Nếu Wi-Fi chưa hoạt động, dùng LAN hoặc USB tethering:
+
+### Android
+
+1. Cắm USB.
+2. Settings → Network → USB Tethering → Bật.
+
+### iPhone
+
+1. Cắm USB.
+2. Settings → Personal Hotspot → USB Only.
 
 ## Tổng kết
 
-- Intel GPU đã được cài driver Mesa + Vulkan.
-- Hardware acceleration (VA-API) đã được kích hoạt.
-- Kernel parameters đã được tối ưu cho laptop.
-- Brightness hoạt động qua phím chức năng.
+- Card Wi-Fi Realtek RTL8852BE cần driver từ AUR (`rtl8852be-dkms`).
+- NetworkManager đã cấu hình để quản lý Wi-Fi.
+- Có thể dùng nmcli hoặc iwctl để kết nối.
+- Nếu Wi-Fi không hoạt động, dùng LAN hoặc USB tethering.
+- Troubleshooting cơ bản: rfkill, modprobe, firmware.

@@ -1,232 +1,263 @@
-# Layouts — Bố cục cửa sổ
+# Window Management — Quản lý cửa sổ
 
 ## Mục tiêu
 
-Hiểu các layout (bố cục) trong bspwm và cách sử dụng chúng.
+Hiểu và làm chủ các thao tác quản lý cửa sổ trong bspwm.
 
-## Kiến thức nền
+## Các khái niệm cơ bản
 
-### Layout là gì?
+### Node
 
-Layout là cách bố trí các cửa sổ trong một workspace. bspwm không có
-layout cố định như i3 (tabbed, stacking). Thay vào đó, bspwm sử dụng
-cấu trúc cây BSP (Binary Space Partition) động.
+Node là đơn vị cơ bản trong cấu trúc cây của bspwm. Mỗi node chứa một cửa sổ.
+Node có thể được chia thành hai node con (split).
 
-Tuy nhiên, bspwm hỗ trợ một số chế độ layout cho desktop:
+### Container
 
-| Chế độ | Mô tả |
-|---|---|
-| **Tiled** | Mặc định. Chia màn hình thành các ô. |
-| **Monocle** | Xếp chồng tất cả cửa sổ lên nhau, chỉ thấy một cửa sổ. |
-| **Floating** | Tất cả cửa sổ đều floating. |
+Container là node chứa node khác (không phải cửa sổ). Khi chia một node,
+nó trở thành container.
 
-## Tiled layout (mặc định)
-
-### Cách hoạt động
-
-Mỗi lần mở cửa sổ mới, node hiện tại bị chia làm hai.
-Có thể chia dọc (sang trái/phải) hoặc chia ngang (lên/xuống).
+### Tree (Cấu trúc cây)
 
 ```
-Mở cửa sổ 1:
-┌──────────────────┐
-│                  │
-│      Win 1      │
-│                  │
-└──────────────────┘
-
-Mở cửa sổ 2 (chia dọc):
-┌────────┬─────────┐
-│        │         │
-│ Win 1  │  Win 2  │
-│        │         │
-└────────┴─────────┘
-
-Mở cửa sổ 3 (chia ngang win 2):
-┌────────┬─────────┐
-│        │  Win 2  │
-│ Win 1  ├─────────┤
-│        │  Win 3  │
-└────────┴─────────┘
+Root (màn hình)
+├── Node A (cửa sổ 1)
+└── Container (chia dọc)
+    ├── Node B (cửa sổ 2)
+    └── Node C (cửa sổ 3)
 ```
 
-### Kiểm soát layout
+## Các thao tác cơ bản
 
-Dùng preselect (Super + Ctrl + h/j/k/l) để chọn hướng chia trước:
+### Focus (chọn cửa sổ)
 
 ```
-Super + Ctrl + l → preselect phải
-→ Mở trình duyệt → nó xuất hiện bên phải
+Super + h   → focus sang trái
+Super + j   → focus xuống dưới
+Super + k   → focus lên trên
+Super + l   → focus sang phải
 ```
 
-### Alternating layout
+Focus di chuyển con trỏ chủ động đến cửa sổ lân cận theo hướng chỉ định.
 
-Tạo layout xen kẽ dọc-ngang (giống i3):
+### Move (di chuyển cửa sổ)
 
-Mặc định bspwm chia theo hướng hiện tại (longest side).
-Để thay đổi:
+```
+Super + Shift + h → đẩy cửa sổ sang trái
+Super + Shift + j → đẩy cửa sổ xuống dưới
+Super + Shift + k → đẩy cửa sổ lên trên
+Super + Shift + l → đẩy cửa sổ sang phải
+```
+
+Di chuyển swap vị trí của cửa sổ hiện tại với cửa sổ lân cận.
+
+### Close (đóng cửa sổ)
+
+```
+Super + q   → đóng cửa sổ (gửi tín hiệu đóng)
+Super + Shift + q → kill ứng dụng (buộc dừng)
+```
+
+- `Super + q` gửi yêu cầu đóng → ứng dụng có thể hỏi "Save?".
+- `Super + Shift + q` dùng SIGKILL → ứng dụng tắt ngay, mất dữ liệu chưa save.
+
+### Fullscreen
+
+```
+Super + Shift + o → toggle fullscreen
+```
+
+Khi fullscreen, cửa sổ chiếm toàn màn hình, không thấy border, không thấy bar.
+
+## Node states
+
+Mỗi cửa sổ có thể ở một trong các state sau:
+
+| State | Mô tả | Phím tắt |
+|---|---|---|
+| **tiled** | Mặc định, cửa sổ tự động sắp xếp | `Super + t` |
+| **floating** | Cửa sổ tự do, có thể kéo thả | `Super + t` (toggle) |
+| **fullscreen** | Chiếm toàn màn hình | `Super + Shift + o` |
+| **pseudo_tiled** | Tiled nhưng giữ kích thước gốc | `Super + Shift + t` |
+
+### Tiled
+
+Mặc định. Cửa sổ tự động chia màn hình thành các ô.
+Khi mở thêm cửa sổ, node hiện tại bị chia làm hai.
+
+```
+┌──────────┬──────────┐
+│          │          │
+│  Term 1  │  Term 2  │
+│          │          │
+├──────────┼──────────┤
+│          │          │
+│  Term 3  │  Term 4  │
+│          │          │
+└──────────┴──────────┘
+```
+
+### Floating
+
+Cửa sổ không bị tile, có thể di chuyển và resize tự do.
+Dùng cho: dialogs, popups, Rofi, Polybar.
+
+Chuyển một cửa sổ từ tiled sang floating:
 
 ```bash
-# Chia dọc
-bspc node -p east
-# Mở cửa sổ → chia dọc
+# Toggle tiled/floating
+Super + t
 
-# Chia ngang
-bspc node -p south
-# Mở cửa sổ → chia ngang
+# Set floating
+bspc node -t floating
 ```
 
-### Equal ratio
-
-Mặc định 50/50. Giữ nguyên 50/50 nếu không thay đổi split_ratio.
-Khi resize, tỉ lệ thay đổi.
-
-## Monocle layout
-
-### Cách hoạt động
-
-Tất cả cửa sổ xếp chồng lên nhau, chỉ thấy một cửa sổ tại một thời điểm.
-Giống tab trên trình duyệt.
-
-```
-Workspace 5 (monocle):
-┌──────────────────┐
-│  [1] [2] [3]     │
-│                  │
-│    (cửa sổ 2)   │
-│                  │
-└──────────────────┘
-```
-
-### Kích hoạt
+Để kéo thả cửa sổ floating:
 
 ```bash
-# Chuyển layout hiện tại sang monocle
-bspc desktop -l monocle
-
-# Quay lại tiled
-bspc desktop -l tiled
-
-# Toggle (luân phiên)
-bspc desktop -l next
+# Giữ Super và kéo chuột
+# (cần cấu hình thêm nếu muốn)
 ```
 
-Phím tắt trong sxhkdrc:
+### Pseudo_tiled
+
+Cửa sổ nằm trong lưới tile nhưng giữ kích thước ưa thích (như floating
+nhưng vẫn ở trong layout).
+
+### Fullscreen
+
+Cửa sổ chiếm toàn bộ màn hình. Không thấy bar, không thấy border.
+
+## Split (chia cửa sổ)
+
+### Preselect
+
+Preselect cho phép bạn chọn hướng chia trước khi mở cửa sổ mới.
 
 ```
-super + m
-    bspc desktop -l next
+Super + Ctrl + h → preselect split trái
+Super + Ctrl + j → preselect split dưới
+Super + Ctrl + k → preselect split trên
+Super + Ctrl + l → preselect split phải
 ```
 
-### Chuyển cửa sổ trong monocle
+Sau khi preselect, một đường màu đỏ xuất hiện ở cạnh được chọn.
+Khi mở cửa sổ mới, nó sẽ xuất hiện ở phía đó.
+
+### Split ratio
+
+Tỉ lệ chia mặc định là 0.5 (50/50). Có thể thay đổi:
 
 ```bash
-# Focus cửa sổ tiếp theo
-bspc node -f next.local
-
-# Focus cửa sổ trước
-bspc node -f prev.local
+# Thay đổi ratio cho lần chia tiếp theo
+bspc node -i  # tăng kích thước node hiện tại (mở rộng)
+bspc node -o  # giảm kích thước node hiện tại (thu hẹp)
 ```
 
-### Khi nào dùng monocle
-
-- Khi workspace có quá nhiều cửa sổ (5+).
-- Khi cần tập trung vào một cửa sổ nhưng vẫn giữ các cửa sổ khác mở.
-- Khi làm việc trên màn hình nhỏ.
-
-## Floating layout
-
-### Cách hoạt động
-
-Tất cả cửa sổ đều floating. Không tile.
-
-### Kích hoạt
+Cấu hình mặc định trong bspwmrc:
 
 ```bash
-bspc desktop -l floating
+bspc config split_ratio 0.50
 ```
 
-### Khi nào dùng floating
-
-- Khi muốn tự do sắp xếp cửa sổ bằng chuột.
-- Khi làm việc với ứng dụng đồ họa (GIMP, Inkscape).
-- Khi có nhiều dialog, palette.
-
-## Tiled + Floating hỗn hợp
-
-Trong layout tiled, vẫn có thể set từng cửa sổ riêng lẻ sang floating:
+### Cancel preselect
 
 ```
-Super + t → toggle tiled/floating cho cửa sổ hiện tại
+Super + Ctrl + Space → cancel preselect
 ```
 
-Cửa sổ floating nằm trên layer riêng, không ảnh hưởng đến layout tiled.
+## Resize (thay đổi kích thước)
 
 ```
-┌────────┬─────────┐
-│        │         │
-│ Win 1  │  Win 2  │  ← tiled
-│        │         │
-├────────┴─────────┤
-│   ┌──────────┐  │
-│   │  Win 3   │  │  ← floating (trên layer riêng)
-│   │ (float)  │  │
-│   └──────────┘  │
-└─────────────────┘
+Super + Alt + h → thu hẹp sang trái (-20px)
+Super + Alt + j → mở rộng xuống dưới (+20px)
+Super + Alt + k → mở rộng lên trên (-20px)
+Super + Alt + l → mở rộng sang phải (+20px)
 ```
 
-## So sánh các chế độ
+Resize thay đổi tỉ lệ giữa node hiện tại và node lân cận.
 
-| Chế độ | Không gian | Nhìn thấy | Focus | Dùng khi |
-|---|---|---|---|---|
-| Tiled | Chia ô | Nhiều cửa sổ cùng lúc | Một cửa sổ | Mặc định |
-| Monocle | Xếp chồng | Một cửa sổ | Tất cả | Nhiều cửa sổ |
-| Floating | Tự do | Xếp layer | Di chuyển tự do | Ứng dụng đồ họa |
+## Sticky
 
-## Lệnh CLI
+Sticky là trạng thái cửa sổ luôn hiện trên tất cả workspace.
 
 ```bash
-# Xem layout hiện tại
-bspc query -D -d --names
+bspc node -g sticky
+```
 
-# Set layout
-bspc desktop -l tiled
-bspc desktop -l monocle
-bspc desktop -l floating
+Dùng cho: đồng hồ, nhạc, chat nhỏ.
 
-# Toggle
-bspc desktop -l next
+## Locked
+
+Locked ngăn không cho thao tác với cửa sổ (focus, close, move).
+
+```bash
+bspc node -g locked
+```
+
+## Private
+
+Private ẩn cửa sổ khỏi danh sách window switcher (Rofi window).
+
+```bash
+bspc node -g private
+```
+
+## Các lệnh hữu ích
+
+```bash
+# Đóng cửa sổ
+bspc node -c
+
+# Kill ứng dụng
+bspc node -k
+
+# Fullscreen toggle
+bspc node -t fullscreen
+
+# Toggle tiled/floating
+bspc node -t tiled
+bspc node -t floating
+
+# Di chuyển cửa sổ đến hướng
+bspc node -s east
+
+# Di chuyển cửa sổ đến monitor khác
+bspc node -m next
+
+# Gán cửa sổ luôn ở trên (above)
+bspc node -g above
+
+# Toggle sticky
+bspc node -g sticky
 ```
 
 ## Best practices
 
-1. **Mặc định tiled**: Hầu hết thời gian.
-2. **Chuyển sang monocle** khi cần focus, workspace đông.
-3. **Chuyển từng cửa sổ** sang floating khi cần.
-4. **Không dùng floating** cho workspace chính (mất kiểm soát).
+1. **Giữ số lượng cửa sổ mỗi workspace vừa phải** (2-4 cửa sổ).
+2. **Dùng floating cho dialog và popup** (đã có rule trong bspwmrc).
+3. **Dùng fullscreen cho ứng dụng toàn màn hình** (video, game).
+4. **Preselect trước khi mở cửa sổ mới** để kiểm soát layout.
 
 ## Troubleshooting
 
-### Monocle không hoạt động
+### Cửa sổ không tile được
 
-```bash
-# Cần restart bspwm
-bspc wm -r
-```
+- Kiểm tra state: `Super + t` để chuyển về tiled.
+- Rule trong bspwmrc có thể set floating.
 
-### Tất cả cửa sổ đều floating
+### Không di chuyển được cửa sổ floating
 
-```bash
-# Kiểm tra desktop layout
-bspc query -D -d --names
-# Nếu là floating → set lại tiled
-bspc desktop -l tiled
-```
+- Dùng Super + Shift + h/j/k/l chỉ hoạt động với tiled.
+- Với floating, cần cấu hình mouse binding hoặc dùng bspc resize.
+
+### Cửa sổ bị mất sau khi chuyển workspace
+
+- Nếu cửa sổ bị "kẹt", dùng `bspc node -d <workspace>` để đẩy đi.
 
 ## Tổng kết
 
-- bspwm có 3 chế độ layout: tiled (mặc định), monocle, floating.
-- Tiled là layout chính, dùng preselect để kiểm soát.
-- Monocle xếp chồng cửa sổ, focus từng cái.
-- Floating cho ứng dụng đặc thù.
-- Kết hợp tiled + floating trong cùng workspace.
+- bspwm quản lý cửa sổ qua cấu trúc cây (tree).
+- Mỗi cửa sổ có state: tiled, floating, fullscreen, pseudo_tiled.
+- Focus, move, resize, split, close đều qua phím tắt.
+- Sticky, locked, private là các flag đặc biệt.
+- Preselect cho phép kiểm soát layout trước khi mở cửa sổ.

@@ -1,278 +1,182 @@
-# Customization — Tùy chỉnh bspwm
+# Keybindings — Danh sách phím tắt
 
 ## Mục tiêu
 
-Hướng dẫn tùy chỉnh giao diện và hành vi của bspwm.
+Cung cấp danh sách đầy đủ các phím tắt cho bspwm/sxhkd để người mới dễ tra cứu.
 
-## Các thành phần có thể tùy chỉnh
+## Ký hiệu
 
-| Thành phần | File cấu hình | Công cụ |
-|---|---|---|
-| Window manager | `~/.config/bspwm/bspwmrc` | bspc config |
-| Keybinding | `~/.config/sxhkd/sxhkdrc` | sxhkd |
-| Bar | `~/.config/polybar/config.ini` | Polybar |
-| Launcher | `~/.config/rofi/config.rasi` | Rofi |
-| Compositor | `~/.config/picom/picom.conf` | Picom |
-| Wallpaper | `~/.config/nitrogen/bg-saved.cfg` | Nitrogen |
-| Theme | `~/.config/gtk-3.0/settings.ini` | GTK |
-| Terminal | `~/.config/alacritty/alacritty.yml` | Alacritty |
-
-## Tùy chỉnh bspwm
-
-### Window gap
-
-```bash
-# Khoảng cách giữa các cửa sổ (px)
-bspc config window_gap 8
-
-# Tăng lên 16 cho không gian thoáng hơn
-bspc config window_gap 16
-
-# Giảm xuống 0 cho tiết kiệm diện tích
-bspc config window_gap 0
-```
-
-### Border
-
-```bash
-# Độ dày viền
-bspc config border_width 2
-
-# Màu viền
-bspc config focused_border_color "#50FA7B"
-bspc config normal_border_color "#44475A"
-bspc config presel_border_color "#FF5555"
-```
-
-### Padding (khoảng cách từ cạnh màn hình)
-
-```bash
-# Padding trên-dưới-trái-phải
-bspc config top_padding 0
-bspc config bottom_padding 0
-bspc config left_padding 0
-bspc config right_padding 0
-
-# Nếu có Polybar, set top_padding = height của bar
-bspc config top_padding 28
-```
-
-### Mouse behavior
-
-```bash
-# Focus theo chuột
-bspc config focus_follows_pointer true
-
-# Chuột nhảy theo focus
-bspc config pointer_follows_focus true
-
-# Click chuột phải trên desktop → menu
-bspc config pointer_modifier super
-```
-
-### Split ratio mặc định
-
-```bash
-# 50/50
-bspc config split_ratio 0.50
-
-# Nghiêng về cửa sổ hiện tại (lấy 60%)
-bspc config split_ratio 0.60
-```
-
-## Tùy chỉnh sxhkd
-
-### Thêm keybinding mới
-
-Mở `~/.config/sxhkd/sxhkdrc` và thêm:
-
-```
-# Ví dụ: Mở file manager
-super + e
-    pcmanfm
-
-# Ví dụ: Mở trình duyệt
-super + b
-    firefox
-
-# Ví dụ: Screenshot vùng chọn
-super + Print
-    maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-```
-
-### Key chording
-
-sxhkd hỗ trợ chuỗi phím (chain):
-
-```
-# Nhấn Super + o, sau đó nhấn tiếp một phím
-super + o
-    ; dm
-        {t, f, m}
-            bspc desktop -l {tiled, floating, monocle}
-    ; wn
-        {h, j, k, l}
-            bspc node -p {west, south, north, east}
-```
-
-## Tùy chỉnh Polybar
-
-### Thay đổi màu sắc
-
-Trong `~/.config/polybar/config.ini`:
-
-```ini
-[colors]
-background = #1E1E2E
-background-alt = #313244
-foreground = #CDD6F4
-primary = #89B4FA
-secondary = #A6E3A1
-alert = #F38BA8
-```
-
-### Thêm module
-
-```ini
-[module/github]
-type = custom/script
-exec = curl -s "https://api.github.com/notifications?access_token=..." | jq length
-interval = 60
-```
-
-## Tùy chỉnh Rofi
-
-### Theme Rofi
-
-Rofi theme có thể tùy chỉnh sâu bằng file `.rasi`.
-
-Ví dụ tạo theme cá nhân:
-
-```bash
-vim ~/.config/rofi/theme.rasi
-```
-
-```css
-* {
-    background-color: #1E1E2E;
-    text-color: #CDD6F4;
-}
-
-window {
-    width: 40%;
-    border-color: #89B4FA;
-}
-
-listview {
-    lines: 12;
-}
-
-element selected {
-    background-color: #45475A;
-    text-color: #89B4FA;
-}
-
-entry {
-    background-color: #313244;
-    text-color: #CDD6F4;
-}
-```
-
-Reference: https://github.com/davatorium/rofi/wiki/Themes
-
-## Tùy chỉnh Picom
-
-### Tăng/shadow
-
-```bash
-# Giảm shadow
-shadow-radius = 8;
-shadow-opacity = 0.3;
-
-# Tắt shadow cho ứng dụng cụ thể
-shadow-exclude = [
-    "class_g = 'firefox'"
-];
-```
-
-### Tắt animation (nếu lag)
-
-```bash
-animations = false;
-fading = false;
-```
-
-## Theme tổng thể
-
-### Color scheme: Catppuccin Mocha
-
-Catppuccin là theme màu pastel rất đẹp và có port cho hầu hết ứng dụng.
-
-| Ứng dụng | Cách cài |
+| Ký hiệu | Phím |
 |---|---|
-| Alacritty | Copy từ https://github.com/catppuccin/alacritty |
-| Polybar | Copy màu vào config.ini |
-| Rofi | Dùng catppuccin theme |
-| Picom | Chỉnh màu shadow |
-| GTK | `pacman -S catppuccin-gtk-theme` (AUR) |
+| `Super` | Windows key (Mod4) |
+| `Alt` | Alt (Mod1) |
+| `Shift` | Shift |
+| `Ctrl` | Control |
+| `Return` | Enter |
+| `Space` | Spacebar |
+| `{1-9}` | Phím số 1-9 |
+| `{h,j,k,l}` | h=trái, j=xuống, k=lên, l=phải |
+| `XF86...` | Phím đặc biệt (volume, brightness) |
 
-## Script cá nhân hóa
+## Tổng quan
 
-### Tạo script lock screen
+```
+Super + Enter    → Mở terminal
+Super + d        → Mở launcher
+Super + q        → Đóng cửa sổ
+Super + 1-9      → Chuyển workspace
+Super + h/j/k/l  → Focus cửa sổ
+```
+
+## Chi tiết
+
+### Terminal và Launcher
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Return` | Mở terminal (Alacritty) |
+| `Super + d` | Mở launcher ứng dụng (Rofi drun) |
+| `Super + Shift + d` | Mở launcher lệnh (Rofi run) |
+| `Super + r` | Mở launcher run |
+| `Super + Shift + r` | Chuyển đổi cửa sổ (Rofi window) |
+
+### Đóng cửa sổ
+
+| Phím | Chức năng |
+|---|---|
+| `Super + q` | Đóng cửa sổ hiện tại (graceful) |
+| `Super + Shift + q` | Kill ứng dụng (force) |
+
+### Focus (Di chuyển giữa các cửa sổ)
+
+| Phím | Chức năng |
+|---|---|
+| `Super + h` | Focus sang trái |
+| `Super + j` | Focus xuống dưới |
+| `Super + k` | Focus lên trên |
+| `Super + l` | Focus sang phải |
+| `Super + Tab` | Focus về cửa sổ trước đó |
+
+### Di chuyển cửa sổ
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Shift + h` | Đẩy cửa sổ sang trái |
+| `Super + Shift + j` | Đẩy cửa sổ xuống dưới |
+| `Super + Shift + k` | Đẩy cửa sổ lên trên |
+| `Super + Shift + l` | Đẩy cửa sổ sang phải |
+| `Super + Shift + m` | Gửi cửa sổ sang màn hình khác |
+
+### Workspace
+
+| Phím | Chức năng |
+|---|---|
+| `Super + 1` | Chuyển đến workspace 1 |
+| `Super + 2` | Chuyển đến workspace 2 |
+| ... | ... |
+| `Super + 9` | Chuyển đến workspace 9 |
+| `Super + Shift + 1` | Di chuyển cửa sổ đến workspace 1 |
+| `Super + Shift + 2` | Di chuyển cửa sổ đến workspace 2 |
+| ... | ... |
+| `Super + Shift + 9` | Di chuyển cửa sổ đến workspace 9 |
+
+### Window State
+
+| Phím | Chức năng |
+|---|---|
+| `Super + t` | Chuyển tiled ↔ floating |
+| `Super + Shift + t` | Pseudo-tiled |
+| `Super + o` | Floating |
+| `Super + Shift + o` | Fullscreen |
+| `Super + f` | Fullscreen (toggle) |
+| `Super + Space` | Float + sticky |
+| `Super + m` | Monocle mode (xếp chồng) |
+
+### Split Direction (Preselect)
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Ctrl + h` | Preselect split trái |
+| `Super + Ctrl + j` | Preselect split dưới |
+| `Super + Ctrl + k` | Preselect split trên |
+| `Super + Ctrl + l` | Preselect split phải |
+| `Super + Ctrl + Space` | Cancel preselect |
+| `Super + s` | Preselect east + ratio 0.5 |
+
+### Resize
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Alt + h` | Resize sang trái -20px |
+| `Super + Alt + j` | Resize xuống dưới +20px |
+| `Super + Alt + k` | Resize lên trên -20px |
+| `Super + Alt + l` | Resize sang phải +20px |
+
+### Hệ thống
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Escape` | Reload bspwm + sxhkd |
+| `Super + Shift + Escape` | Lock screen |
+| `Super + Shift + x` | Power menu (rofi) |
+
+### Media và Âm thanh
+
+| Phím | Chức năng |
+|---|---|
+| `XF86AudioRaiseVolume` | Tăng volume 5% |
+| `XF86AudioLowerVolume` | Giảm volume 5% |
+| `XF86AudioMute` | Toggle mute |
+| `XF86MonBrightnessUp` | Tăng độ sáng 5% |
+| `XF86MonBrightnessDown` | Giảm độ sáng 5% |
+| `XF86AudioPlay` | Play/Pause media |
+| `XF86AudioNext` | Next track |
+| `XF86AudioPrev` | Previous track |
+
+### Ứng dụng
+
+| Phím | Chức năng |
+|---|---|
+| `Super + b` | Mở Firefox |
+| `Super + e` | Mở file manager (PCManFM) |
+
+## Cheat Sheet nhanh
+
+```
+# Di chuyển / Focus
+    h ←       j ↓       k ↑       l →
+    Super + h/j/k/l         → focus
+    Super + Shift + h/j/k/l → move window
+    Super + Alt + h/j/k/l   → resize
+
+# Workspace
+    Super + 1-9          → go to workspace
+    Super + Shift + 1-9  → send to workspace
+
+# Cửa sổ
+    Super + q       → close
+    Super + t       → toggle tiled/floating
+    Super + f       → toggle fullscreen
+    Super + m       → monocle mode
+
+# Hệ thống
+    Super + Return  → terminal
+    Super + d       → launcher
+    Super + Escape  → reload config
+```
+
+## Tùy chỉnh
+
+Để thêm/sửa keybinding:
 
 ```bash
-pacman -S betterlockscreen
-betterlockscreen -u ~/Pictures/wallpapers/lock.jpg
+vim ~/.config/sxhkd/sxhkdrc
 ```
 
-Trong sxhkdrc:
-
-```
-super + shift + Escape
-    betterlockscreen -l
-```
-
-### Tạo script screenshot
+Sau đó reload:
 
 ```bash
-mkdir -p ~/Pictures/screenshots
+pkill -USR1 -x sxhkd
 ```
 
-Đã có trong sxhkdrc:
-
-```
-Print
-    maim -u ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-
-super + Print
-    maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-```
-
-## Backup và chia sẻ cấu hình
-
-```bash
-# Backup toàn bộ config
-tar -czf bspwm-config-$(date +%Y%m%d).tar.gz ~/.config/{bspwm,sxhkd,polybar,rofi,picom,alacritty,nitrogen}
-
-# Git init
-cd ~/.config
-git init
-git add bspwm sxhkd polybar rofi picom alacritty
-git commit -m "Initial bspwm config"
-```
-
-## Best practices
-
-1. **Sao lưu cấu hình** trước khi thay đổi lớn.
-2. **Thay đổi từ từ**: Mỗi lần chỉnh một thứ, test trước khi chuyển sang thứ khác.
-3. **Dùng Git** để quản lý phiên bản config.
-4. **Đọc tài liệu** của từng component (links trong bài này).
-5. **Kết hợp màu sắc đồng bộ** giữa các thành phần.
-
-## Tổng kết
-
-- bspwm, sxhkd, Polybar, Rofi, Picom đều có thể tùy chỉnh sâu.
-- Mỗi thành phần có file config riêng.
-- Sử dụng color scheme đồng bộ (Catppuccin, Nord, Dracula).
-- Quản lý config bằng Git để dễ backup và chia sẻ.
-- Script cá nhân hóa: lock screen, screenshot.
+Xem thêm bài sxhkd.md trong 04-desktop.

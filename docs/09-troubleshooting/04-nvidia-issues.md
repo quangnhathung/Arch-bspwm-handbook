@@ -1,115 +1,113 @@
-# GRUB không boot
+# NVIDIA Issues
 
 ## Symptoms
 
-- Sau khi bật máy, thấy `grub rescue>` prompt.
-- "No such partition" hoặc "File not found".
-- GRUB menu không xuất hiện, boot thẳng vào Windows (nếu còn).
-- Màn hình đen sau khi chọn GRUB.
+- Màn hình đen hoặc treo sau khi boot với NVIDIA.
+- `nvidia-smi` không thấy GPU.
+- Screen tearing.
+- Hiệu năng đồ họa kém.
+- Nhiệt độ cao / quạt chạy liên tục (do NVIDIA không tắt).
 
 ## Cause
 
-1. **GRUB bị hỏng do update kernel không đúng**.
-2. **EFI System Partition bị format/lỗi**.
-3. **fstab sai** — không mount được root.
-4. **GRUB không tìm thấy kernel** do sai subvolume.
-5. **BTRFS subvolume bị xóa hoặc thay đổi**.
-6. **Sau khi restore snapshot** — GRUB config cũ không khớp.
+1. **Kernel module không được load**.
+2. **Kernel parameter `nvidia-drm.modeset` thiếu hoặc sai**.
+3. **Xung đột giữa Intel và NVIDIA**.
+4. **NVIDIA không tắt khi dùng Intel mode**.
+5. **NVIDIA driver không tương thích với kernel mới**.
 
 ## Diagnosis
 
 ```bash
-# Boot từ USB Arch
-# Mount hệ thống
-mount /dev/nvme0n1p2 /mnt
-mount -o subvol=@ /dev/nvme0n1p2 /mnt
-mount /dev/nvme0n1p1 /mnt/efi
+# Kiểm tra module
+lsmod | grep nvidia
 
-# Chroot
-arch-chroot /mnt
+# Kiểm tra kernel parameter
+cat /proc/cmdline
 
-# Kiểm tra GRUB config
-cat /boot/grub/grub.cfg | head -20
+# Kiểm tra Xorg log
+cat /var/log/Xorg.0.log | grep -i nvidia
 
-# Kiểm tra kernel
-ls /boot/vmlinuz-linux
+# Kiểm tra GPU
+lspci | grep -i nvidia
 
-# Kiểm tra EFI
-ls /efi/EFI/GRUB/grubx64.efi
-
-# Kiểm tra boot entries
-efibootmgr -v
+# Kiểm tra nhiệt độ
+nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader
 ```
 
 ## Fix
 
-### Fix 1: Reinstall GRUB
+### Fix 1: Kernel module không load
 
 ```bash
-# Trong chroot
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
+# Load thủ công
+sudo modprobe nvidia
+sudo modprobe nvidia_modeset
+sudo modprobe nvidia_uvm
+sudo modprobe nvidia_drm
 
-# Sinh config mới
-grub-mkconfig -o /boot/grub/grub.cfg
-```
-
-### Fix 2: Sửa fstab sai
-
-```bash
-# Kiểm tra UUID
-blkid /dev/nvme0n1p2
-blkid /dev/nvme0n1p1
-
-# Sửa fstab
-vim /etc/fstab
-
-# Đảm bảo UUID đúng
-```
-
-### Fix 3: GRUB rescue mode
-
-Khi ở `grub rescue>`:
-
-```bash
-# Tìm root
-ls
-# Sẽ hiện (hd0,gpt1) (hd0,gpt2) ...
-
-# Set root và boot thủ công
-set root=(hd0,gpt2)
-set prefix=(hd0,gpt2)/@/boot/grub
-insmod normal
-normal
-```
-
-Sau khi boot được, chạy:
-
-```bash
-sudo grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
-sudo grub-mkconfig -o /boot/grub/grub.cfg
-```
-
-### Fix 4: Sau restore snapshot
-
-Sau khi restore snapshot BTRFS:
-
-```bash
-# Trong chroot
+# Thêm vào mkinitcpio
+vim /etc/mkinitcpio.conf
+# MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
 mkinitcpio -P
-grub-mkconfig -o /boot/grub/grub.cfg
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
 ```
 
-### Fix 5: Thêm boot entry thủ công
+### Fix 2: Kernel parameter
 
 ```bash
-efibootmgr -c -d /dev/nvme0n1 -p 1 -L "GRUB" -l "\EFI\GRUB\grubx64.efi"
+vim /etc/default/grub
+# GRUB_CMDLINE_LINUX_DEFAULT="... nvidia-drm.modeset=1 ..."
+grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+### Fix 3: Screen tearing
+
+```bash
+# Tạo /etc/X11/xorg.conf.d/10-nvidia.conf
+Section "OutputClass"
+    Identifier "nvidia"
+    MatchDriver "nvidia-drm"
+    Driver "nvidia"
+    Option "AllowEmptyInitialConfiguration"
+    Option "PrimaryGPU" "yes"
+    Option "SLI" "Off"
+    Option "MetaModes" "nvidia-auto-select +0+0 {ForceFullCompositionPipeline=On}"
+EndSection
+
+# Picom
+vim ~/.config/picom/picom.conf
+# unredir-if-possible = false
+```
+
+### Fix 4: NVIDIA không tắt ở Intel mode
+
+```bash
+# Kiểm tra
+nvidia-smi
+# Nếu có process → NVIDIA đang hoạt động
+
+# Dùng envycontrol để tắt
+sudo envycontrol -s intel
+sudo reboot
+
+# Hoặc tắt thủ công
+sudo tee /proc/acpi/bbswitch <(echo OFF)
+```
+
+### Fix 5: Driver không tương thích
+
+```bash
+# Cài nvidia-dkms (tự rebuild với kernel mới)
+sudo pacman -S nvidia-dkms
+
+# Hoặc downgrade driver
+sudo pacman -U /var/cache/pacman/pkg/nvidia-xxx.pkg.tar.zst
 ```
 
 ## Prevention
 
-1. **Tạo snapshot trước khi update GRUB**.
-2. **Sao lưu `/etc/default/grub`**.
-3. **Kiểm tra fstab** sau mỗi lần thay đổi partition.
-4. **Không format ESP** (nvme0n1p1) trừ khi biết rõ.
-5. **Sau restore snapshot, luôn rebuild GRUB**.
+1. **Luôn dùng `nvidia-drm.modeset=1`**.
+2. **Cấu hình ForceFullCompositionPipeline** để chống tearing.
+3. **Dùng nvidia-dkms** nếu kernel update thường xuyên.
+4. **Kiểm tra nvidia-smi** sau mỗi update.
+5. **Snapshot trước update NVIDIA driver**.

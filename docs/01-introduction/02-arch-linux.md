@@ -1,57 +1,72 @@
-# Tổng quan
+# Arch Linux là gì?
 
-Tài liệu này hướng dẫn cài đặt Arch Linux hoàn toàn mới trên laptop Lenovo LOQ 15IAX9,
-kèm theo thiết lập môi trường desktop với bspwm window manager.
+Arch Linux là một bản phân phối Linux **rolling release** với triết lý KISS
+(Keep It Simple, Stupid). Không giống Ubuntu hay Fedora, Arch không có trình
+cài đặt đồ họa, không có môi trường desktop mặc định, và không có công cụ
+cấu hình tự động.
 
-## Triết lý
+## Đặc điểm chính
 
-- **Tối giản**: Chỉ cài những gì thực sự cần. Desktop không có menu Start, không có dock,
-  không có DE (Desktop Environment) nặng nề. Mọi thứ đều qua bàn phím.
-- **Kiểm soát**: Bạn quyết định mọi thứ — từ cài đặt đến cấu hình.
-- **Học tập**: Quá trình cài Arch là cách tốt nhất để hiểu Linux thực sự hoạt động thế nào.
-- **Bền vững**: Hệ thống được thiết kế để dễ bảo trì, dễ rollback, dễ mở rộng sau này.
+### 1. Rolling Release
 
-## Phạm vi tài liệu
+Không có phiên bản "Arch Linux 2025" hay "Arch Linux 2026". Cập nhật liên tục.
+Khi bạn chạy `pacman -Syu`, toàn bộ hệ thống được cập nhật lên bản mới nhất,
+bao gồm kernel, driver, ứng dụng — tất cả trong một lệnh duy nhất.
 
-### Bao gồm
+**Lợi ích**: Luôn dùng phần mềm mới nhất. Không cần nâng cấp phiên bản như Ubuntu.
+**Rủi ro**: Cập nhật có thể gây hỏng nếu không đọc tin tức trước khi update.
 
-- Cài đặt Arch Linux từ USB đến hệ thống hoàn chỉnh
-- Phân vùng BTRFS với subvolume
-- Cấu hình GRUB cho UEFI
-- Thiết lập Xorg display server
-- Cài đặt và cấu hình bspwm + sxhkd
-- Polybar, Rofi, Picom, Nitrogen
-- Driver Intel + NVIDIA
-- Wi-Fi, Bluetooth, âm thanh
-- Quản lý gói với pacman và yay
-- BTRFS snapshot với Timeshift
-- Hướng dẫn sử dụng bspwm chi tiết
-- Troubleshooting các lỗi thường gặp
+### 2. Pacman — Trình quản lý gói
 
-### Không bao gồm
+Pacman là công cụ quản lý gói tích hợp sẵn. Cú pháp đơn giản:
 
-- Môi trường phát triển (IDE, Docker, Git workflow)
-- Ngôn ngữ lập trình (Go, Java, Python, NodeJS)
-- Game và tối ưu game (Steam, Proton, Wine)
-- Phần mềm văn phòng nâng cao
-- Server và dịch vụ mạng phức tạp
+```bash
+pacman -Syu    # Cập nhật toàn bộ hệ thống
+pacman -S gói  # Cài gói
+pacman -R gói  # Xóa gói
+pacman -Qs từ  # Tìm gói đã cài
+```
 
-## Máy mục tiêu: Lenovo LOQ 15IAX9
+### 3. AUR — Arch User Repository
 
-| Thành phần | Chi tiết |
-|---|---|
-| CPU | 12th Gen Intel Core i5-12450HX |
-| GPU 1 | Intel UHD Graphics (integrated) |
-| GPU 2 | NVIDIA GeForce RTX 4050 Laptop GPU |
-| RAM | 16GB DDR5 |
-| Storage | Micron NVMe 512GB |
-| Wi-Fi | Realtek RTL8852BE |
-| LAN | Realtek GbE |
-| Audio | Intel Smart Sound Technology (SST) |
+Kho lưu trữ cộng đồng do người dùng đóng góp. Chứa phần mềm không có trong
+repo chính thức. Dùng yay hoặc paru để truy cập:
 
-## Trước khi bắt đầu
+```bash
+yay -S gói     # Cài từ AUR
+```
 
-1. **Backup dữ liệu**: Toàn bộ dữ liệu trên ổ cứng sẽ bị xóa sạch.
-2. **USB boot**: Chuẩn bị USB 4GB+ để ghi Arch ISO.
-3. **Internet**: Đảm bảo có kết nối mạng trong quá trình cài.
-4. **Kiên nhẫn**: Đây là quá trình thủ công, có thể mất 1-2 giờ cho lần đầu.
+### 4. Wiki
+
+Arch Wiki được coi là wiki Linux tốt nhất thế giới. Bất kỳ vấn đề nào bạn gặp,
+khả năng cao đã có giải pháp trên Arch Wiki.
+
+### 5. Tự cấu hình hoàn toàn
+
+Arch không làm gì tự động thay bạn. Bạn tự quyết định:
+
+- Dùng systemd-boot hay GRUB
+- Dùng NetworkManager hay systemd-networkd
+- Dùng PipeWire hay PulseAudio
+- Dùng ext4, BTRFS, XFS, ZFS
+- Dùng desktop environment, window manager, hay cả hai
+
+## Tại sao nên dùng Arch?
+
+- **Học được nhiều**: Bạn sẽ hiểu Linux từ gốc thay vì dùng công cụ tự động.
+- **Tối ưu**: Bạn chỉ cài những gì mình cần. Hệ thống nhẹ và nhanh.
+- **Linh hoạt**: Arch làm theo ý bạn, không làm theo ý nhà phát triển.
+- **Cộng đồng**: Arch Wiki và diễn đàn cực kỳ chất lượng.
+
+## Tại sao không nên dùng Arch?
+
+- **Tốn thời gian ban đầu**: Có thể mất cả ngày để cài và cấu hình.
+- **Không tự động**: Mọi lỗi đều do bạn tự sửa.
+- **Yêu cầu đọc hiểu**: Không thể cài Arch mà không đọc tài liệu.
+- **Cập nhật có rủi ro**: Đôi khi bản cập nhật gây hỏng và cần can thiệp thủ công.
+
+## Kết luận
+
+Arch Linux phù hợp nếu bạn muốn hiểu Linux thực sự, có thời gian tìm hiểu,
+và muốn một hệ thống tinh gọn đúng nhu cầu. Không phù hợp nếu bạn muốn
+máy tính "chạy ngay sau khi cài" mà không cần cấu hình.

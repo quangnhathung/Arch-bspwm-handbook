@@ -1,203 +1,160 @@
-# Bspwm — Window Manager
+# Xorg Display Server
 
 ## Mục tiêu
 
-Cài đặt và cấu hình bspwm (Binary Space Partitioning Window Manager).
+Cài đặt và cấu hình Xorg — display server cho môi trường desktop.
 
 ## Kiến thức nền
 
-### Window Manager là gì?
+### Display Server là gì?
 
-Window Manager (WM) là chương trình quản lý vị trí, kích thước, và cách hiển thị
-của các cửa sổ ứng dụng trên màn hình.
-
-### bspwm hoạt động như thế nào?
-
-bspwm chia màn hình thành các **node** (ô) bằng các đường phân cách ngang hoặc dọc
-(Binary Space Partitioning). Cấu trúc cây (tree) quản lý các node này:
+Display server là chương trình trung gian giữa ứng dụng đồ họa và phần cứng.
+Nó nhận dữ liệu từ ứng dụng và gửi đến GPU để hiển thị.
 
 ```
-Root (Màn hình)
-├── Node A (40%)
-│   ├── Cửa sổ 1
-│   └── Cửa sổ 2
-└── Node B (60%)
-    └── Cửa sổ 3
+Application → Display Server → GPU → Màn hình
 ```
 
-Khi mở cửa sổ mới, node đang chọn bị chia làm hai.
+### Xorg vs Wayland
 
-### bspwm gần như vô dụng nếu không có sxhkd
+| | Xorg | Wayland |
+|---|---|---|
+| Đời | Cũ (1987) | Mới (2015+) |
+| Kiến trúc | Client-Server | Compositor |
+| Tương thích | Tốt với hầu hết ứng dụng | Đang cải thiện |
+| NVIDIA | Cần cấu hình | Chưa ổn định |
+| Security | Kém (app có thể đọc màn hình khác) | Tốt hơn |
 
-bspwm CHỈ quản lý cửa sổ. Nó không xử lý bàn phím. Mọi phím tắt (chuyển
-workspace, đóng cửa sổ, resize, v.v.) đều do **sxhkd** (Simple X Hotkey Daemon)
-xử lý. Không có sxhkd, bạn không thể làm gì với bspwm ngoài nhìn.
+Chúng ta dùng **Xorg** vì:
+- Tương thích tốt với NVIDIA.
+- Tương thích tốt với bspwm (Wayland chưa support bspwm).
+- Ổn định, lâu đời.
+
+### Xinit là gì?
+
+`xinit` là chương trình khởi động X server. Nó đọc `~/.xinitrc` để biết chạy
+chương trình gì sau khi X server khởi động.
+
+Với bspwm, `~/.xinitrc` sẽ chứa:
+
+```bash
+exec bspwm
+```
 
 ## Các bước thực hiện
 
-### Bước 1: Cài bspwm và sxhkd
+### Bước 1: Cài Xorg
 
 ```bash
-pacman -S bspwm sxhkd
+pacman -S xorg xorg-server xorg-init xorg-xrandr
 ```
 
-Luôn cài cả hai cùng lúc.
+| Gói | Vai trò |
+|---|---|
+| `xorg` | Nhóm gói Xorg (ký hiệu, font, v.v.) |
+| `xorg-server` | X server (phần lõi) |
+| `xorg-init` | Script khởi động (xinit, startx) |
+| `xorg-xrandr` | Công cụ quản lý màn hình (resolution, multi-monitor) |
 
-### Bước 2: Tạo thư mục cấu hình
+### Bước 2: Cài Xorg input drivers
+
+```bash
+pacman -S xf86-input-libinput
+```
+
+`xf86-input-libinput` là driver input mới nhất, hỗ trợ tốt touchpad,
+bàn phím, chuột trên máy hiện đại.
+
+### Bước 3: Cài Xorg GPU drivers (cơ bản)
+
+```bash
+pacman -S mesa libgl
+```
+
+- `mesa`: OpenGL implementation mã nguồn mở (dùng cho Intel GPU).
+- `libgl`: Thư viện OpenGL.
+
+Driver NVIDIA và Intel sâu hơn được xử lý riêng trong docs/05-drivers/.
+
+### Bước 4: Tạo file ~/.xinitrc
 
 ```bash
 su - archuser
-mkdir -p ~/.config/bspwm
-mkdir -p ~/.config/sxhkd
+mkdir -p ~/.config
+echo "exec bspwm" > ~/.xinitrc
 exit
 ```
 
-### Bước 3: Tạo file cấu hình bspwmrc
+Giải thích:
+- `su - archuser`: Chuyển sang user (vì đang ở chroot với root).
+- `echo "exec bspwm"`: Tạo file .xinitrc đơn giản nhất.
+
+### Bước 5: Kiểm tra Xorg
+
+Trong chroot không thể test Xorg (cần GPU). Sau reboot:
 
 ```bash
-vim /home/archuser/.config/bspwm/bspwmrc
+# Kiểm tra Xorg có cài đúng không
+Xorg -version
+
+# Thử khởi động Xorg (nếu có GPU)
+startx
+```
+
+## Cấu hình Xorg nâng cao (khi cần)
+
+### Tạo file config cho touchpad
+
+```bash
+mkdir -p /etc/X11/xorg.conf.d
+vim /etc/X11/xorg.conf.d/30-touchpad.conf
 ```
 
 Nội dung:
 
-```bash
-#!/bin/bash
-
-# ---- Monitor ----
-xrandr --output eDP-1 --mode 1920x1080 --rate 144
-
-# ---- Configuration ----
-bspc monitor -d I II III IV V VI VII VIII IX
-
-bspc config border_width         2
-bspc config window_gap           8
-bspc config split_ratio          0.50
-bspc config borderless_monocle   true
-bspc config gapless_monocle      true
-bspc config focus_follows_pointer false
-bspc config pointer_follows_focus false
-bspc config pointer_action_modifier super
-
-# ---- Rules ----
-bspc rule -a Gimp                   desktop='^8' state=tiled
-bspc rule -a firefox                desktop='^2' state=tiled
-bspc rule -a Alacritty              state=tiled
-bspc rule -a nitrogen:*             state=floating
-bspc rule -a Rofi:*                 state=floating
-bspc rule -a Polybar:*              state=floating
-bspc rule -a "Viewnior:*"           state=floating
-bspc rule -a "Pcmanfm:*"            state=floating
-bspc rule -a "Xfce4-power-manager:*" state=floating
-
-# ---- Compositor ----
-picom --config ~/.config/picom/picom.conf &
-
-# ---- Bar ----
-polybar main &
-
-# ---- Launcher daemon ----
-# (sxhkd chạy riêng)
-
-# ---- Wallpaper ----
-nitrogen --restore &
-
-# ---- System tray ----
-nm-applet &
-blueman-applet &
-volumeicon &
-
-# ---- Power management ----
-xfce4-power-manager &
-
-# ---- Polkit ----
-/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+```
+Section "InputClass"
+    Identifier "touchpad"
+    Driver "libinput"
+    MatchIsTouchpad "on"
+    Option "Tapping" "on"           # Tap để click
+    Option "TappingButtonMap" "lrm" # 1 ngón = left, 2 = right, 3 = middle
+    Option "NaturalScrolling" "on"  # Cuộn tự nhiên (giống macOS)
+    Option "DisableWhileTyping" "on"
+EndSection
 ```
 
-Giải thích từng phần:
-
-#### `xrandr`
-
-Đặt độ phân giải 1920x1080 144Hz cho màn hình laptop (`eDP-1`).
-Tên output có thể khác (eDP-1-1). Kiểm tra bằng `xrandr` sau khi có NVIDIA driver.
-
-#### `bspc monitor`
-
-Tạo 9 desktop (workspace) có tên I đến IX.
-
-#### `bspc config`
-
-Các cấu hình window manager:
-- `border_width 2`: Độ dày viền cửa sổ.
-- `window_gap 8`: Khoảng cách giữa các cửa sổ.
-- `split_ratio 0.50`: Tỉ lệ chia mặc định (50/50).
-- `focus_follows_pointer false`: Focus không tự động theo chuột.
-- `pointer_follows_focus false`: Chuột không tự động nhảy theo focus.
-
-#### `bspc rule`
-
-Rules để xử lý cửa sổ cụ thể:
-- `firefox` luôn mở ở desktop 2.
-- `Rofi` và `Polybar` luôn ở dạng floating.
-- `nitrogen` floating để tránh bị tile.
-
-#### Các chương trình nền
-
-- `picom`: Compositor (đổ bóng, chống tearing).
-- `polybar`: Thanh trạng thái.
-- `nitrogen`: Quản lý wallpaper.
-- `nm-applet`: NetworkManager tray icon.
-- `blueman-applet`: Bluetooth tray icon.
-- `volumeicon`: Âm lượng tray icon.
-- `xfce4-power-manager`: Quản lý năng lượng (pin, brightness).
-- `polkit-gnome`: Xác thực quyền (cho GUI).
-
-### Bước 4: Phân quyền executable
+### Tắt chuột tăng tốc (mouse acceleration)
 
 ```bash
-chmod +x /home/archuser/.config/bspwm/bspwmrc
+vim /etc/X11/xorg.conf.d/50-mouse-acceleration.conf
 ```
 
-bspwmrc phải có quyền execute (là một script bash).
-
-### Bước 5: Cập nhật .xinitrc
-
-```bash
-echo "exec bspwm" > /home/archuser/.xinitrc
 ```
-
-### Bước 6: Kiểm tra cấu hình (sau reboot)
-
-```bash
-# Khởi động X + bspwm
-startx
-```
-
-## Các lệnh bspwm cơ bản (qua sxhkd)
-
-Sẽ được cấu hình chi tiết trong bài sxhkd. Một số lệnh qua terminal:
-
-```bash
-# Đóng cửa sổ hiện tại
-bspc node -c
-
-# Chuyển desktop
-bspc desktop -f next
-
-# Chia dọc
-bspc node -p east
+Section "InputClass"
+    Identifier "mouse"
+    Driver "libinput"
+    MatchIsPointer "on"
+    Option "AccelProfile" "flat"
+EndSection
 ```
 
 ## Troubleshooting
 
-### bspwm không khởi động
+### "Failed to run /usr/bin/xinit"
 
-Kiểm tra:
-- `~/.config/bspwm/bspwmrc` có execute permission không?
-- `~/.config/bspwm/bspwmrc` không có lỗi syntax?
-- sxhkd đã được cài chưa?
+Chưa cài xorg-init → `pacman -S xorg-init`.
+
+### "/usr/bin/xinit: No such file or directory"
+
+Chưa cài xorg-init.
+
+### "Cannot open /dev/tty0"
+
+Chạy startx từ non-root user.
 
 ## Tổng kết
 
-- bspwm đã được cài và cấu hình cơ bản.
-- bspwmrc đã được tạo với các setting cho laptop.
-- Cần sxhkd để có keybinding hoạt động.
+- Xorg đã được cài với driver input libinput.
+- `~/.xinitrc` đã được tạo.
+- Sau khi cài bspwm và reboot, `startx` sẽ khởi động bspwm.

@@ -1,135 +1,139 @@
-# Mount hệ thống
+# Locale, Timezone, Hostname
 
 ## Mục tiêu
 
-Mount các subvolume BTRFS và EFI System Partition vào đúng vị trí trước khi cài base.
+Cấu hình ngôn ngữ, múi giờ, và tên máy sau khi chroot vào hệ thống mới.
 
 ## Điều kiện tiên quyết
 
-- Partition BTRFS đã format và có subvolume.
-- EFI System Partition đã format FAT32.
+- Đã cài base system bằng pacstrap.
+- Đã genfstab và kiểm tra.
+- Đã chroot vào `/mnt`.
 
-## Kiến thức nền
-
-### Mount options
-
-Chúng ta mount các subvolume với các option:
-
-- **BTRFS subvolume**: Mount với `subvol=` để chỉ định subvolume.
-- **Compress zstd**: Nén dữ liệu.
-- **Noatime**: Tắt access time tracking.
-- **Space_cache=v2**: Cache không gian trống.
-- **Autodefrag**: Tự động chống phân mảnh.
-
-Riêng subvolume `@swap` mount với `nodatacow` vì swap không tương thích CoW.
-
-## Các bước thực hiện
-
-### Bước 1: Format EFI System Partition
+## Chroot
 
 ```bash
-mkfs.fat -F32 /dev/nvme0n1p1
+arch-chroot /mnt
+```
+
+`arch-chroot` là script tự động mount các filesystem cần thiết (proc, sys, dev)
+và chroot vào hệ thống mới.
+
+Sau lệnh này, prompt sẽ thay đổi thành:
+
+```
+[root@archiso /]#
+```
+
+## Các bước cấu hình
+
+### Bước 1: Cấu hình Timezone
+
+```bash
+# Liệt kê các múi giờ có sẵn
+timedatectl list-timezones | grep -i asia
+
+# Đặt timezone cho Việt Nam
+ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime
+
+# Đồng bộ hardware clock (RTC)
+hwclock --systohc
 ```
 
 Giải thích:
-- `mkfs.fat`: Tạo FAT32 filesystem.
-- `-F32`: Chỉ định FAT32.
-- `/dev/nvme0n1p1`: EFI System Partition (1GB).
+- `ln -sf`: Tạo symlink. Timezone được xác định bằng symlink từ `/etc/localtime`
+  đến file timezone tương ứng.
+- `/usr/share/zoneinfo/Asia/Ho_Chi_Minh`: Múi giờ Việt Nam (UTC+7).
+- `hwclock --systohc`: Ghi thời gian hệ thống vào hardware clock (RTC — BIOS clock).
+  Mặc định Linux dùng UTC cho RTC. Windows dùng local time. Nếu muốn dual boot
+  với Windows, cần thêm bước. Nhưng chúng ta đã xóa Windows.
 
-### Bước 2: Mount root subvolume
+#### Nếu muốn dùng RTC ở localtime:
 
-```bash
-mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@ /dev/nvme0n1p2 /mnt
-```
-
-### Bước 3: Tạo thư mục mount cho các subvolume khác
-
-```bash
-mkdir -p /mnt/{home,var/log,var/cache/pacman/pkg,swap,efi}
-```
-
-### Bước 4: Mount các subvolume còn lại
+Không cần cho máy chỉ có Arch. Nhưng nếu sau này cần dual boot thì:
 
 ```bash
-mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@home /dev/nvme0n1p2 /mnt/home
-mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@log /dev/nvme0n1p2 /mnt/var/log
-mount -o compress=zstd,noatime,space_cache=v2,autodefrag,subvol=@pkg /dev/nvme0n1p2 /mnt/var/cache/pacman/pkg
-mount -o nodatacow,noatime,space_cache=v2,subvol=@swap /dev/nvme0n1p2 /mnt/swap
+timedatectl set-local-rtc 1
 ```
 
-### Bước 5: Mount EFI System Partition
+### Bước 2: Cấu hình Locale
+
+Locale định nghĩa ngôn ngữ, định dạng số, ngày tháng, tiền tệ.
 
 ```bash
-mount /dev/nvme0n1p1 /mnt/efi
+# Sửa file locale.gen — bỏ comment dòng en_US.UTF-8 và vi_VN.UTF-8
+vim /etc/locale.gen
 ```
 
-### Bước 6: Kiểm tra kết quả
+Tìm và uncomment (xóa dấu `#` ở đầu) các dòng:
+
+```
+en_US.UTF-8 UTF-8
+vi_VN.UTF-8 UTF-8
+```
+
+Sau đó:
 
 ```bash
-lsblk
+# Sinh locale
+locale-gen
+
+# Tạo /etc/locale.conf
+echo "LANG=en_US.UTF-8" > /etc/locale.conf
 ```
 
-Kết quả mong đợi:
+Giải thích:
+- `locale-gen`: Đọc `/etc/locale.gen` và sinh các locale đã được uncomment.
+- `/etc/locale.conf`: File cấu toàn hệ thống. `LANG=en_US.UTF-8` là ngôn ngữ mặc định.
+  (Không dùng vi_VN vì terminal sẽ lỗi font và nhiều ứng dụng không hỗ trợ.)
 
-```
-NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
-nvme0n1     259:0    0 476.9G  0 disk
-├─nvme0n1p1 259:1    0     1G  0 part /mnt/efi
-└─nvme0n1p2 259:2    0 475.9G  0 part /mnt
-```
-
-Kiểm tra thêm:
+### Bước 3: Đặt Hostname
 
 ```bash
-btrfs subvolume list /mnt
+# Tạo file hostname
+echo "loq-arch" > /etc/hostname
+
+# Sửa file hosts
+vim /etc/hosts
 ```
 
-Output sẽ hiện 5 subvolume với ID tương ứng.
-
-## Cấu trúc mount hoàn chỉnh
+Thêm vào `/etc/hosts`:
 
 ```
-/mnt
-├── (BTRFS subvolume @)        → root filesystem
-├── home/                      → (BTRFS subvolume @home)
-├── var/log/                   → (BTRFS subvolume @log)
-├── var/cache/pacman/pkg/      → (BTRFS subvolume @pkg)
-├── swap/                      → (BTRFS subvolume @swap, nodatacow)
-└── efi/                       → (FAT32, EFI System Partition)
+127.0.0.1   localhost
+::1         localhost
+127.0.1.1   loq-arch.localdomain   loq-arch
 ```
 
-## Xác minh mount options
+Giải thích:
+- `127.0.0.1 localhost`: Loopback IPv4 mặc định.
+- `::1 localhost`: Loopback IPv6 mặc định.
+- `127.0.1.1 loq-arch.localdomain loq-arch`: Hostname của máy.
+  `127.0.1.1` (không phải 127.0.0.1) là convention để hostname resolution
+  hoạt động với network services.
+
+### Bước 4: Kiểm tra
 
 ```bash
-mount | grep nvme0n1
-```
+# Kiểm tra timezone
+timedatectl status
 
-Output sẽ hiển thị các option đã mount. Kiểm tra xem `compress=zstd` và `noatime`
-có xuất hiện không.
+# Kiểm tra locale
+locale
 
-## Nếu có lỗi
-
-### "mount: /mnt: /dev/nvme0n1p2 already mounted"
-
-```bash
-umount -R /mnt
-# Sau đó mount lại từ đầu
-```
-
-### "wrong fs type, bad option, bad superblock"
-
-- Chưa format BTRFS → chạy `mkfs.btrfs -f /dev/nvme0n1p2`.
-- Partition bị hỏng → kiểm tra lại partition table.
-
-### "FAT32 not supported"
-
-```bash
-pacman -S dosfstools
-# Sau đó chạy lại mkfs.fat
+# Kiểm tra hostname
+hostname
+hostname -f
 ```
 
 ## Tổng kết
 
-- EFI partition đã format FAT32 và mount tại `/mnt/efi`.
-- Các subvolume BTRFS đã mount đúng vị trí với option tối ưu.
-- Sẵn sàng để cài base system bằng pacstrap.
+Các cấu hình cơ bản đã được thiết lập:
+
+| Cấu hình | Giá trị |
+|---|---|
+| Timezone | Asia/Ho_Chi_Minh |
+| Locale | en_US.UTF-8 |
+| Hostname | loq-arch |
+
+Sẵn sàng cấu hình network và tạo user.

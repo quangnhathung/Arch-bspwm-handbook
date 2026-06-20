@@ -1,171 +1,278 @@
-# Workspaces — Desktop ảo
+# Customization — Tùy chỉnh bspwm
 
 ## Mục tiêu
 
-Hiểu khái niệm workspace và cách sử dụng chúng trong bspwm.
+Hướng dẫn tùy chỉnh giao diện và hành vi của bspwm.
 
-## Kiến thức nền
+## Các thành phần có thể tùy chỉnh
 
-### Workspace là gì?
-
-Workspace (còn gọi là desktop ảo) là màn hình ảo riêng biệt.
-Mỗi workspace có thể chứa một bộ cửa sổ riêng, không ảnh hưởng đến workspace khác.
-
-```
-Workspace 1       Workspace 2       Workspace 3
-+-----------+     +-----------+     +-----------+
-| Terminal  |     | Browser   |     | Music     |
-|           |     |           |     |           |
-+-----------+     +-----------+     +-----------+
-```
-
-Bạn chỉ thấy một workspace tại một thời điểm. Chuyển workspace bằng phím tắt.
-
-### Tại sao dùng workspace?
-
-- **Tổ chức**: Mỗi không gian cho một công việc riêng.
-  - Workspace 1: Terminal + Code
-  - Workspace 2: Browser (tra cứu)
-  - Workspace 3: Nhạc / Chat
-  - Workspace 4: Email
-- **Tập trung**: Không bị phân tâm bởi các cửa sổ không liên quan.
-- **Đa màn hình**: Mỗi màn hình có bộ workspace riêng.
-
-## Cấu hình workspace
-
-Trong `bspwmrc`:
-
-```bash
-bspc monitor -d I II III IV V VI VII VIII IX
-```
-
-Dòng này tạo 9 workspace cho monitor đầu tiên (màn hình laptop), đặt tên
-là I, II, III, ..., IX.
-
-Có thể dùng tên khác:
-
-```bash
-bspc monitor -d term code web chat music files mail sys games
-```
-
-Hoặc workspace hệ thống:
-
-```bash
-bspc monitor -d 1 2 3 4 5 6 7 8 9
-```
-
-## Thao tác với workspace
-
-### Chuyển workspace
-
-| Phím | Chức năng |
-|---|---|
-| `Super + 1` | Chuyển đến workspace 1 |
-| `Super + 2` | Chuyển đến workspace 2 |
-| ... | ... |
-| `Super + 9` | Chuyển đến workspace 9 |
-| `Super + Tab` | Quay lại workspace trước đó |
-
-### Di chuyển cửa sổ đến workspace khác
-
-| Phím | Chức năng |
-|---|---|
-| `Super + Shift + 1` | Gửi cửa sổ hiện tại đến workspace 1 và chuyển đến đó |
-| `Super + Shift + 2` | Gửi cửa sổ hiện tại đến workspace 2 |
-| ... | ... |
-| `Super + Shift + 9` | Gửi cửa sổ hiện tại đến workspace 9 |
-
-### Lệnh CLI
-
-```bash
-# Chuyển đến workspace
-bspc desktop -f 5
-
-# Di chuyển cửa sổ đến workspace
-bspc node -d 5
-
-# Di chuyển và chuyển đến
-bspc node -d 5 --follow
-```
-
-## Trạng thái workspace
-
-Polybar hiển thị trạng thái workspace:
-
-| Trạng thái | Hiển thị | Ý nghĩa |
+| Thành phần | File cấu hình | Công cụ |
 |---|---|---|
-| Focused | Màu xanh | Workspace đang dùng |
-| Unfocused | Màu xám | Workspace khác có cửa sổ |
-| Empty | Không hiện | Workspace trống |
-| Urgent | Màu đỏ | Ứng dụng cần chú ý |
-| Occupied | Màu nhạt | Có cửa sổ nhưng không focus |
+| Window manager | `~/.config/bspwm/bspwmrc` | bspc config |
+| Keybinding | `~/.config/sxhkd/sxhkdrc` | sxhkd |
+| Bar | `~/.config/polybar/config.ini` | Polybar |
+| Launcher | `~/.config/rofi/config.rasi` | Rofi |
+| Compositor | `~/.config/picom/picom.conf` | Picom |
+| Wallpaper | `~/.config/nitrogen/bg-saved.cfg` | Nitrogen |
+| Theme | `~/.config/gtk-3.0/settings.ini` | GTK |
+| Terminal | `~/.config/alacritty/alacritty.yml` | Alacritty |
 
-## Gán ứng dụng vào workspace
+## Tùy chỉnh bspwm
 
-Trong `bspwmrc`:
-
-```bash
-bspc rule -a firefox desktop='^2'
-bspc rule -a Alacritty desktop='^1'
-bspc rule -a thunderbird desktop='^5'
-```
-
-- `desktop='^2'`: Mở trên workspace 2.
-- `^` có nghĩa là "workspace số 2 của monitor hiện tại".
-
-## Multi-monitor
-
-Mỗi monitor có bộ workspace riêng.
-
-```
-Monitor eDP-1 (laptop)
-  Workspace: I II III IV V
-Monitor HDMI-A-1 (ngoài)
-  Workspace: VI VII VIII IX
-```
-
-Chuyển workspace qua lại:
+### Window gap
 
 ```bash
-# Chuyển workspace giữa các màn hình
-bspc node -m next
+# Khoảng cách giữa các cửa sổ (px)
+bspc config window_gap 8
+
+# Tăng lên 16 cho không gian thoáng hơn
+bspc config window_gap 16
+
+# Giảm xuống 0 cho tiết kiệm diện tích
+bspc config window_gap 0
 ```
 
-Xem thêm bài multi-monitor.md.
+### Border
+
+```bash
+# Độ dày viền
+bspc config border_width 2
+
+# Màu viền
+bspc config focused_border_color "#50FA7B"
+bspc config normal_border_color "#44475A"
+bspc config presel_border_color "#FF5555"
+```
+
+### Padding (khoảng cách từ cạnh màn hình)
+
+```bash
+# Padding trên-dưới-trái-phải
+bspc config top_padding 0
+bspc config bottom_padding 0
+bspc config left_padding 0
+bspc config right_padding 0
+
+# Nếu có Polybar, set top_padding = height của bar
+bspc config top_padding 28
+```
+
+### Mouse behavior
+
+```bash
+# Focus theo chuột
+bspc config focus_follows_pointer true
+
+# Chuột nhảy theo focus
+bspc config pointer_follows_focus true
+
+# Click chuột phải trên desktop → menu
+bspc config pointer_modifier super
+```
+
+### Split ratio mặc định
+
+```bash
+# 50/50
+bspc config split_ratio 0.50
+
+# Nghiêng về cửa sổ hiện tại (lấy 60%)
+bspc config split_ratio 0.60
+```
+
+## Tùy chỉnh sxhkd
+
+### Thêm keybinding mới
+
+Mở `~/.config/sxhkd/sxhkdrc` và thêm:
+
+```
+# Ví dụ: Mở file manager
+super + e
+    pcmanfm
+
+# Ví dụ: Mở trình duyệt
+super + b
+    firefox
+
+# Ví dụ: Screenshot vùng chọn
+super + Print
+    maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
+```
+
+### Key chording
+
+sxhkd hỗ trợ chuỗi phím (chain):
+
+```
+# Nhấn Super + o, sau đó nhấn tiếp một phím
+super + o
+    ; dm
+        {t, f, m}
+            bspc desktop -l {tiled, floating, monocle}
+    ; wn
+        {h, j, k, l}
+            bspc node -p {west, south, north, east}
+```
+
+## Tùy chỉnh Polybar
+
+### Thay đổi màu sắc
+
+Trong `~/.config/polybar/config.ini`:
+
+```ini
+[colors]
+background = #1E1E2E
+background-alt = #313244
+foreground = #CDD6F4
+primary = #89B4FA
+secondary = #A6E3A1
+alert = #F38BA8
+```
+
+### Thêm module
+
+```ini
+[module/github]
+type = custom/script
+exec = curl -s "https://api.github.com/notifications?access_token=..." | jq length
+interval = 60
+```
+
+## Tùy chỉnh Rofi
+
+### Theme Rofi
+
+Rofi theme có thể tùy chỉnh sâu bằng file `.rasi`.
+
+Ví dụ tạo theme cá nhân:
+
+```bash
+vim ~/.config/rofi/theme.rasi
+```
+
+```css
+* {
+    background-color: #1E1E2E;
+    text-color: #CDD6F4;
+}
+
+window {
+    width: 40%;
+    border-color: #89B4FA;
+}
+
+listview {
+    lines: 12;
+}
+
+element selected {
+    background-color: #45475A;
+    text-color: #89B4FA;
+}
+
+entry {
+    background-color: #313244;
+    text-color: #CDD6F4;
+}
+```
+
+Reference: https://github.com/davatorium/rofi/wiki/Themes
+
+## Tùy chỉnh Picom
+
+### Tăng/shadow
+
+```bash
+# Giảm shadow
+shadow-radius = 8;
+shadow-opacity = 0.3;
+
+# Tắt shadow cho ứng dụng cụ thể
+shadow-exclude = [
+    "class_g = 'firefox'"
+];
+```
+
+### Tắt animation (nếu lag)
+
+```bash
+animations = false;
+fading = false;
+```
+
+## Theme tổng thể
+
+### Color scheme: Catppuccin Mocha
+
+Catppuccin là theme màu pastel rất đẹp và có port cho hầu hết ứng dụng.
+
+| Ứng dụng | Cách cài |
+|---|---|
+| Alacritty | Copy từ https://github.com/catppuccin/alacritty |
+| Polybar | Copy màu vào config.ini |
+| Rofi | Dùng catppuccin theme |
+| Picom | Chỉnh màu shadow |
+| GTK | `pacman -S catppuccin-gtk-theme` (AUR) |
+
+## Script cá nhân hóa
+
+### Tạo script lock screen
+
+```bash
+pacman -S betterlockscreen
+betterlockscreen -u ~/Pictures/wallpapers/lock.jpg
+```
+
+Trong sxhkdrc:
+
+```
+super + shift + Escape
+    betterlockscreen -l
+```
+
+### Tạo script screenshot
+
+```bash
+mkdir -p ~/Pictures/screenshots
+```
+
+Đã có trong sxhkdrc:
+
+```
+Print
+    maim -u ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
+
+super + Print
+    maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
+```
+
+## Backup và chia sẻ cấu hình
+
+```bash
+# Backup toàn bộ config
+tar -czf bspwm-config-$(date +%Y%m%d).tar.gz ~/.config/{bspwm,sxhkd,polybar,rofi,picom,alacritty,nitrogen}
+
+# Git init
+cd ~/.config
+git init
+git add bspwm sxhkd polybar rofi picom alacritty
+git commit -m "Initial bspwm config"
+```
 
 ## Best practices
 
-1. **Dành workspace cố định cho ứng dụng thường dùng**:
-   - WS 1: Terminal
-   - WS 2: Trình duyệt
-   - WS 3: Chat (Telegram, Discord)
-   - WS 4: File manager
-
-2. **Dùng workspace cuối** cho ứng dụng tạm thời (WS 9).
-
-3. **Không nhồi nhét quá nhiều cửa sổ vào một workspace**.
-   Nếu cần nhiều cửa sổ, chia ra nhiều workspace.
-
-4. **Dùng `Super + Tab` để quay lại workspace trước** khi cần
-   so sánh nhanh.
-
-## Troubleshooting
-
-### Workspace không hiển thị trên Polybar
-
-- Kiểm tra module `bspwm` trong config Polybar.
-- Restart Polybar: `killall polybar; polybar main &`.
-
-### Không chuyển workspace được
-
-- Kiểm tra sxhkd có chạy không.
-- Kiểm tra phím tắt trong sxhkdrc.
+1. **Sao lưu cấu hình** trước khi thay đổi lớn.
+2. **Thay đổi từ từ**: Mỗi lần chỉnh một thứ, test trước khi chuyển sang thứ khác.
+3. **Dùng Git** để quản lý phiên bản config.
+4. **Đọc tài liệu** của từng component (links trong bài này).
+5. **Kết hợp màu sắc đồng bộ** giữa các thành phần.
 
 ## Tổng kết
 
-- 9 workspace mặc định, có thể đặt tên tùy ý.
-- Chuyển bằng `Super + 1-9`.
-- Di chuyển cửa sổ bằng `Super + Shift + 1-9`.
-- Mỗi monitor có bộ workspace riêng.
-- Polybar hiển thị trạng thái workspace.
-- Có thể gán ứng dụng vào workspace cụ thể.
+- bspwm, sxhkd, Polybar, Rofi, Picom đều có thể tùy chỉnh sâu.
+- Mỗi thành phần có file config riêng.
+- Sử dụng color scheme đồng bộ (Catppuccin, Nord, Dracula).
+- Quản lý config bằng Git để dễ backup và chia sẻ.
+- Script cá nhân hóa: lock screen, screenshot.

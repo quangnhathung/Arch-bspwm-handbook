@@ -1,160 +1,225 @@
-# Xorg Display Server
+# Themes — Giao diện
 
 ## Mục tiêu
 
-Cài đặt và cấu hình Xorg — display server cho môi trường desktop.
+Cài đặt theme cho GTK, icon, và cursor để có giao diện đồng bộ.
 
 ## Kiến thức nền
 
-### Display Server là gì?
+### Themes trong Linux
 
-Display server là chương trình trung gian giữa ứng dụng đồ họa và phần cứng.
-Nó nhận dữ liệu từ ứng dụng và gửi đến GPU để hiển thị.
+- **GTK Theme**: Giao diện của ứng dụng GTK (Firefox, Thunar, v.v.).
+- **Icon Theme**: Bộ icon cho ứng dụng và hệ thống.
+- **Cursor Theme**: Hình dạng con trỏ chuột.
+- **Qt Theme**: Giao diện ứng dụng Qt (có thể dùng chung GTK theme qua qt5ct/qt6ct).
 
-```
-Application → Display Server → GPU → Màn hình
-```
+### Mặc định
 
-### Xorg vs Wayland
-
-| | Xorg | Wayland |
-|---|---|---|
-| Đời | Cũ (1987) | Mới (2015+) |
-| Kiến trúc | Client-Server | Compositor |
-| Tương thích | Tốt với hầu hết ứng dụng | Đang cải thiện |
-| NVIDIA | Cần cấu hình | Chưa ổn định |
-| Security | Kém (app có thể đọc màn hình khác) | Tốt hơn |
-
-Chúng ta dùng **Xorg** vì:
-- Tương thích tốt với NVIDIA.
-- Tương thích tốt với bspwm (Wayland chưa support bspwm).
-- Ổn định, lâu đời.
-
-### Xinit là gì?
-
-`xinit` là chương trình khởi động X server. Nó đọc `~/.xinitrc` để biết chạy
-chương trình gì sau khi X server khởi động.
-
-Với bspwm, `~/.xinitrc` sẽ chứa:
-
-```bash
-exec bspwm
-```
+Arch không có theme mặc định. Ứng dụng GTK sẽ hiển thị theme mặc định xấu.
+Cần cài theme riêng.
 
 ## Các bước thực hiện
 
-### Bước 1: Cài Xorg
+### Bước 1: Cài GTK theme
 
 ```bash
-pacman -S xorg xorg-server xorg-init xorg-xrandr
+pacman -S arc-gtk-theme materia-gtk-theme nordic-theme
 ```
 
-| Gói | Vai trò |
+| Theme | Đặc điểm |
 |---|---|
-| `xorg` | Nhóm gói Xorg (ký hiệu, font, v.v.) |
-| `xorg-server` | X server (phần lõi) |
-| `xorg-init` | Script khởi động (xinit, startx) |
-| `xorg-xrandr` | Công cụ quản lý màn hình (resolution, multi-monitor) |
+| Arc | Phổ biến, phẳng, đẹp |
+| Materia | Material Design, tối |
+| Nordic | Bảng màu nord, tối, dễ chịu |
 
-### Bước 2: Cài Xorg input drivers
+Chọn **Nordic** vì hợp với Dracula/Nord scheme của bspwm-config ở trên.
 
-```bash
-pacman -S xf86-input-libinput
-```
-
-`xf86-input-libinput` là driver input mới nhất, hỗ trợ tốt touchpad,
-bàn phím, chuột trên máy hiện đại.
-
-### Bước 3: Cài Xorg GPU drivers (cơ bản)
+### Bước 2: Cài icon theme
 
 ```bash
-pacman -S mesa libgl
+pacman -S papirus-icon-theme adwaita-icon-theme
 ```
 
-- `mesa`: OpenGL implementation mã nguồn mở (dùng cho Intel GPU).
-- `libgl`: Thư viện OpenGL.
+Papirus là icon theme đẹp, hiện đại, hỗ trợ folder màu.
 
-Driver NVIDIA và Intel sâu hơn được xử lý riêng trong docs/05-drivers/.
+### Bước 3: Cài cursor theme
 
-### Bước 4: Tạo file ~/.xinitrc
+```bash
+pacman -S capitaine-cursors bibata-cursor-theme
+```
+
+### Bước 4: Cấu hình GTK theme
+
+#### Cấu hình cho GTK3
 
 ```bash
 su - archuser
-mkdir -p ~/.config
-echo "exec bspwm" > ~/.xinitrc
+mkdir -p ~/.config/gtk-3.0
 exit
 ```
 
-Giải thích:
-- `su - archuser`: Chuyển sang user (vì đang ở chroot với root).
-- `echo "exec bspwm"`: Tạo file .xinitrc đơn giản nhất.
-
-### Bước 5: Kiểm tra Xorg
-
-Trong chroot không thể test Xorg (cần GPU). Sau reboot:
-
 ```bash
-# Kiểm tra Xorg có cài đúng không
-Xorg -version
-
-# Thử khởi động Xorg (nếu có GPU)
-startx
-```
-
-## Cấu hình Xorg nâng cao (khi cần)
-
-### Tạo file config cho touchpad
-
-```bash
-mkdir -p /etc/X11/xorg.conf.d
-vim /etc/X11/xorg.conf.d/30-touchpad.conf
+vim /home/archuser/.config/gtk-3.0/settings.ini
 ```
 
 Nội dung:
 
-```
-Section "InputClass"
-    Identifier "touchpad"
-    Driver "libinput"
-    MatchIsTouchpad "on"
-    Option "Tapping" "on"           # Tap để click
-    Option "TappingButtonMap" "lrm" # 1 ngón = left, 2 = right, 3 = middle
-    Option "NaturalScrolling" "on"  # Cuộn tự nhiên (giống macOS)
-    Option "DisableWhileTyping" "on"
-EndSection
+```ini
+[Settings]
+gtk-theme-name=Nordic
+gtk-icon-theme-name=Papirus-Dark
+gtk-cursor-theme-name=Bibata-Modern-Ice
+gtk-font-name=Noto Sans 10
+gtk-application-prefer-dark-theme=1
 ```
 
-### Tắt chuột tăng tốc (mouse acceleration)
+#### Cấu hình cho GTK4
 
 ```bash
-vim /etc/X11/xorg.conf.d/50-mouse-acceleration.conf
+mkdir -p /home/archuser/.config/gtk-4.0
 ```
 
+```bash
+vim /home/archuser/.config/gtk-4.0/settings.ini
 ```
-Section "InputClass"
-    Identifier "mouse"
-    Driver "libinput"
-    MatchIsPointer "on"
-    Option "AccelProfile" "flat"
-EndSection
+
+Nội dung giống GTK3.
+
+### Bước 5: Cấu hình Qt theme (nếu cần)
+
+Nếu có ứng dụng Qt (như qBittorrent, v.v.):
+
+```bash
+pacman -S qt5ct qt6ct
 ```
+
+```bash
+vim /etc/environment
+```
+
+Thêm:
+
+```
+QT_QPA_PLATFORMTHEME=qt5ct
+```
+
+Sau đó chạy `qt5ct` để chọn theme.
+
+Hoặc dùng kvantum:
+
+```bash
+pacman -S kvantum
+```
+
+### Bước 6: Cấu hình cursor theme toàn hệ thống
+
+```bash
+vim /etc/environment
+```
+
+Thêm:
+
+```
+XCURSOR_THEME=Bibata-Modern-Ice
+XCURSOR_SIZE=24
+```
+
+### Bước 7: Cài theme cho các ứng dụng cụ thể
+
+#### Alacritty
+
+```bash
+vim /home/archuser/.config/alacritty/alacritty.yml
+```
+
+Thêm colorscheme (ví dụ Dracula):
+
+```yaml
+colors:
+  primary:
+    background: '#282A36'
+    foreground: '#F8F8F2'
+  normal:
+    black:   '#21222C'
+    red:     '#FF5555'
+    green:   '#50FA7B'
+    yellow:  '#FFB86C'
+    blue:    '#BD93F9'
+    magenta: '#FF79C6'
+    cyan:    '#8BE9FD'
+    white:   '#F8F8F2'
+  bright:
+    black:   '#6272A4'
+    red:     '#FF6E6E'
+    green:   '#69FF94'
+    yellow:  '#FFCA80'
+    blue:    '#CAA9FA'
+    magenta: '#FF92D0'
+    cyan:    '#A4FFFF'
+    white:   '#FFFFFF'
+```
+
+#### Rofi
+
+Trong `config.rasi` đã set theme:
+
+```
+@theme "/usr/share/rofi/themes/nord.rasi"
+```
+
+## Công cụ quản lý theme
+
+### Lxappearance
+
+Công cụ GUI để chọn GTK theme, icon, cursor:
+
+```bash
+pacman -S lxappearance
+```
+
+Chạy `lxappearance` sau khi có X → chọn theme từ dropdown.
+
+### Cập nhật theme sau khi thay đổi
+
+Sau khi sửa file cấu hình, cần logout và login lại X để thấy thay đổi.
+
+```bash
+# Hoặc dùng lệnh để apply ngay (không cần logout)
+gsettings set org.gnome.desktop.interface gtk-theme Nordic
+```
+
+## Danh sách theme khuyên dùng
+
+| Loại | Theme khuyên dùng |
+|---|---|
+| GTK | Nordic |
+| Icon | Papirus-Dark |
+| Cursor | Bibata-Modern-Ice |
+| Terminal | Dracula (Alacritty) |
+| Rofi | Nord |
+| Polybar | Dracula (tự cấu hình) |
 
 ## Troubleshooting
 
-### "Failed to run /usr/bin/xinit"
+### Theme không apply
 
-Chưa cài xorg-init → `pacman -S xorg-init`.
+- Kiểm tra file `~/.config/gtk-3.0/settings.ini` tồn tại.
+- Kiểm tra theme đã được cài: `ls /usr/share/themes/`.
+- Chạy `lxappearance` và chọn lại theme.
 
-### "/usr/bin/xinit: No such file or directory"
+### Icon không hiển thị
 
-Chưa cài xorg-init.
+- Kiểm tra `ls /usr/share/icons/`.
+- Papirus phải được cài.
 
-### "Cannot open /dev/tty0"
+### Cursor không đổi
 
-Chạy startx từ non-root user.
+- Kiểm tra `ls /usr/share/icons/`.
+- Thêm `XCURSOR_THEME` vào `/etc/environment`.
 
 ## Tổng kết
 
-- Xorg đã được cài với driver input libinput.
-- `~/.xinitrc` đã được tạo.
-- Sau khi cài bspwm và reboot, `startx` sẽ khởi động bspwm.
+- GTK theme Nordic cho giao diện tối, dễ chịu.
+- Icon Papirus-Dark cho icon đồng bộ.
+- Cursor Bibata hiện đại.
+- Cấu hình cho GTK3, GTK4, Qt, và các ứng dụng cụ thể.

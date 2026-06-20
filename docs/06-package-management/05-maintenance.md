@@ -1,156 +1,204 @@
-# Yay — AUR Helper
+# Bảo trì hệ thống
 
 ## Mục tiêu
 
-Cài đặt và sử dụng yay để truy cập Arch User Repository (AUR).
+Hiểu quy trình bảo trì Arch Linux để giữ hệ thống ổn định và an toàn.
 
-## Kiến thức nền
+## Nguyên tắc
 
-### AUR là gì?
+Arch Linux là rolling release → cập nhật liên tục. Bảo trì quan trọng hơn
+các bản phân phối cố định (Ubuntu, Fedora) vì một lần update hỏng có thể
+phá vỡ hệ thống.
 
-Arch User Repository (AUR) là kho lưu trữ cộng đồng do người dùng Arch đóng góp.
-Nó chứa các gói không có trong repository chính thức.
+## Quy trình bảo trì hàng tuần
 
-AUR chứa các `PKGBUILD` — script hướng dẫn cách build gói từ source.
-Khi bạn "cài từ AUR", thực chất bạn đang tải PKGBUILD, kiểm tra, build,
-và cài bằng makepkg.
+### 1. Đọc tin tức Arch
 
-### Tại sao cần AUR helper?
-
-AUR helper tự động hóa quy trình:
-1. Tìm kiếm gói trên AUR.
-2. Clone PKGBUILD.
-3. Kiểm tra (tùy chọn).
-4. Cài dependencies.
-5. Build và cài.
-
-### yay
-
-yay (Yet Another Yogurt) là AUR helper phổ biến nhất.
-Cú pháp tương tự pacman:
+Trước khi update, kiểm tra tin tức:
 
 ```bash
-yay -S gói       # Cài từ AUR hoặc chính thức
-yay -Syu         # Cập nhật tất cả (AUR + chính thức)
-yay -Ss từ_khóa  # Tìm trong AUR + chính thức
+# Mở trang news
+xdg-open https://archlinux.org/news/
+
+# Hoặc dùng CLI
+curl -s https://archlinux.org/news/ | grep -oP '(?<=<title>)[^<]+' | head -5
 ```
 
-### Lưu ý về bảo mật AUR
+Arch thường đăng cảnh báo trước khi có thay đổi lớn (kernel, systemd, v.v.).
 
-Gói AUR do cộng đồng đóng góp, không được kiểm duyệt chính thức.
-**Rủi ro**: Mã độc có thể được đưa vào PKGBUILD.
-
-An toàn:
-- Chỉ cài gói AUR phổ biến (nhiều vote).
-- Đọc PKGBUILD trước khi build.
-- Tin tưởng maintainer có uy tín.
-
-## Các bước thực hiện
-
-### Bước 1: Cài yay từ AUR
+### 2. Cập nhật hệ thống
 
 ```bash
-pacman -S --needed base-devel git
-git clone https://aur.archlinux.org/yay.git
-cd yay
-makepkg -si
-```
-
-Giải thích:
-- `git clone`: Tải PKGBUILD của yay từ AUR.
-- `makepkg -si`: Build gói (`-s`: tự động cài dependencies, `-i`: cài gói).
-
-### Bước 2: Xác nhận cài đặt
-
-```bash
-yay --version
-```
-
-### Bước 3: Cấu hình yay (tùy chọn)
-
-```bash
-yay --save --answerclean None --answerdiff None
-```
-
-Các option:
-
-| Option | Mô tả |
-|---|---|
-| `--answerclean None` | Không hỏi về xóa file build |
-| `--answerdiff None` | Không hỏi về diff PKGBUILD |
-| `--answeredit None` | Không hỏi về edit PKGBUILD |
-| `--answerupgrade None` | Không hỏi về upgrade AUR |
-
-Cẩn thận: Không xem diff có thể bỏ lỡ code độc. Chỉ dùng các option này
-khi đã quen.
-
-## Các lệnh yay thường dùng
-
-```bash
-# Cập nhật tất cả (pacman + AUR)
+# Update đầy đủ
 yay -Syu
 
-# Cài gói (tự động tìm trong AUR hoặc chính thức)
-yay -S gói
-
-# Cài gói từ AUR (không tìm trong chính thức)
-yay -Sa gói
-
-# Tìm kiếm gói
-yay -Ss từ_khóa
-
-# Tìm trong AUR
-yay -Ssa từ_khóa
-
-# Xóa gói
-yay -Rns gói
-
-# Xóa cache và file build
-yay -Sc
+# Chú ý:
+# - Nếu có "warning: ... skipping" → đọc kỹ
+# - Nếu có pacman news → đọc trước
+# - Nếu update kernel → reboot sau
 ```
 
-## Khi nào dùng pacman vs yay
-
-| Tình huống | Dùng |
-|---|---|
-| Gói có trong repo chính thức | `pacman -S` |
-| Gói chỉ có trong AUR | `yay -S` |
-| Cập nhật toàn bộ hệ thống | `yay -Syu` |
-| Tìm gói | `yay -Ss` (tìm cả 2) |
-| Xóa gói | `pacman -Rns` hoặc `yay -Rns` |
-
-## Troubleshooting
-
-### "fatal: could not create work tree dir"
-
-Cần git: `pacman -S git`.
-
-### "PKGBUILD not found"
-
-Gói AUR không tồn tại hoặc tên sai → kiểm tra trên https://aur.archlinux.org.
-
-### Build fail vì thiếu dependencies
+### 3. Kiểm tra sau update
 
 ```bash
-# yay tự động cài dependencies, nhưng nếu lỗi:
-yay -S gói --makepkg-opt=-s
+# Kiểm tra lỗi
+systemctl --failed
+
+# Kiểm tra log kernel
+dmesg | grep -i error | tail -10
+
+# Kiểm tra disk space
+df -h /
 ```
 
-### "Could not find all required packages"
+### 4. Dọn dẹp (theo lịch)
 
-Một số dependencies chỉ có trong AUR → phải cài từng cái.
+Xem bài package-cleanup.md.
 
-## Best practices
+## Bảo trì hàng tháng
 
-1. **Thường xuyên update**: `yay -Syu` hàng tuần.
-2. **Đọc PKGBUILD** của gói AUR trước khi cài lần đầu.
-3. **Không dùng yay làm root** (yay tự động dùng sudo khi cần).
-4. **Dọn cache**: `yay -Sc` định kỳ.
-5. **Kiểm tra orphan**: `yay -Yc`.
+### 1. Kiểm tra orphan packages
+
+```bash
+pacman -Qtdq | wc -l
+# Nếu > 0 → xóa
+pacman -Rns $(pacman -Qtdq)
+```
+
+### 2. Kiểm tra journal
+
+```bash
+journalctl --disk-usage
+# Nếu > 200MB → vacuum
+journalctl --vacuum-size=100M
+```
+
+### 3. Kiểm tra BTRFS
+
+```bash
+# Kiểm tra dung lượng subvolume
+btrfs filesystem usage /
+
+# Kiểm tra lỗi
+btrfs device stats /
+```
+
+### 4. Kiểm tra pacman cache
+
+```bash
+du -sh /var/cache/pacman/pkg/
+# Nếu > 2GB → paccache -rk 1
+```
+
+### 5. Snapshot trước update lớn
+
+```bash
+# Nếu dùng Timeshift
+sudo timeshift --create --comments "before-update-$(date +%Y%m%d)"
+```
+
+## Bảo trì 6 tháng / năm
+
+### 1. Kiểm tra S.M.A.R.T (NVMe health)
+
+```bash
+pacman -S nvme-cli
+sudo nvme smart-log /dev/nvme0n1
+```
+
+Kiểm tra:
+- `temperature`: < 60°C là tốt.
+- `percentage_used`: < 100%.
+- `media_errors`: phải là 0.
+
+### 2. Kiểm tra battery health
+
+```bash
+pacman -S acpi
+acpi -i
+```
+
+### 3. Vệ sinh vật lý
+
+- Lau quạt laptop.
+- Thay thermal paste (nếu cần).
+- Kiểm tra ốc vít.
+
+## Những việc KHÔNG nên làm
+
+| Không nên | Vì sao |
+|---|---|
+| `pacman -Syu --force` | Đã bị deprecated, có thể hỏng hệ thống |
+| `pacman -Sy` (không -u) | Partial upgrade → thường gây conflict |
+| Xóa cache tất cả (`-Scc`) | Mất file cài, không rollback được |
+| Tắt bảo vệ filesystem | Check `--overwrite='*'` quá mức |
+| Update kernel khi đang dùng máy | Cần reboot, mất work chưa save |
+
+## Partial upgrade là gì?
+
+Partial upgrade là cập nhật một số gói mà không cập nhật toàn bộ.
+Ví dụ: chỉ cài firefox mới mà không cập nhật thư viện phụ thuộc.
+
+**Rất nguy hiểm**: có thể gây broken dependencies.
+
+```bash
+# KHÔNG làm thế này:
+pacman -S firefox  # Không chạy -Syu trước
+
+# LUÔN làm thế này:
+pacman -Syu
+# Hoặc
+pacman -Syu firefox
+```
+
+## Kernel update
+
+Khi kernel được cập nhật:
+
+1. `mkinitcpio -P` tự động chạy (nếu dùng linux).
+2. Cần reboot để dùng kernel mới.
+3. Kiểm tra kernel hiện tại: `uname -r`.
+
+## Backup trước update lớn
+
+### Snapshot BTRFS (nhanh nhất)
+
+```bash
+sudo timeshift --create --comments "truoc-update-thang-6"
+```
+
+### Backup cấu hình
+
+```bash
+# Backup danh sách gói
+pacman -Qqen > ~/backup/pkglist.txt
+pacman -Qqem > ~/backup/pkglist-aur.txt
+
+# Backup config quan trọng
+mkdir -p ~/backup/etc
+sudo cp /etc/default/grub ~/backup/etc/
+sudo cp /etc/fstab ~/backup/etc/
+sudo cp /etc/pacman.conf ~/backup/etc/
+```
+
+## Khi update bị lỗi
+
+1. **Đọc log lỗi**: `journalctl -p 3 -xb`.
+2. **Không reboot ngay** nếu chưa chắc chắn.
+3. **Rollback snapshot** nếu có.
+4. **Vào Arch forum / Reddit**: tìm lỗi tương tự.
+5. **Downgrade gói** nếu cần:
+
+```bash
+# Cài từ cache
+pacman -U /var/cache/pacman/pkg/gói-cũ.pkg.tar.zst
+```
 
 ## Tổng kết
 
-- yay là AUR helper phổ biến, cú pháp giống pacman.
-- Cài từ source thông qua AUR.
-- Cập nhật đồng thời pacman + AUR với `yay -Syu`.
-- Cần thận trọng với bảo mật khi dùng AUR.
+- Update thường xuyên (hàng tuần).
+- Đọc tin tức Arch trước update lớn.
+- Dọn dẹp định kỳ.
+- Snapshot trước update lớn.
+- Không partial upgrade.
+- Biết cách rollback khi có lỗi.

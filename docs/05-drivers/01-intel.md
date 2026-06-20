@@ -1,278 +1,194 @@
-# Audio — PipeWire
+# Intel GPU — UHD Graphics
 
 ## Mục tiêu
 
-Cài đặt và cấu hình âm thanh với PipeWire trên Intel SST.
+Cấu hình Intel UHD Graphics (Alder Lake) cho hiệu suất tối ưu trên laptop.
 
 ## Kiến thức nền
 
-### Intel Smart Sound Technology (SST)
+### iGPU Intel
 
-Intel SST là công nghệ âm thanh kỹ thuật số tích hợp trên chipset Intel.
-Nó sử dụng DSP (Digital Signal Processor) để xử lý âm thanh.
+Intel UHD Graphics trên CPU i5-12450HX là GPU tích hợp (integrated),
+dùng chung RAM với hệ thống. Nó phụ trách:
 
-Để Intel SST hoạt động trên Linux, cần:
+- Hiển thị desktop hàng ngày.
+- Xem video (có hardware acceleration).
+- Chạy các ứng dụng đồ họa nhẹ.
 
-- `sof-firmware`: Firmware cho Sound Open Firmware (SOF) — đã cài trong pacstrap.
-- Kernel mới (6.x+) — đã cài linux.
-- ALSA + PipeWire.
+### Modesetting (KMS)
 
-### ALSA vs PulseAudio vs PipeWire
+Kernel Mode Setting (KMS) là cơ chế kernel quản lý độ phân giải, màu sắc,
+và các thông số màn hình. Intel driver trong kernel (`i915`) tự động kích hoạt
+KMS.
 
-| | ALSA | PulseAudio | PipeWire |
-|---|---|---|---|
-| Cấp | Low-level | High-level | High-level |
-| Mixer | Có | Có | Có |
-| Network audio | Không | Có | Có |
-| Bluetooth | Không | Có | Có (tốt hơn) |
-| Latency | Thấp | Trung bình | Thấp |
-| Modern | Cũ | Đang bị thay thế | Mới, đang phát triển |
+### Tearing
 
-Chúng ta dùng **PipeWire** — chuẩn âm thanh mới của Linux, thay thế PulseAudio.
-
-### PipeWire stack
-
-```
-Application → PipeWire → ALSA (kernel) → Hardware
-                  ↕
-            WirePlumber (session manager)
-                  ↕
-            pipewire-pulse (PulseAudio compat)
-                  ↕
-            Ứng dụng PulseAudio cũ
-```
+Tearing (xé hình) xảy ra khi GPU render frame mới trong khi màn hình đang
+refresh → hình ảnh bị xé ngang. Với Intel iGPU, tearing thường do thiếu
+vsync hoặc compositor (picom đã giải quyết).
 
 ## Các bước thực hiện
 
-### Bước 1: Cài PipeWire và WirePlumber
+### Bước 1: Xác nhận Intel GPU
 
 ```bash
-pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber
+lspci | grep -E "VGA|3D|Display"
+```
+
+Output:
+
+```
+00:02.0 VGA compatible controller: Intel Corporation Alder Lake-P Integrated Graphics Controller (rev 0c)
+```
+
+### Bước 2: Cài driver Intel
+
+```bash
+pacman -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel intel-media-driver
 ```
 
 | Gói | Vai trò |
 |---|---|
-| `pipewire` | Core audio server |
-| `pipewire-alsa` | ALSA compatibility layer |
-| `pipewire-pulse` | PulseAudio compatibility (cho ứng dụng cũ) |
-| `wireplumber` | Session & policy manager (quản lý thiết bị) |
+| `mesa` | OpenGL driver mã nguồn mở |
+| `lib32-mesa` | OpenGL 32-bit (cho ứng dụng 32-bit) |
+| `vulkan-intel` | Vulkan driver cho Intel (cần cho nhiều ứng dụng) |
+| `lib32-vulkan-intel` | Vulkan 32-bit |
+| `intel-media-driver` | Hardware video acceleration (VA-API) |
 
-### Bước 2: Enable PipeWire service
+### Bước 3: Cấu hình kernel parameters (tùy chọn)
 
-```bash
-systemctl --user enable pipewire pipewire-pulse wireplumber
-```
-
-PipeWire chạy ở user level (không cần root).
-
-### Bước 3: Kiểm tra card âm thanh
+Thêm vào `/etc/default/grub` (dòng `GRUB_CMDLINE_LINUX_DEFAULT`):
 
 ```bash
-# Liệt kê card âm thanh
-cat /proc/asound/cards
-
-# Dùng aplay
-aplay -l
+i915.enable_psr=0 i915.enable_fbc=1
 ```
 
-Output mong đợi:
-
-```
-**** List of PLAYBACK Hardware Devices ****
-card 0: PCH [HDA Intel PCH], device 0: ALC257 Analog [ALC257 Analog]
-  Subdevices: 1/1
-  Subdevice #0: subdevice #0
-card 0: PCH [HDA Intel PCH], device 3: HDMI 0 [HDMI 0]
-  Subdevices: 1/1
-  Subdevice #0: subdevice #0
-card 1: HDMI [HDA NVidia], device 3: HDMI 0 [HDMI 0]
-  Subdevices: 1/1
-  Subdevice #0: subdevice #0
-```
-
-### Bước 4: Kiểm tra output
-
-```bash
-# Phát thử âm thanh
-speaker-test -l1 -c2
-
-# Hoặc dùng aplay
-speaker-test -t wav -c 2
-```
-
-Nhấn Ctrl+C để dừng.
-
-### Bước 5: Cài công cụ quản lý
-
-```bash
-pacman -S pavucontrol pamixer
-```
-
-| Gói | Vai trò |
+| Parameter | Ý nghĩa |
 |---|---|
-| `pavucontrol` | GUI mixer (điều chỉnh volume từng ứng dụng) |
-| `pamixer` | CLI mixer (dùng trong keybinding) |
+| `i915.enable_psr=0` | Tắt Panel Self Refresh (gây lỗi trên một số laptop) |
+| `i915.enable_fbc=1` | Bật Frame Buffer Compression (tiết kiệm băng thông) |
 
-### Bước 6: Kiểm tra PipeWire
-
-```bash
-# Kiểm tra trạng thái
-pactl info
-
-# Output:
-# Server Name: PulseAudio (on PipeWire)
-# ...
-```
+Sau đó:
 
 ```bash
-# Liệt kê sinks (thiết bị output)
-pactl list sinks short
+grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+### Bước 4: Kiểm tra hardware acceleration
+
+```bash
+# Kiểm tra VA-API
+sudo pacman -S libva-utils
+vainfo
+
+# Output mẫu:
+# vainfo: VA-API version: 1.20 (libva 2)
+# vainfo: Driver version: Intel iHD driver for Intel(R) Gen Graphics - 24.x.x
+# vainfo: Supported profile and entrypoints:
+#       VAProfileNone                   : VAEntrypointVideoProc
+#       VAProfileMPEG2Simple            : VAEntrypointVLD
+#       VAProfileMPEG2Main              : VAEntrypointVLD
+#       ...
+```
+
+Nếu `vainfo` không thấy driver → `intel-media-driver` chưa đúng.
+
+```bash
+# Đảm bảo dùng iHD driver (không phải i965)
+export LIBVA_DRIVER_NAME=iHD
+vainfo
+```
+
+### Bước 5: Kiểm tra OpenGL
+
+```bash
+glxinfo | grep "OpenGL renderer"
+```
+
+Output:
+
+```
+OpenGL renderer string: Mesa Intel(R) Graphics (ADL GT2)
 ```
 
 ```bash
-# Liệt kê sources (thiết bị input)
-pactl list sources short
+glxinfo | grep "OpenGL version"
 ```
 
-### Bước 7: Cấu hình volume trong sxhkd
-
-Đã cấu hình trong sxhkdrc:
+Output:
 
 ```
-XF86AudioRaiseVolume
-    pamixer -i 5
-XF86AudioLowerVolume
-    pamixer -d 5
-XF86AudioMute
-    pamixer -t
+OpenGL version string: 4.6 (Compatibility Profile) Mesa 24.x.x
 ```
 
-## Cấu hình nâng cao
+## Cấu hình cho laptop
 
-### Chọn output device mặc định
+### Brightness
+
+Điều chỉnh độ sáng màn hình:
 
 ```bash
-# Liệt kê sinks
-pactl list sinks short
+# Cài brightnessctl
+pacman -S brightnessctl
 
-# Set sink mặc định (dùng tên hoặc index)
-pactl set-default-sink alsa_output.pci-0000_00_1f.3.analog-stereo
+# Giảm độ sáng
+brightnessctl set 50%
+
+# Tăng
+brightnessctl set +5%
+
+# Giảm
+brightnessctl set 5%-
 ```
 
-### Điều chỉnh phần trăm volume mỗi lần nhấn
-
-Sửa trong sxhkdrc:
+Phím tắt đã cấu hình trong sxhkdrc:
 
 ```
-XF86AudioRaiseVolume
-    pamixer -i 3
-XF86AudioLowerVolume
-    pamixer -d 3
+XF86MonBrightnessUp
+    brightnessctl set +5%
+XF86MonBrightnessDown
+    brightnessctl set 5%-
 ```
 
-## Xác minh SOF firmware
+### Backlight
+
+Nếu phím brightness không hoạt động, kiểm tra:
 
 ```bash
-# Kiểm tra SOF đã được load
-dmesg | grep -i sof
+ls /sys/class/backlight/
 ```
 
-Output mong đợi:
-
-```
-sof-audio-pci-intel-tgl 0000:00:1f.3: sof firmware version 2.x.x
-```
+Nếu có `intel_backlight` hoặc `amdgpu_bl0` → backlight driver đang hoạt động.
 
 ## Troubleshooting
 
-### Không có âm thanh
+### Màn hình nhấp nháy
 
-**Symptoms**: speaker-test không ra tiếng.
+- Tắt PSR: `i915.enable_psr=0` trong kernel params.
+- Tắt FBC: `i915.enable_fbc=0`.
 
-**Cause**: Card âm thanh sai mặc định, hoặc thiếu firmware, hoặc PipeWire chưa chạy.
-
-**Diagnosis**:
+### Độ sáng không điều chỉnh được
 
 ```bash
-# Kiểm tra PipeWire
-systemctl --user status pipewire
-systemctl --user status wireplumber
-
-# Kiểm tra ALSA
-aplay -l
-cat /proc/asound/cards
-
-# Kiểm tra module
-lsmod | grep snd_sof
+# Thử acpi_backlight
+acpi_listen
+# Nhấn phím brightness → xem có event không
+# Thêm kernel parameter:
+acpi_backlight=vendor
 ```
 
-**Fix**:
+### OpenGL không hoạt động
 
 ```bash
-# Restart PipeWire
-systemctl --user restart pipewire pipewire-pulse wireplumber
-
-# Nếu vẫn không được, kiểm tra alsamixer
-alsamixer
-# Nhấn F6 để chọn card, đảm bảo Master và PCM không bị muted (MM → nhấn m để unmute)
-```
-
-### "sof-audio-pci-intel-tgl: error: failed to load firmware"
-
-```bash
-# SOF firmware thiếu → cài lại
-pacman -S sof-firmware
-```
-
-### Không có HDMI audio
-
-```bash
-# Kiểm tra NVIDIA HDMI
-aplay -l | grep HDMI
-
-# Nếu có card NVIDIA HDMI, set làm default
-pactl set-default-sink alsa_output.pci-0000_01_00.1.hdmi-stereo
-```
-
-### Độ trễ âm thanh (audio lag)
-
-PipeWire mặc định có latency thấp. Nếu bị lag:
-
-```bash
-# Cấu hình PipeWire
-vim /etc/pipewire/pipewire.conf
-
-# Tìm và sửa:
-default.clock.rate = 48000
-default.clock.allowed-rates = [ 44100 48000 ]
-```
-
-### Loa trong không hoạt động nhưng tai nghe có
-
-**Cause**: Auto-mute của codec âm thanh.
-
-**Fix**:
-
-```bash
-# Vào alsamixer
-alsamixer
-# Chọn card HDA Intel PCH
-# Nhấn F6 → chọn HDA Intel PCH
-# Tìm "Auto-Mute Mode" → Disable
-```
-
-### Âm thanh quá nhỏ
-
-```bash
-# Tăng gain
-pamixer --set-limit 150
-pamixer -i 20
+# Kiểm tra mesa
+pacman -Q mesa
+# Reinstall nếu cần
+pacman -S mesa
 ```
 
 ## Tổng kết
 
-- PipeWire + WirePlumber đã được cài và enable.
-- SOF firmware cho Intel SST hoạt động.
-- Công cụ pavucontrol và pamixer đã được cài.
-- Volume control qua phím chức năng hoạt động.
-- Troubleshooting: kiểm tra firmware, alsamixer, PipeWire status.
+- Intel GPU đã được cài driver Mesa + Vulkan.
+- Hardware acceleration (VA-API) đã được kích hoạt.
+- Kernel parameters đã được tối ưu cho laptop.
+- Brightness hoạt động qua phím chức năng.

@@ -1,179 +1,203 @@
-# Fonts
+# Bspwm — Window Manager
 
 ## Mục tiêu
 
-Cài đặt font chữ cho terminal, UI, và hiển thị tiếng Việt.
+Cài đặt và cấu hình bspwm (Binary Space Partitioning Window Manager).
 
 ## Kiến thức nền
 
-### Font trong Linux
+### Window Manager là gì?
 
-Linux quản lý font qua thư mục `/usr/share/fonts/` và `~/.local/share/fonts/`.
-Mỗi font family là một thư mục chứa file `.ttf` hoặc `.otf`.
+Window Manager (WM) là chương trình quản lý vị trí, kích thước, và cách hiển thị
+của các cửa sổ ứng dụng trên màn hình.
 
-### Các loại font
+### bspwm hoạt động như thế nào?
 
-| Loại | Dùng cho | Ví dụ |
-|---|---|---|
-| Monospace | Terminal, code | FiraCode, JetBrains Mono |
-| Sans-serif | UI, văn bản | Noto Sans, Roboto |
-| Serif | Văn bản dài | Noto Serif |
-| Icon | Polybar, Rofi | Nerd Fonts |
+bspwm chia màn hình thành các **node** (ô) bằng các đường phân cách ngang hoặc dọc
+(Binary Space Partitioning). Cấu trúc cây (tree) quản lý các node này:
 
-### Font cho tiếng Việt
+```
+Root (Màn hình)
+├── Node A (40%)
+│   ├── Cửa sổ 1
+│   └── Cửa sổ 2
+└── Node B (60%)
+    └── Cửa sổ 3
+```
 
-Font Noto Sans CJK hoặc Noto Sans có hỗ trợ tiếng Việt đầy đủ.
-Mặc định Arch không có font đẹp → cần cài thêm.
+Khi mở cửa sổ mới, node đang chọn bị chia làm hai.
+
+### bspwm gần như vô dụng nếu không có sxhkd
+
+bspwm CHỈ quản lý cửa sổ. Nó không xử lý bàn phím. Mọi phím tắt (chuyển
+workspace, đóng cửa sổ, resize, v.v.) đều do **sxhkd** (Simple X Hotkey Daemon)
+xử lý. Không có sxhkd, bạn không thể làm gì với bspwm ngoài nhìn.
 
 ## Các bước thực hiện
 
-### Bước 1: Cài font monospace
+### Bước 1: Cài bspwm và sxhkd
 
 ```bash
-pacman -S ttf-firacode-nerd ttf-jetbrains-mono-nerd ttf-hack-nerd
+pacman -S bspwm sxhkd
 ```
 
-- `ttf-firacode-nerd`: FiraCode với Nerd Font patches (icon cho terminal).
-- `ttf-jetbrains-mono-nerd`: JetBrains Mono (rất đẹp cho code/terminal).
-- `ttf-hack-nerd`: Hack font, nhẹ.
+Luôn cài cả hai cùng lúc.
 
-### Bước 2: Cài font UI
+### Bước 2: Tạo thư mục cấu hình
 
 ```bash
-pacman -S noto-fonts noto-fonts-emoji noto-fonts-cjk
+su - archuser
+mkdir -p ~/.config/bspwm
+mkdir -p ~/.config/sxhkd
+exit
 ```
 
-- `noto-fonts`: Font chữ đa ngôn ngữ (hỗ trợ tiếng Việt).
-- `noto-fonts-emoji`: Emoji.
-- `noto-fonts-cjk`: Chinese/Japanese/Korean (nếu cần).
-
-### Bước 3: Cài font icon cho Polybar
+### Bước 3: Tạo file cấu hình bspwmrc
 
 ```bash
-pacman -S ttf-font-awesome otf-font-awesome
+vim /home/archuser/.config/bspwm/bspwmrc
 ```
 
-Font Awesome cung cấp icon dùng trong Polybar và Rofi.
-
-### Bước 4: Refresh font cache
+Nội dung:
 
 ```bash
-fc-cache -fv
+#!/bin/bash
+
+# ---- Monitor ----
+xrandr --output eDP-1 --mode 1920x1080 --rate 144
+
+# ---- Configuration ----
+bspc monitor -d I II III IV V VI VII VIII IX
+
+bspc config border_width         2
+bspc config window_gap           8
+bspc config split_ratio          0.50
+bspc config borderless_monocle   true
+bspc config gapless_monocle      true
+bspc config focus_follows_pointer false
+bspc config pointer_follows_focus false
+bspc config pointer_action_modifier super
+
+# ---- Rules ----
+bspc rule -a Gimp                   desktop='^8' state=tiled
+bspc rule -a firefox                desktop='^2' state=tiled
+bspc rule -a Alacritty              state=tiled
+bspc rule -a nitrogen:*             state=floating
+bspc rule -a Rofi:*                 state=floating
+bspc rule -a Polybar:*              state=floating
+bspc rule -a "Viewnior:*"           state=floating
+bspc rule -a "Pcmanfm:*"            state=floating
+bspc rule -a "Xfce4-power-manager:*" state=floating
+
+# ---- Compositor ----
+picom --config ~/.config/picom/picom.conf &
+
+# ---- Bar ----
+polybar main &
+
+# ---- Launcher daemon ----
+# (sxhkd chạy riêng)
+
+# ---- Wallpaper ----
+nitrogen --restore &
+
+# ---- System tray ----
+nm-applet &
+blueman-applet &
+volumeicon &
+
+# ---- Power management ----
+xfce4-power-manager &
+
+# ---- Polkit ----
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 ```
 
-### Bước 5: Kiểm tra font
+Giải thích từng phần:
+
+#### `xrandr`
+
+Đặt độ phân giải 1920x1080 144Hz cho màn hình laptop (`eDP-1`).
+Tên output có thể khác (eDP-1-1). Kiểm tra bằng `xrandr` sau khi có NVIDIA driver.
+
+#### `bspc monitor`
+
+Tạo 9 desktop (workspace) có tên I đến IX.
+
+#### `bspc config`
+
+Các cấu hình window manager:
+- `border_width 2`: Độ dày viền cửa sổ.
+- `window_gap 8`: Khoảng cách giữa các cửa sổ.
+- `split_ratio 0.50`: Tỉ lệ chia mặc định (50/50).
+- `focus_follows_pointer false`: Focus không tự động theo chuột.
+- `pointer_follows_focus false`: Chuột không tự động nhảy theo focus.
+
+#### `bspc rule`
+
+Rules để xử lý cửa sổ cụ thể:
+- `firefox` luôn mở ở desktop 2.
+- `Rofi` và `Polybar` luôn ở dạng floating.
+- `nitrogen` floating để tránh bị tile.
+
+#### Các chương trình nền
+
+- `picom`: Compositor (đổ bóng, chống tearing).
+- `polybar`: Thanh trạng thái.
+- `nitrogen`: Quản lý wallpaper.
+- `nm-applet`: NetworkManager tray icon.
+- `blueman-applet`: Bluetooth tray icon.
+- `volumeicon`: Âm lượng tray icon.
+- `xfce4-power-manager`: Quản lý năng lượng (pin, brightness).
+- `polkit-gnome`: Xác thực quyền (cho GUI).
+
+### Bước 4: Phân quyền executable
 
 ```bash
-# Liệt kê tất cả font
-fc-list | head -20
-
-# Tìm font cụ thể
-fc-list | grep -i "FiraCode"
-
-# Kiểm tra font hỗ trợ tiếng Việt
-fc-list :lang=vi | head -10
+chmod +x /home/archuser/.config/bspwm/bspwmrc
 ```
 
-### Bước 6: Cấu hình font cho ứng dụng
+bspwmrc phải có quyền execute (là một script bash).
 
-#### Alacritty
-
-Trong `~/.config/alacritty/alacritty.yml`:
-
-```yaml
-font:
-  normal:
-    family: "FiraCode Nerd Font"
-    style: Regular
-  bold:
-    family: "FiraCode Nerd Font"
-    style: Bold
-  italic:
-    family: "FiraCode Nerd Font"
-    style: Italic
-  bold_italic:
-    family: "FiraCode Nerd Font"
-    style: Bold Italic
-  size: 11
-```
-
-#### Polybar
-
-Trong `~/.config/polybar/config.ini`:
-
-```ini
-font-0 = "FiraCode Nerd Font:size=11;3"
-font-1 = "Noto Sans:size=10;3"
-```
-
-#### Rofi
-
-Trong `~/.config/rofi/config.rasi`:
-
-```ini
-font: "FiraCode Nerd Font 12";
-```
-
-### Bước 7: Cài thêm font (tùy chọn)
+### Bước 5: Cập nhật .xinitrc
 
 ```bash
-# Font cho GTK applications
-pacman -S adobe-source-code-pro-fonts
-
-# Microsoft fonts (nếu cần)
-yay -S ttf-ms-win11-auto
+echo "exec bspwm" > /home/archuser/.xinitrc
 ```
 
-## Fallback font
-
-File cấu hình font fallback toàn hệ thống:
+### Bước 6: Kiểm tra cấu hình (sau reboot)
 
 ```bash
-vim /etc/fonts/local.conf
+# Khởi động X + bspwm
+startx
 ```
 
-```xml
-<?xml version="1.0"?>
-<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-<fontconfig>
-  <alias>
-    <family>sans-serif</family>
-    <prefer>
-      <family>Noto Sans</family>
-      <family>Noto Sans CJK JP</family>
-    </prefer>
-  </alias>
-  <alias>
-    <family>monospace</family>
-    <prefer>
-      <family>FiraCode Nerd Font</family>
-      <family>Noto Sans Mono</family>
-    </prefer>
-  </alias>
-</fontconfig>
+## Các lệnh bspwm cơ bản (qua sxhkd)
+
+Sẽ được cấu hình chi tiết trong bài sxhkd. Một số lệnh qua terminal:
+
+```bash
+# Đóng cửa sổ hiện tại
+bspc node -c
+
+# Chuyển desktop
+bspc desktop -f next
+
+# Chia dọc
+bspc node -p east
 ```
 
 ## Troubleshooting
 
-### Font không hiển thị đúng trong terminal
+### bspwm không khởi động
 
-- Kiểm tra font có hỗ trợ không: `fc-list | grep FiraCode`.
-- Cấu hình đúng tên font trong terminal config.
-
-### Font icon hiển thị ô vuông
-
-- Thiếu Nerd Font hoặc Font Awesome.
-- Chạy `fc-cache -fv` và restart ứng dụng.
-
-### Tiếng Việt hiển thị ô vuông
-
-- Thiếu Noto Sans hoặc font hỗ trợ tiếng Việt.
-- Cài `noto-fonts` và `noto-fonts-cjk`.
+Kiểm tra:
+- `~/.config/bspwm/bspwmrc` có execute permission không?
+- `~/.config/bspwm/bspwmrc` không có lỗi syntax?
+- sxhkd đã được cài chưa?
 
 ## Tổng kết
 
-- Font monospace (FiraCode, JetBrains Mono) cho terminal.
-- Font UI (Noto Sans) cho giao diện.
-- Font icon (Nerd Font, Font Awesome) cho Polybar.
-- Font cache đã được refresh.
-- Cấu hình font cho các ứng dụng chính.
+- bspwm đã được cài và cấu hình cơ bản.
+- bspwmrc đã được tạo với các setting cho laptop.
+- Cần sxhkd để có keybinding hoạt động.

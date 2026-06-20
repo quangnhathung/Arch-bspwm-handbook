@@ -1,110 +1,106 @@
-# Không có âm thanh
+# bspwm không khởi động
 
 ## Symptoms
 
-- Không có tiếng từ loa trong.
-- Tai nghe không hoạt động.
-- HDMI audio không có.
-- Volume icon báo muted hoặc không thấy thiết bị.
+- Chạy `startx` → màn hình đen, không thấy bar.
+- Quay lại terminal với error message.
+- Màn hình treo ở trạng thái X nhưng không có WM.
 
 ## Cause
 
-1. **PipeWire chưa chạy** hoặc chưa được enable.
-2. **ALSA card sai** — card mặc định là HDMI thay vì analog.
-3. **SOF firmware thiếu** — Intel SST không hoạt động.
-4. **Muted trong alsamixer**.
-5. **WirePlumber chưa chạy**.
-6. **Module sai** — pipewire-alsa hoặc pipewire-pulse thiếu.
+1. **bspwmrc chưa có execute permission**.
+2. **sxhkd chưa được cài**.
+3. **Lỗi syntax trong bspwmrc hoặc sxhkdrc**.
+4. **Thiếu chương trình gọi trong bspwmrc** (polybar, picom, v.v.).
+5. **~/.xinitrc chưa đúng**.
+6. **Xorg không được cài đúng**.
 
 ## Diagnosis
 
 ```bash
-# Kiểm tra PipeWire
-systemctl --user status pipewire
-systemctl --user status pipewire-pulse
-systemctl --user status wireplumber
+# Kiểm tra permission
+ls -la ~/.config/bspwm/bspwmrc
+# Phải có -rwxr-xr-x (quyền 755)
 
-# Kiểm tra ALSA cards
-cat /proc/asound/cards
+# Kiểm tra xinitrc
+cat ~/.xinitrc
 
-# Kiểm tra output devices
-pactl list sinks short
+# Kiểm tra log Xorg
+cat ~/.local/share/xorg/Xorg.0.log
+# Hoặc
+cat /var/log/Xorg.0.log
 
-# Kiểm tra SOF firmware
-dmesg | grep -i sof
+# Chạy bspwm thủ công để xem lỗi
+bspwm 2>&1
 
-# Kiểm tra alsamixer
-alsamixer
-# Nhấn F6 để chọn card, kiểm tra Master và PCM
+# Chạy sxhkd foreground
+sxhkd -t 5
 ```
 
 ## Fix
 
-### Fix 1: Start PipeWire
+### Fix 1: Cấp execute permission
 
 ```bash
-systemctl --user enable --now pipewire pipewire-pulse wireplumber
+chmod +x ~/.config/bspwm/bspwmrc
 ```
 
-### Fix 2: Kiểm tra và chọn đúng card
+### Fix 2: Cài sxhkd
 
 ```bash
-# Xem card
-aplay -l
-
-# Set card mặc định
-cat /etc/asound.conf
-
-# Hoặc set bằng pactl
-pactl set-default-sink <tên-sink>
+sudo pacman -S sxhkd
 ```
 
-### Fix 3: Cài lại SOF firmware
+### Fix 3: Sửa lỗi syntax trong bspwmrc
 
 ```bash
-sudo pacman -S sof-firmware alsa-firmware
-sudo reboot
+# Check syntax
+bash -n ~/.config/bspwm/bspwmrc
+
+# Nếu có lỗi → sửa
 ```
 
-### Fix 4: Unmute trong alsamixer
+### Fix 4: Comment dòng chương trình lỗi
 
 ```bash
-alsamixer
-# F6 → chọn card HDA Intel PCH
-# Phím m → mute/unmute
-# Đảm bảo Master, PCM, Headphone không có chữ MM
-# ↑ để tăng volume
+# Trong bspwmrc, comment từng dòng để xác định chương trình nào gây lỗi
+# polybar main &
+# picom --config ... &
 ```
 
-### Fix 5: Kiểm tra kernel module
+### Fix 5: Sửa .xinitrc
 
 ```bash
-lsmod | grep snd_hda_intel
-lsmod | grep snd_sof
-
-# Nếu thiếu
-sudo modprobe snd_hda_intel
+echo "exec bspwm" > ~/.xinitrc
 ```
 
-### Fix 6: Cài PipeWire components đầy đủ
+### Fix 6: Chạy từng bước thủ công
 
 ```bash
-sudo pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber
-```
+# Bước 1: Khởi động X thuần
+xinit
 
-### Fix 7: Restart âm thanh
+# Nếu X chạy được, thoat (Ctrl+Alt+Backspace hoặc Ctrl+C)
+# Bước 2: Chạy bspwm từ terminal (không xinit)
+X &
+sleep 1
+DISPLAY=:0 bspwm &
+DISPLAY=:0 sxhkd &
+DISPLAY=:0 alacritty &
 
-```bash
-systemctl --user restart pipewire pipewire-pulse wireplumber
+# Xem có lỗi gì không
 ```
 
 ## Prevention
 
-1. **Cài đầy đủ PipeWire + WirePlumber ngay từ đầu**.
-2. **Cài sof-firmware trong pacstrap** (đã làm).
-3. **Kiểm tra alsamixer sau mỗi lần update kernel**.
-4. **Enable user services** ngay sau khi cài:
+1. **Kiểm tra permission bspwmrc** ngay sau khi tạo.
+2. **Chạy `bash -n bspwmrc`** sau mỗi lần sửa.
+3. **Test cấu hình trước khi reboot**:
 
 ```bash
-systemctl --user enable pipewire pipewire-pulse wireplumber
+startx
+# Nếu lỗi → Ctrl+Alt+Backspace để kill X
 ```
+
+4. **Luôn cài sxhkd cùng bspwm**.
+5. **Kiểm tra log Xorg** khi gặp lỗi.

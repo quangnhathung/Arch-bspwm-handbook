@@ -1,95 +1,61 @@
-# Tại sao chọn bspwm?
+# Yêu cầu hệ thống
 
-## Khái niệm Window Manager
+## Yêu cầu phần cứng tối thiểu
 
-Window Manager (WM) là chương trình quản lý vị trí và kích thước cửa sổ.
-Khác với Desktop Environment (DE) như GNOME hay KDE, WM không bao gồm
-thanh taskbar, menu Start, dock, hay các tiện ích đồ họa khác.
+| Thành phần | Yêu cầu |
+|---|---|
+| CPU | x86_64 (64-bit), Intel hoặc AMD |
+| RAM | 1GB (tối thiểu), 4GB+ (khuyên dùng cho desktop) |
+| Ổ cứng | 20GB (tối thiểu), 256GB+ (khuyên dùng) |
+| GPU | Hỗ trợ KMS (Kernel Mode Setting) |
+| USB | Cổng USB để boot live environment |
+| Internet | Cần trong quá trình cài đặt |
 
-### Tiling vs Stacking
+## Thông số máy mục tiêu
 
-| Loại | Cách hoạt động | Ví dụ |
+Lenovo LOQ 15IAX9 — cấu hình sử dụng trong tài liệu này:
+
+| Thành phần | Chi tiết | Ghi chú |
 |---|---|---|
-| **Stacking** | Cửa sổ chồng lên nhau như Windows/macOS | Openbox, i3 |
-| **Tiling** | Cửa sổ tự động sắp xếp cạnh nhau, không chồng | bspwm, dwm, i3 |
+| CPU | Intel Core i5-12450HX | 12th Gen Alder Lake, 8 nhân (4P+4E) |
+| GPU tích hợp | Intel UHD Graphics (Alder Lake) | Dùng cho mode Intel |
+| GPU rời | NVIDIA GeForce RTX 4050 6GB | Dùng cho rendering nặng |
+| RAM | 16GB DDR5-4800 | 2 khe, không hàn |
+| Ổ cứng | Micron 2400 512GB NVMe | M.2 2280 PCIe 4.0 |
+| Wi-Fi | Realtek RTL8852BE | 802.11ax (Wi-Fi 6) |
+| Bluetooth | Realtek Bluetooth | Đi kèm chip Wi-Fi |
+| Ethernet | Realtek RTL8111/8168 | Gigabit Ethernet |
+| Audio | Intel Smart Sound Technology (SST) | HDMI/DP audio qua NVIDIA |
+| Màn hình | 15.6" FHD (1920x1080) | 144Hz, không touch |
+| Bàn phím | Tiếng Việt / US | Có đèn nền |
+| Touchpad | Microsoft Precision | Hỗ trợ đa điểm |
 
-### bspwm thuộc loại Tiling-WM dạng Binary Space Partitioning (BSP)
+## Yêu cầu phần mềm
 
-Màn hình được chia thành các không gian (node) bằng các đường phân cách ngang
-hoặc dọc. Mỗi lần mở cửa sổ mới, node hiện tại bị chia làm hai.
+### Máy dùng để tạo USB boot
 
-```
-+-----------+-----------+
-|           |           |
-|   Term    |   Browser |
-|           |           |
-+-----------+-----------+
-|           |           |
-|   Code    |   Chat    |
-|           |           |
-+-----------+-----------+
-```
+- Windows / Linux / macOS
+- Rufus (Windows) hoặc dd (Linux) hoặc balenaEtcher (any)
+- Trình duyệt web để tải Arch ISO
+- USB 4GB+
 
-## Tại sao bspwm?
+### Trong quá trình cài đặt
 
-### 1. Nhẹ và nhanh
+- Arch Linux ISO (tải từ https://archlinux.org/download/)
+- Kết nối Internet (Wi-Fi hoặc USB tethering)
+- Kiến thức cơ bản về dòng lệnh Linux
 
-bspwm là một WM cực kỳ nhẹ. Bản thân nó chỉ là một binary quản lý cửa sổ,
-không có GUI config, không settings panel. Mọi thứ đều qua file cấu hình
-text và được reload bằng hotkey.
+## Kiểm tra tương thích trước khi cài
 
-### 2. Phân tách rõ ràng
+1. **UEFI**: Vào BIOS (F2 khi khởi động) → Boot Mode = UEFI (không Legacy).
+2. **Secure Boot**: Nên tắt (có thể bật lại sau, nhưng phức tạp).
+3. **Fast Boot**: Nên tắt để tránh lỗi boot USB.
+4. **RAID mode**: Nếu BIOS set RAID → chuyển sang AHCI.
 
-bspwm chỉ quản lý cửa sổ. Nó không xử lý keybinding — việc đó do sxhkd đảm nhiệm.
-Kiến trúc phân tách này giúp dễ hiểu, dễ sửa, dễ thay thế từng phần.
+## Lưu ý đặc thù cho Lenovo LOQ 15IAX9
 
-```
-bspwm ───────────► quản lý cửa sổ, workspace, node
-sxhkd ───────────► nhận phím tắt, gọi lệnh
-Polybar ─────────► thanh trạng thái
-Rofi ────────────► launcher ứng dụng
-Picom ───────────► compositor (đổ bóng, mượt)
-```
-
-### 3. Không cần chuột
-
-Mọi thao tác đều qua bàn phím. Chuyển workspace, di chuyển cửa sổ, thay đổi
-kích thước — tất cả bằng phím tắt. Sau khi quen, thao tác nhanh hơn hẳn dùng chuột.
-
-### 4. Cấu hình bằng text
-
-Không có GUI config. Mọi thứ đều là text file đơn giản:
-
-- `~/.config/bspwm/bspwmrc` — script khởi tạo WM
-- `~/.config/sxhkd/sxhkdrc` — keybinding
-
-Có thể đưa vào Git để quản lý. Sao chép sang máy khác dễ dàng.
-
-### 5. Workspace (Desktop ảo)
-
-Mặc định có 9 workspace. Mỗi màn hình có bộ workspace riêng.
-Có thể gán ứng dụng vào workspace cụ thể.
-
-### 6. Tính modular
-
-Không có lock-in. Bạn có thể:
-- Thay sxhkd bằng keyd, kmonad
-- Thay Polybar bằng eww, dwm-bar
-- Thay Picom bằng wayland hoàn toàn
-- Từng phần độc lập, không ảnh hưởng nhau
-
-## So sánh với các WM khác
-
-| Đặc điểm | bspwm | i3 | dwm | hyprland |
-|---|---|---|---|---|
-| Loại | BSP | Tiling manual | Dynamic | Wayland |
-| Config | File text | File text | Patch C | File text |
-| Keybinding | sxhkd | Built-in | Built-in | Built-in |
-| Multi-monitor | Tốt | Tốt | Cần patch | Tốt |
-| Học | Dễ | Dễ | Trung bình | Trung bình |
-
-## Kết luận
-
-Chọn bspwm vì bạn muốn một hệ thống desktop nhanh, nhẹ, kiểm soát được mọi thứ
-bằng bàn phím, và dễ tùy chỉnh. Không phù hợp nếu bạn cần kéo thả cửa sổ
-bằng chuột như Windows.
+- Máy có **NVIDIA Optimus** (hybrid graphics). Cần cấu hình đúng để tránh hao pin.
+- Wi-Fi chip **Realtek RTL8852BE** không được Linux kernel hỗ trợ mặc định.
+  Cần cài driver `rtl8852be-dkms` từ AUR.
+- Audio **Intel SST** cần `sof-firmware` và `alsa-firmware`.
+- Máy có 2 quạt + chế độ performance trong BIOS.

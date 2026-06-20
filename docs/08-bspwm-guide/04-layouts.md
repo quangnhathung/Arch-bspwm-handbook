@@ -1,222 +1,232 @@
-# Multi-Monitor — Nhiều màn hình
+# Layouts — Bố cục cửa sổ
 
 ## Mục tiêu
 
-Cấu hình và sử dụng nhiều màn hình với bspwm.
+Hiểu các layout (bố cục) trong bspwm và cách sử dụng chúng.
 
 ## Kiến thức nền
 
-### bspwm và multi-monitor
+### Layout là gì?
 
-bspwm hỗ trợ multi-monitor tự nhiên:
+Layout là cách bố trí các cửa sổ trong một workspace. bspwm không có
+layout cố định như i3 (tabbed, stacking). Thay vào đó, bspwm sử dụng
+cấu trúc cây BSP (Binary Space Partition) động.
 
-- Mỗi monitor có cây node riêng.
-- Mỗi monitor có bộ workspace riêng.
-- Có thể di chuyển cửa sổ giữa các monitor.
-- Có thể có bar riêng cho mỗi monitor.
+Tuy nhiên, bspwm hỗ trợ một số chế độ layout cho desktop:
 
-### Cơ chế
+| Chế độ | Mô tả |
+|---|---|
+| **Tiled** | Mặc định. Chia màn hình thành các ô. |
+| **Monocle** | Xếp chồng tất cả cửa sổ lên nhau, chỉ thấy một cửa sổ. |
+| **Floating** | Tất cả cửa sổ đều floating. |
 
-bspwm gán một tập workspace cho mỗi monitor.
+## Tiled layout (mặc định)
 
-Ví dụ: laptop + màn hình ngoài
+### Cách hoạt động
+
+Mỗi lần mở cửa sổ mới, node hiện tại bị chia làm hai.
+Có thể chia dọc (sang trái/phải) hoặc chia ngang (lên/xuống).
 
 ```
-eDP-1 (laptop, 1920x1080)
-  Workspace: I II III IV V
-HDMI-A-1 (màn hình ngoài, 1920x1080)
-  Workspace: VI VII VIII IX
+Mở cửa sổ 1:
+┌──────────────────┐
+│                  │
+│      Win 1      │
+│                  │
+└──────────────────┘
+
+Mở cửa sổ 2 (chia dọc):
+┌────────┬─────────┐
+│        │         │
+│ Win 1  │  Win 2  │
+│        │         │
+└────────┴─────────┘
+
+Mở cửa sổ 3 (chia ngang win 2):
+┌────────┬─────────┐
+│        │  Win 2  │
+│ Win 1  ├─────────┤
+│        │  Win 3  │
+└────────┴─────────┘
 ```
 
-## Các bước thực hiện
+### Kiểm soát layout
 
-### Bước 1: Xác định monitor
+Dùng preselect (Super + Ctrl + h/j/k/l) để chọn hướng chia trước:
+
+```
+Super + Ctrl + l → preselect phải
+→ Mở trình duyệt → nó xuất hiện bên phải
+```
+
+### Alternating layout
+
+Tạo layout xen kẽ dọc-ngang (giống i3):
+
+Mặc định bspwm chia theo hướng hiện tại (longest side).
+Để thay đổi:
 
 ```bash
-xrandr --query
+# Chia dọc
+bspc node -p east
+# Mở cửa sổ → chia dọc
+
+# Chia ngang
+bspc node -p south
+# Mở cửa sổ → chia ngang
 ```
 
-Output:
+### Equal ratio
+
+Mặc định 50/50. Giữ nguyên 50/50 nếu không thay đổi split_ratio.
+Khi resize, tỉ lệ thay đổi.
+
+## Monocle layout
+
+### Cách hoạt động
+
+Tất cả cửa sổ xếp chồng lên nhau, chỉ thấy một cửa sổ tại một thời điểm.
+Giống tab trên trình duyệt.
 
 ```
-eDP-1 connected primary 1920x1080+0+0 (normal)
-HDMI-A-1 connected 1920x1080+0+0 (normal)
+Workspace 5 (monocle):
+┌──────────────────┐
+│  [1] [2] [3]     │
+│                  │
+│    (cửa sổ 2)   │
+│                  │
+└──────────────────┘
 ```
 
-### Bước 2: Cấu hình monitor trong bspwmrc
-
-Trong `bspwmrc`:
+### Kích hoạt
 
 ```bash
-# Nếu có 1 monitor
-# bspc monitor eDP-1 -d I II III IV V VI VII VIII IX
+# Chuyển layout hiện tại sang monocle
+bspc desktop -l monocle
 
-# Nếu có 2 monitor
-bspc monitor eDP-1 -d I II III IV V
-bspc monitor HDMI-A-1 -d VI VII VIII IX
+# Quay lại tiled
+bspc desktop -l tiled
 
-# Nếu monitor ngoài ở bên phải
-xrandr --output HDMI-A-1 --right-of eDP-1
+# Toggle (luân phiên)
+bspc desktop -l next
 ```
 
-### Bước 3: Cấu hình Polybar cho multi-monitor
+Phím tắt trong sxhkdrc:
 
-Trong `bspwmrc`:
+```
+super + m
+    bspc desktop -l next
+```
+
+### Chuyển cửa sổ trong monocle
 
 ```bash
-# Polybar for each monitor
-if type "xrandr"; then
-    for m in $(xrandr --query | grep " connected" | cut -d" " -f1); do
-        MONITOR=$m polybar main &
-    done
-else
-    polybar main &
-fi
+# Focus cửa sổ tiếp theo
+bspc node -f next.local
+
+# Focus cửa sổ trước
+bspc node -f prev.local
 ```
 
-### Bước 4: Di chuyển cửa sổ giữa các monitor
+### Khi nào dùng monocle
+
+- Khi workspace có quá nhiều cửa sổ (5+).
+- Khi cần tập trung vào một cửa sổ nhưng vẫn giữ các cửa sổ khác mở.
+- Khi làm việc trên màn hình nhỏ.
+
+## Floating layout
+
+### Cách hoạt động
+
+Tất cả cửa sổ đều floating. Không tile.
+
+### Kích hoạt
 
 ```bash
-# Di chuyển sang monitor kế tiếp
-bspc node -m next
-
-# Di chuyển đến monitor cụ thể
-bspc node -m eDP-1
-
-# Di chuyển và focus theo
-bspc node -m next --follow
+bspc desktop -l floating
 ```
 
-Phím tắt:
+### Khi nào dùng floating
+
+- Khi muốn tự do sắp xếp cửa sổ bằng chuột.
+- Khi làm việc với ứng dụng đồ họa (GIMP, Inkscape).
+- Khi có nhiều dialog, palette.
+
+## Tiled + Floating hỗn hợp
+
+Trong layout tiled, vẫn có thể set từng cửa sổ riêng lẻ sang floating:
 
 ```
-super + shift + m
-    bspc node -m next
+Super + t → toggle tiled/floating cho cửa sổ hiện tại
 ```
 
-### Bước 5: Focus giữa các monitor
+Cửa sổ floating nằm trên layer riêng, không ảnh hưởng đến layout tiled.
+
+```
+┌────────┬─────────┐
+│        │         │
+│ Win 1  │  Win 2  │  ← tiled
+│        │         │
+├────────┴─────────┤
+│   ┌──────────┐  │
+│   │  Win 3   │  │  ← floating (trên layer riêng)
+│   │ (float)  │  │
+│   └──────────┘  │
+└─────────────────┘
+```
+
+## So sánh các chế độ
+
+| Chế độ | Không gian | Nhìn thấy | Focus | Dùng khi |
+|---|---|---|---|---|
+| Tiled | Chia ô | Nhiều cửa sổ cùng lúc | Một cửa sổ | Mặc định |
+| Monocle | Xếp chồng | Một cửa sổ | Tất cả | Nhiều cửa sổ |
+| Floating | Tự do | Xếp layer | Di chuyển tự do | Ứng dụng đồ họa |
+
+## Lệnh CLI
 
 ```bash
-# Focus monitor tiếp theo
-bspc monitor -f next
+# Xem layout hiện tại
+bspc query -D -d --names
 
-# Focus monitor cụ thể
-bspc monitor -f eDP-1
-```
+# Set layout
+bspc desktop -l tiled
+bspc desktop -l monocle
+bspc desktop -l floating
 
-### Bước 6: Gửi workspace giữa monitor
-
-```bash
-# Gửi workspace hiện tại sang monitor khác
-bspc desktop --send eDP-1
-```
-
-## Cấu hình thường dùng
-
-### Laptop + màn hình ngoài bên phải
-
-```bash
-#!/bin/bash
-# Trong bspwmrc
-
-# Set monitor layout
-xrandr --output eDP-1 --primary --mode 1920x1080 --rate 144
-xrandr --output HDMI-A-1 --mode 1920x1080 --rate 60 --right-of eDP-1
-
-# Assign workspaces
-bspc monitor eDP-1 -d I II III IV V
-bspc monitor HDMI-A-1 -d VI VII VIII IX
-```
-
-### Laptop + màn hình ngoài bên trái
-
-```bash
-xrandr --output HDMI-A-1 --mode 1920x1080 --rate 60 --left-of eDP-1
-```
-
-### Laptop + màn hình ngoài phía trên
-
-```bash
-xrandr --output HDMI-A-1 --mode 1920x1080 --rate 60 --above eDP-1
-```
-
-### Tự động cấu hình khi cắm màn hình
-
-Dùng `autorandr`:
-
-```bash
-pacman -S autorandr
-```
-
-```bash
-# Lưu cấu hình hiện tại
-autorandr --save work
-
-# Khi cắm màn hình, tự động load
-autorandr --change
-```
-
-Thêm vào `bspwmrc`:
-
-```bash
-autorandr --change
-```
-
-## Lệnh multi-monitor hữu ích
-
-```bash
-# Liệt kê monitor
-bspc query -M --names
-
-# Xem workspace trên mỗi monitor
-bspc query -D
-
-# Di chuyển tất cả cửa sổ từ monitor này sang monitor khác
-for wid in $(bspc query -N -m eDP-1); do
-    bspc node $wid -m HDMI-A-1
-done
+# Toggle
+bspc desktop -l next
 ```
 
 ## Best practices
 
-1. **Màn hình chính** (laptop) dùng workspace I-V.
-2. **Màn hình phụ** dùng workspace VI-IX.
-3. **Mỗi màn hình có bar riêng** (Polybar).
-4. **Di chuyển cửa sổ** bằng `Super + Shift + m`.
-5. **autorandr** để tự động chuyển đổi khi cắm/rút màn hình.
+1. **Mặc định tiled**: Hầu hết thời gian.
+2. **Chuyển sang monocle** khi cần focus, workspace đông.
+3. **Chuyển từng cửa sổ** sang floating khi cần.
+4. **Không dùng floating** cho workspace chính (mất kiểm soát).
 
 ## Troubleshooting
 
-### Màn hình mới không được nhận
+### Monocle không hoạt động
 
 ```bash
-# Quét lại màn hình
-xrandr --auto
-
-# Kiểm tra
-xrandr --query
+# Cần restart bspwm
+bspc wm -r
 ```
 
-### Cửa sổ mất sau khi chuyển monitor
+### Tất cả cửa sổ đều floating
 
 ```bash
-# Tìm và focus
-bspc node -f any
+# Kiểm tra desktop layout
+bspc query -D -d --names
+# Nếu là floating → set lại tiled
+bspc desktop -l tiled
 ```
-
-### Polybar không hiển thị trên monitor phụ
-
-- Kiểm tra cấu hình multi-monitor trong bspwmrc.
-- Set biến MONITOR trước khi chạy Polybar.
-
-### Workspace không hiển thị đúng trên Polybar
-
-- Mỗi monitor cần instance Polybar riêng.
 
 ## Tổng kết
 
-- bspwm hỗ trợ multi-monitor qua bspc monitor.
-- Mỗi monitor có workspace riêng.
-- Di chuyển cửa sổ, workspace, focus giữa các monitor.
-- Polybar có thể chạy instance riêng cho mỗi monitor.
-- autorandr tự động cấu hình khi cắm/rút monitor.
+- bspwm có 3 chế độ layout: tiled (mặc định), monocle, floating.
+- Tiled là layout chính, dùng preselect để kiểm soát.
+- Monocle xếp chồng cửa sổ, focus từng cái.
+- Floating cho ứng dụng đặc thù.
+- Kết hợp tiled + floating trong cùng workspace.

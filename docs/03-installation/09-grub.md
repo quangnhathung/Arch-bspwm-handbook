@@ -1,137 +1,195 @@
-# Tạo User và Cấp quyền Sudo
+# GRUB Bootloader
 
 ## Mục tiêu
 
-Tạo user thường (không phải root), cấp quyền sudo, và thiết lập password.
+Cài đặt GRUB làm bootloader cho UEFI và cấu hình kernel parameters.
 
 ## Kiến thức nền
 
-### Tại sao không dùng root hàng ngày?
+### Bootloader là gì?
 
-- **Bảo mật**: Nếu dùng root, mọi ứng dụng đều có toàn quyền.
-- **An toàn**: Lỡ gõ `rm -rf /` sẽ xóa toàn bộ hệ thống. Với user thường,
-  chỉ xóa được file của mình.
-- **Best practice**: Unix truyền thống dùng root chỉ cho quản trị.
+Bootloader là chương trình nhỏ chạy đầu tiên khi máy khởi động. Nó load kernel
+Linux từ ổ cứng vào RAM và chuyển quyền điều khiển cho kernel.
 
-### Root vs User thường
+### GRUB (Grand Unified Bootloader)
 
-| Đặc điểm | Root | User thường |
-|---|---|---|
-| Quyền | Vô hạn | Giới hạn |
-| Sudo | Không cần | Cần password |
-| Home | /root | /home/username |
-| Shell mặc định | /bin/bash | /bin/bash |
+GRUB là bootloader phổ biến nhất trên Linux. GRUB 2 (phiên bản hiện tại) hỗ trợ:
+
+- UEFI và Legacy BIOS
+- BTRFS, ext4, XFS, ZFS
+- LVM, encryption
+- Boot từ network (PXE)
+- Kernel parameters
+
+### EFI System Partition (ESP)
+
+ESP là partition FAT32 chứa bootloader. Khi máy bật, UEFI firmware đọc ESP,
+tìm file `.efi` trong `EFI/` và chạy nó.
+
+```
+ESP (/efi)
+└── EFI/
+    └── GRUB/
+        └── grubx64.efi    (GRUB binary)
+```
+
+### grub-install làm gì?
+
+1. Copy file `grubx64.efi` vào `ESP/EFI/GRUB/`.
+2. Tạo file cấu hình GRUB cơ bản trong ESP.
+3. Đăng ký GRUB với firmware UEFI (thêm vào boot menu).
+
+### grub-mkconfig làm gì?
+
+1. Quét các kernel có trong `/boot`.
+2. Quét các OS khác (nếu có dual boot).
+3. Sinh file `/boot/grub/grub.cfg` chứa menu boot.
 
 ## Các bước thực hiện
 
-### Bước 1: Đặt password cho root (không bắt buộc)
+### Bước 1: Cài gói GRUB
 
 ```bash
-passwd
+pacman -S grub efibootmgr
 ```
 
-Nhập password cho root. Có thể để trống nếu không có nhu cầu dùng root trực tiếp.
-Tuy nhiên, nên đặt phòng trường hợp sudo hỏng.
+- `grub`: Bootloader.
+- `efibootmgr`: Công cụ quản lý EFI boot entries (cần cho grub-install).
 
-### Bước 2: Tạo user mới
+### Bước 2: Cài GRUB vào ESP
 
 ```bash
-useradd -m -G wheel -s /bin/bash archuser
+grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
 ```
 
 Giải thích:
-- `useradd`: Lệnh tạo user mới.
-- `-m`: Tạo home directory (`/home/archuser`).
-- `-G wheel`: Thêm user vào group `wheel`. Group wheel được sudo cho phép
-  chạy lệnh với quyền root.
-- `-s /bin/bash`: Shell mặc định là bash.
-- `archuser`: Tên user. Bạn có thể đổi tên khác.
+- `--target=x86_64-efi`: Cài cho UEFI 64-bit.
+- `--efi-directory=/efi`: Thư mục ESP đã mount.
+- `--bootloader-id=GRUB`: Tên hiển thị trong UEFI boot menu.
 
-### Bước 3: Đặt password cho user
+### Bước 3: Cấu hình kernel parameters
 
-```bash
-passwd archuser
-```
+Kernel parameters là các option truyền cho kernel khi boot. Chúng ta cần:
 
-Nhập password (xác nhận 2 lần). Lưu ý: khi gõ password, không có gì hiện trên màn hình
-(đây là tính năng bảo mật mặc định).
+- `nvidia-drm.modeset=1`: Cho NVIDIA DRM modesetting (chống tearing, cần cho Wayland/nvidia).
+- `nowatchdog`: Tắt watchdog timer (tiết kiệm pin, giảm CPU usage).
 
-### Bước 4: Cấp quyền sudo
+Sửa file `/etc/default/grub`:
 
 ```bash
-EDITOR=vim visudo
+vim /etc/default/grub
 ```
 
-Tìm và bỏ comment dòng (xóa dấu `#` ở đầu):
+Tìm dòng:
 
 ```
-%wheel ALL=(ALL:ALL) ALL
+GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"
 ```
 
-Giải thích:
-- `EDITOR=vim`: Dùng vim để edit (mặc định có thể là nano).
-- `visudo`: Lệnh an toàn để edit sudoers file. Nó kiểm tra syntax trước khi save,
-  tránh lock mình khỏi sudo.
-- `%wheel`: Group wheel.
-- `ALL=(ALL:ALL) ALL`: Cho phép chạy mọi lệnh với tư cách mọi user.
-
-Cuối cùng, dòng sẽ là:
+Sửa thành:
 
 ```
-%wheel ALL=(ALL:ALL) ALL
+GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet nvidia-drm.modeset=1 nowatchdog"
 ```
 
-**Lưu ý**: Nếu muốn sudo không cần password (tiện nhưng kém an toàn hơn):
+**Giải thích từng parameter:**
+
+| Parameter | Ý nghĩa |
+|---|---|
+| `loglevel=3` | Chỉ hiện log từ mức 3 (error) trở lên — bớt rác |
+| `quiet` | Ẩn kernel messages khi boot |
+| `nvidia-drm.modeset=1` | Kích hoạt DRM modesetting cho NVIDIA GPU |
+| `nowatchdog` | Tắt NMI watchdog (tiết kiệm năng lượng) |
+
+#### NVIDIA parameter quan trọng
+
+`nvidia-drm.modeset=1` bắt buộc cho:
+
+- Chống screen tearing.
+- Hoạt động đúng của NVIDIA driver.
+- Tương lai có thể chạy Wayland trên NVIDIA.
+
+### Bước 4: Sinh GRUB config
+
+```bash
+grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+Kết quả mong đợi:
 
 ```
-%wheel ALL=(ALL:ALL) NOPASSWD: ALL
+Generating grub configuration file ...
+Found linux image: /boot/vmlinuz-linux
+Found initrd image: /boot/intel-ucode.img /boot/initramfs-linux.img
+Warning: os-prober will not be used to detect other bootable partitions ...
+done
 ```
+
+Nếu không thấy `Found linux image`, kiểm tra `ls /boot/`.
 
 ### Bước 5: Kiểm tra
 
 ```bash
-# Kiểm tra user đã được tạo
-id archuser
+# Kiểm tra file GRUB trong ESP
+ls /efi/EFI/GRUB/grubx64.efi
 
-# Kiểm tra group
-groups archuser
-
-# Output phải bao gồm "wheel"
+# Kiểm tra boot entry
+efibootmgr -v
 ```
 
-## Các lệnh hữu ích liên quan đến user
+Output của `efibootmgr` sẽ có dòng:
 
-```bash
-# Đổi tên user
-usermod -l newname oldname
+```
+Boot0001* GRUB    HD(1,GPT,xxx,0x800,0x80000)/File(\EFI\GRUB\grubx64.efi)
+```
 
-# Thêm user vào group khác
-usermod -aG video,audio,storage,optical archuser
+## Các kernel parameters có thể cần thêm
 
-# Xóa user
-userdel -r archuser
+### Cho Intel GPU
+
+```
+i915.enable_psr=0     # Tắt Panel Self Refresh (nếu gặp lỗi màn hình)
+i915.enable_fbc=1     # Bật Frame Buffer Compression
+```
+
+### Cho laptop
+
+```
+acpi_osi=             # Một số laptop cần để ACPI hoạt động đúng
+acpi_backlight=vendor # Cho phép điều chỉnh độ sáng bằng phím chức năng
+```
+
+### Khi cần debug
+
+```
+systemd.log_level=debug
+systemd.log_target=kmsg
 ```
 
 ## Nếu có lỗi
 
-### "useradd: command not found"
+### "grub-install: error: cannot find EFI directory"
 
-Trong chroot, useradd phải có sẵn. Nếu không, kiểm tra base package.
+- ESP chưa mount đúng: `ls /efi/EFI` phải tồn tại.
+- Mount ESP: `mount /dev/nvme0n1p1 /efi`.
 
-### "visudo: syntax error"
+### "Failed to register the EFI boot entry"
 
-Nếu lỡ làm hỏng sudoers, fix bằng cách:
+- Dùng `--no-nvram` nếu máy không cho ghi NVRAM:
 
 ```bash
-# Chạy với tư cách root
-pkexec visudo
-# Hoặc boot vào live environment, mount và sửa trực tiếp
+grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --no-nvram
 ```
+
+- Boot entry vẫn có thể thêm bằng tay: `efibootmgr -c -d /dev/nvme0n1 -p 1 -L GRUB -l \EFI\GRUB\grubx64.efi`.
+
+### GRUB không thấy kernel
+
+- `/boot` phải có `vmlinuz-linux` và `initramfs-linux.img`.
+- Nếu dùng BTRFS, đảm bảo subvolume `@` được mount đúng.
 
 ## Tổng kết
 
-- User `archuser` đã được tạo với home directory.
-- User có quyền sudo qua group wheel.
-- Password đã được đặt.
-
-Sẵn sàng cài bootloader.
+- GRUB đã được cài vào ESP và đăng ký với firmware UEFI.
+- Kernel parameters đã được cấu hình cho NVIDIA và laptop.
+- Sẵn sàng reboot vào Arch Linux mới cài.

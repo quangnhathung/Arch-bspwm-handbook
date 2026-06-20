@@ -1,204 +1,207 @@
-# Bảo trì hệ thống
+# Pacman — Trình quản lý gói
 
 ## Mục tiêu
 
-Hiểu quy trình bảo trì Arch Linux để giữ hệ thống ổn định và an toàn.
+Hiểu và sử dụng pacman — trình quản lý gói của Arch Linux.
 
-## Nguyên tắc
+## Giới thiệu
 
-Arch Linux là rolling release → cập nhật liên tục. Bảo trì quan trọng hơn
-các bản phân phối cố định (Ubuntu, Fedora) vì một lần update hỏng có thể
-phá vỡ hệ thống.
+Pacman (Package Manager) là công cụ quản lý gói của Arch Linux.
+Nó quản lý cài đặt, cập nhật, xóa gói phần mềm.
 
-## Quy trình bảo trì hàng tuần
+Pacman sử dụng format `.pkg.tar.zst` (tar compressed với zstd).
 
-### 1. Đọc tin tức Arch
+## Cấu trúc lệnh pacman
 
-Trước khi update, kiểm tra tin tức:
-
-```bash
-# Mở trang news
-xdg-open https://archlinux.org/news/
-
-# Hoặc dùng CLI
-curl -s https://archlinux.org/news/ | grep -oP '(?<=<title>)[^<]+' | head -5
+```
+pacman <tác vụ> [options] [gói]
 ```
 
-Arch thường đăng cảnh báo trước khi có thay đổi lớn (kernel, systemd, v.v.).
+### Các tác vụ chính
 
-### 2. Cập nhật hệ thống
+| Tác vụ | Option | Mô tả |
+|---|---|---|
+| Synchronize | `-S` | Cài gói từ repository |
+| Remove | `-R` | Xóa gói |
+| Query | `-Q` | Truy vấn gói đã cài |
+| Files | `-F` | Truy vấn file thuộc gói nào |
+| Upgrade | `-U` | Cài từ file `.pkg.tar.zst` |
 
-```bash
-# Update đầy đủ
-yay -Syu
+## Các lệnh thường dùng
 
-# Chú ý:
-# - Nếu có "warning: ... skipping" → đọc kỹ
-# - Nếu có pacman news → đọc trước
-# - Nếu update kernel → reboot sau
-```
-
-### 3. Kiểm tra sau update
+### Cập nhật hệ thống
 
 ```bash
-# Kiểm tra lỗi
-systemctl --failed
-
-# Kiểm tra log kernel
-dmesg | grep -i error | tail -10
-
-# Kiểm tra disk space
-df -h /
+# Đồng bộ database và cập nhật tất cả gói
+pacman -Syu
 ```
 
-### 4. Dọn dẹp (theo lịch)
+- `-S`: Sync (đồng bộ database).
+- `-y`: Refresh database.
+- `-u`: Upgrade (cập nhật gói).
 
-Xem bài package-cleanup.md.
+**Luôn chạy `pacman -Syu` trước khi cài gói mới.**
 
-## Bảo trì hàng tháng
-
-### 1. Kiểm tra orphan packages
+### Cài gói
 
 ```bash
-pacman -Qtdq | wc -l
-# Nếu > 0 → xóa
-pacman -Rns $(pacman -Qtdq)
+# Cài một gói
+pacman -S gói
+
+# Cài nhiều gói
+pacman -S gói1 gói2 gói3
+
+# Cài gói từ một nhóm
+pacman -S nhóm
 ```
 
-### 2. Kiểm tra journal
+### Tìm kiếm gói
 
 ```bash
-journalctl --disk-usage
-# Nếu > 200MB → vacuum
-journalctl --vacuum-size=100M
+# Tìm trong database (chưa cài)
+pacman -Ss từ_khóa
+
+# Tìm trong gói đã cài
+pacman -Qs từ_khóa
 ```
 
-### 3. Kiểm tra BTRFS
+### Xem thông tin gói
 
 ```bash
-# Kiểm tra dung lượng subvolume
-btrfs filesystem usage /
+# Thông tin gói trong database
+pacman -Si gói
 
-# Kiểm tra lỗi
-btrfs device stats /
+# Thông tin gói đã cài
+pacman -Qi gói
+
+# File của gói đã cài
+pacman -Ql gói
+
+# Gói nào sở hữu file
+pacman -Qo /path/to/file
 ```
 
-### 4. Kiểm tra pacman cache
+### Xóa gói
+
+```bash
+# Xóa gói (giữ config)
+pacman -R gói
+
+# Xóa gói + dependencies không cần thiết
+pacman -Rs gói
+
+# Xóa gói + config + dependencies
+pacman -Rns gói
+```
+
+### Database
+
+```bash
+# Refresh database
+pacman -Sy
+
+# Force refresh (nếu mirror lỗi)
+pacman -Syy
+```
+
+## Các option hữu ích
+
+| Option | Mô tả |
+|---|---|
+| `--noconfirm` | Không hỏi xác nhận |
+| `--needed` | Chỉ cài nếu chưa có |
+| `--overwrite='*'` | Ghi đè file xung đột (cẩn thận) |
+| `--cachedir` | Chỉ định thư mục cache |
+| `--dbonly` | Chỉ cập nhật database, không cài file |
+
+## Cache pacman
+
+Pacman lưu các gói đã tải trong `/var/cache/pacman/pkg/`.
+Đây là thư mục được mount là subvolume `@pkg`.
+
+### Dọn cache
+
+```bash
+# Xóa cache cũ (giữ 3 phiên bản gần nhất)
+paccache -r
+
+# Xóa tất cả cache
+pacman -Scc
+```
+
+### Xem kích thước cache
 
 ```bash
 du -sh /var/cache/pacman/pkg/
-# Nếu > 2GB → paccache -rk 1
 ```
 
-### 5. Snapshot trước update lớn
+## Cấu hình pacman
+
+File cấu hình: `/etc/pacman.conf`
+
+### Parallel downloads
 
 ```bash
-# Nếu dùng Timeshift
-sudo timeshift --create --comments "before-update-$(date +%Y%m%d)"
+vim /etc/pacman.conf
 ```
 
-## Bảo trì 6 tháng / năm
+Tìm và bỏ comment (sửa số):
 
-### 1. Kiểm tra S.M.A.R.T (NVMe health)
+```
+ParallelDownloads = 5
+```
+
+### Mirror list
+
+File: `/etc/pacman.d/mirrorlist`
+
+Chọn mirror gần Việt Nam nhất. Arch Linux có mirror ở Việt Nam:
 
 ```bash
-pacman -S nvme-cli
-sudo nvme smart-log /dev/nvme0n1
+# Cập nhật mirror list tự động
+pacman -S reflector
+
+# Tìm 5 mirror gần nhất, theo tốc độ
+reflector --country Vietnam --latest 5 --sort rate --save /etc/pacman.d/mirrorlist
 ```
 
-Kiểm tra:
-- `temperature`: < 60°C là tốt.
-- `percentage_used`: < 100%.
-- `media_errors`: phải là 0.
+## Troubleshooting
 
-### 2. Kiểm tra battery health
+### "failed to commit transaction (conflicting files)"
+
+Một số file xung đột với gói khác:
 
 ```bash
-pacman -S acpi
-acpi -i
+# Xem file nào xung đột
+pacman -S --overwrite='*' gói
 ```
 
-### 3. Vệ sinh vật lý
+### "database is locked"
 
-- Lau quạt laptop.
-- Thay thermal paste (nếu cần).
-- Kiểm tra ốc vít.
-
-## Những việc KHÔNG nên làm
-
-| Không nên | Vì sao |
-|---|---|
-| `pacman -Syu --force` | Đã bị deprecated, có thể hỏng hệ thống |
-| `pacman -Sy` (không -u) | Partial upgrade → thường gây conflict |
-| Xóa cache tất cả (`-Scc`) | Mất file cài, không rollback được |
-| Tắt bảo vệ filesystem | Check `--overwrite='*'` quá mức |
-| Update kernel khi đang dùng máy | Cần reboot, mất work chưa save |
-
-## Partial upgrade là gì?
-
-Partial upgrade là cập nhật một số gói mà không cập nhật toàn bộ.
-Ví dụ: chỉ cài firefox mới mà không cập nhật thư viện phụ thuộc.
-
-**Rất nguy hiểm**: có thể gây broken dependencies.
+Một tiến trình pacman khác đang chạy:
 
 ```bash
-# KHÔNG làm thế này:
-pacman -S firefox  # Không chạy -Syu trước
-
-# LUÔN làm thế này:
-pacman -Syu
-# Hoặc
-pacman -Syu firefox
+# Xóa lock
+rm /var/lib/pacman/db.lck
 ```
 
-## Kernel update
-
-Khi kernel được cập nhật:
-
-1. `mkinitcpio -P` tự động chạy (nếu dùng linux).
-2. Cần reboot để dùng kernel mới.
-3. Kiểm tra kernel hiện tại: `uname -r`.
-
-## Backup trước update lớn
-
-### Snapshot BTRFS (nhanh nhất)
+### "error: key could not be looked up remotely"
 
 ```bash
-sudo timeshift --create --comments "truoc-update-thang-6"
+# Refresh keyring
+pacman -Sy archlinux-keyring
 ```
 
-### Backup cấu hình
+## Best practices
 
-```bash
-# Backup danh sách gói
-pacman -Qqen > ~/backup/pkglist.txt
-pacman -Qqem > ~/backup/pkglist-aur.txt
-
-# Backup config quan trọng
-mkdir -p ~/backup/etc
-sudo cp /etc/default/grub ~/backup/etc/
-sudo cp /etc/fstab ~/backup/etc/
-sudo cp /etc/pacman.conf ~/backup/etc/
-```
-
-## Khi update bị lỗi
-
-1. **Đọc log lỗi**: `journalctl -p 3 -xb`.
-2. **Không reboot ngay** nếu chưa chắc chắn.
-3. **Rollback snapshot** nếu có.
-4. **Vào Arch forum / Reddit**: tìm lỗi tương tự.
-5. **Downgrade gói** nếu cần:
-
-```bash
-# Cài từ cache
-pacman -U /var/cache/pacman/pkg/gói-cũ.pkg.tar.zst
-```
+1. **Luôn đọc tin tức trước khi update**: https://archlinux.org/news/
+2. **Không dùng `--force`** (đã bị deprecated).
+3. **Kiểm tra pacman -Qtd** để xóa orphan packages.
+4. **Không can thiệp vào pacman khi đang chạy**.
 
 ## Tổng kết
 
-- Update thường xuyên (hàng tuần).
-- Đọc tin tức Arch trước update lớn.
-- Dọn dẹp định kỳ.
-- Snapshot trước update lớn.
-- Không partial upgrade.
-- Biết cách rollback khi có lỗi.
+- Pacman là công cụ quản lý gói mạnh mẽ và đơn giản.
+- Lệnh quan trọng nhất: `pacman -Syu` (update), `-S` (install), `-Rs` (remove), `-Ss` (search).
+- Cache pacman được quản lý riêng (subvolume @pkg).
+- Cấu hình parallel downloads và mirror cho tốc độ tốt hơn.
