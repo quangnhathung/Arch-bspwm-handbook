@@ -86,6 +86,7 @@ Người dùng muốn chuyển từ Windows sang Linux, cài mới hoàn toàn, 
 
 ### 08-bspwm-guide — Hướng dẫn bspwm
 
+- [00-keyboard-system.md](docs/08-bspwm-guide/00-keyboard-system.md) — Hệ thống bàn phím, Fn keys, keycode, keybinding (nền tảng)
 - [01-keybindings.md](docs/08-bspwm-guide/01-keybindings.md) — Danh sách đầy đủ phím tắt
 - [02-workspaces.md](docs/08-bspwm-guide/02-workspaces.md) — Workspace ảo, chuyển đổi, gán ứng dụng
 - [03-window-management.md](docs/08-bspwm-guide/03-window-management.md) — Focus, move, resize, split, state
