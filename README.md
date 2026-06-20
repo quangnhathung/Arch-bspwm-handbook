@@ -109,6 +109,7 @@ Người dùng muốn chuyển từ Windows sang Linux, cài mới hoàn toàn, 
 - [02-post-install-checklist.md](docs/appendix/02-post-install-checklist.md) — Checklist sau cài
 - [03-maintenance-checklist.md](docs/appendix/03-maintenance-checklist.md) — Checklist bảo trì định kỳ
 - [04-command-cheatsheet.md](docs/appendix/04-command-cheatsheet.md) — Tổng hợp lệnh hữu ích
+- [05-essential-tools.md](docs/appendix/05-essential-tools.md) — Essential Tools: danh sách công cụ thiết yếu cho dev
 
 ## Luồng thực hiện
 
