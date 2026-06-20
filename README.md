@@ -18,97 +18,97 @@ Người dùng muốn chuyển từ Windows sang Linux, cài mới hoàn toàn, 
 | Âm thanh | PipeWire + Intel SST |
 | Snapshot | BTRFS + Timeshift |
 
-## Cấu trúc tài liệu (click để mở)
+## Cấu trúc tài liệu
 
-### 01-introduction — Giới thiệu tổng quan
+### 01-introduction — Giới thiệu
 
-- [overview.md](01-introduction/overview.md) — Tổng quan dự án và máy mục tiêu
-- [arch-linux.md](01-introduction/arch-linux.md) — Arch Linux là gì?
-- [why-bspwm.md](01-introduction/why-bspwm.md) — Tại sao chọn bspwm?
-- [system-requirements.md](01-introduction/system-requirements.md) — Yêu cầu hệ thống
+- [01-overview.md](docs/01-introduction/01-overview.md)
+- [02-arch-linux.md](docs/01-introduction/02-arch-linux.md)
+- [03-why-bspwm.md](docs/01-introduction/03-why-bspwm.md)
+- [04-system-requirements.md](docs/01-introduction/04-system-requirements.md)
 
-### 02-preparation — Chuẩn bị trước khi cài
+### 02-preparation — Chuẩn bị
 
-- [backup-data.md](02-preparation/backup-data.md) — Sao lưu dữ liệu
-- [bios-settings.md](02-preparation/bios-settings.md) — Cấu hình BIOS
-- [secure-boot.md](02-preparation/secure-boot.md) — Tắt Secure Boot
-- [create-usb.md](02-preparation/create-usb.md) — Tạo USB boot Arch
-- [boot-live-environment.md](02-preparation/boot-live-environment.md) — Boot live environment
+- [01-backup-data.md](docs/02-preparation/01-backup-data.md)
+- [02-bios-settings.md](docs/02-preparation/02-bios-settings.md)
+- [03-secure-boot.md](docs/02-preparation/03-secure-boot.md)
+- [04-create-usb.md](docs/02-preparation/04-create-usb.md)
+- [05-boot-live-environment.md](docs/02-preparation/05-boot-live-environment.md)
 
-### 03-installation — Cài đặt hệ thống
+### 03-installation — Cài đặt
 
-- [disk-partitioning.md](03-installation/disk-partitioning.md) — Phân vùng ổ đĩa
-- [btrfs-layout.md](03-installation/btrfs-layout.md) — BTRFS layout và subvolume
-- [mounting.md](03-installation/mounting.md) — Mount hệ thống
-- [pacstrap.md](03-installation/pacstrap.md) — Cài base system
-- [fstab.md](03-installation/fstab.md) — Tạo fstab
-- [locale.md](03-installation/locale.md) — Locale, timezone, hostname
-- [network.md](03-installation/network.md) — Cấu hình network
-- [users.md](03-installation/users.md) — Tạo user và sudo
-- [grub.md](03-installation/grub.md) — GRUB bootloader
+- [01-disk-partitioning.md](docs/03-installation/01-disk-partitioning.md)
+- [02-btrfs-layout.md](docs/03-installation/02-btrfs-layout.md)
+- [03-mounting.md](docs/03-installation/03-mounting.md)
+- [04-pacstrap.md](docs/03-installation/04-pacstrap.md)
+- [05-fstab.md](docs/03-installation/05-fstab.md)
+- [06-locale.md](docs/03-installation/06-locale.md)
+- [07-network.md](docs/03-installation/07-network.md)
+- [08-users.md](docs/03-installation/08-users.md)
+- [09-grub.md](docs/03-installation/09-grub.md)
 
-### 04-desktop — Thiết lập môi trường đồ họa
+### 04-desktop — Desktop
 
-- [xorg.md](04-desktop/xorg.md) — Xorg display server
-- [bspwm.md](04-desktop/bspwm.md) — Bspwm window manager
-- [sxhkd.md](04-desktop/sxhkd.md) — Sxhkd keybinding
-- [polybar.md](04-desktop/polybar.md) — Polybar status bar
-- [rofi.md](04-desktop/rofi.md) — Rofi launcher
-- [picom.md](04-desktop/picom.md) — Picom compositor
-- [nitrogen.md](04-desktop/nitrogen.md) — Nitrogen wallpaper
-- [fonts.md](04-desktop/fonts.md) — Font chữ
-- [themes.md](04-desktop/themes.md) — Themes giao diện
+- [01-xorg.md](docs/04-desktop/01-xorg.md)
+- [02-bspwm.md](docs/04-desktop/02-bspwm.md)
+- [03-sxhkd.md](docs/04-desktop/03-sxhkd.md)
+- [04-polybar.md](docs/04-desktop/04-polybar.md)
+- [05-rofi.md](docs/04-desktop/05-rofi.md)
+- [06-picom.md](docs/04-desktop/06-picom.md)
+- [07-nitrogen.md](docs/04-desktop/07-nitrogen.md)
+- [08-fonts.md](docs/04-desktop/08-fonts.md)
+- [09-themes.md](docs/04-desktop/09-themes.md)
 
-### 05-drivers — Driver phần cứng
+### 05-drivers — Driver
 
-- [intel.md](05-drivers/intel.md) — Intel UHD Graphics
-- [nvidia.md](05-drivers/nvidia.md) — NVIDIA RTX 4050
-- [hybrid-graphics.md](05-drivers/hybrid-graphics.md) — Hybrid graphics
-- [envycontrol.md](05-drivers/envycontrol.md) — EnvyControl GPU switch
-- [wifi.md](05-drivers/wifi.md) — Wi-Fi Realtek RTL8852BE
-- [bluetooth.md](05-drivers/bluetooth.md) — Bluetooth
-- [audio.md](05-drivers/audio.md) — PipeWire audio
+- [01-intel.md](docs/05-drivers/01-intel.md)
+- [02-nvidia.md](docs/05-drivers/02-nvidia.md)
+- [03-hybrid-graphics.md](docs/05-drivers/03-hybrid-graphics.md)
+- [04-envycontrol.md](docs/05-drivers/04-envycontrol.md)
+- [05-wifi.md](docs/05-drivers/05-wifi.md)
+- [06-bluetooth.md](docs/05-drivers/06-bluetooth.md)
+- [07-audio.md](docs/05-drivers/07-audio.md)
 
 ### 06-package-management — Quản lý gói
 
-- [pacman.md](06-package-management/pacman.md) — Pacman
-- [yay.md](06-package-management/yay.md) — Yay AUR helper
-- [package-search.md](06-package-management/package-search.md) — Tìm kiếm gói
-- [package-cleanup.md](06-package-management/package-cleanup.md) — Dọn dẹp gói
-- [maintenance.md](06-package-management/maintenance.md) — Bảo trì hệ thống
+- [01-pacman.md](docs/06-package-management/01-pacman.md)
+- [02-yay.md](docs/06-package-management/02-yay.md)
+- [03-package-search.md](docs/06-package-management/03-package-search.md)
+- [04-package-cleanup.md](docs/06-package-management/04-package-cleanup.md)
+- [05-maintenance.md](docs/06-package-management/05-maintenance.md)
 
-### 07-btrfs — BTRFS và Snapshot
+### 07-btrfs — BTRFS
 
-- [snapshots.md](07-btrfs/snapshots.md) — BTRFS snapshots
-- [timeshift.md](07-btrfs/timeshift.md) — Timeshift
-- [restore.md](07-btrfs/restore.md) — Restore từ snapshot
-- [backup-strategy.md](07-btrfs/backup-strategy.md) — Chiến lược backup
+- [01-snapshots.md](docs/07-btrfs/01-snapshots.md)
+- [02-timeshift.md](docs/07-btrfs/02-timeshift.md)
+- [03-restore.md](docs/07-btrfs/03-restore.md)
+- [04-backup-strategy.md](docs/07-btrfs/04-backup-strategy.md)
 
-### 08-bspwm-guide — Hướng dẫn sử dụng bspwm
+### 08-bspwm-guide — Hướng dẫn bspwm
 
-- [keybindings.md](08-bspwm-guide/keybindings.md) — Danh sách phím tắt
-- [workspaces.md](08-bspwm-guide/workspaces.md) — Workspaces
-- [window-management.md](08-bspwm-guide/window-management.md) — Quản lý cửa sổ
-- [layouts.md](08-bspwm-guide/layouts.md) — Layouts bố cục
-- [multi-monitor.md](08-bspwm-guide/multi-monitor.md) — Nhiều màn hình
-- [customization.md](08-bspwm-guide/customization.md) — Tùy chỉnh
+- [01-keybindings.md](docs/08-bspwm-guide/01-keybindings.md)
+- [02-workspaces.md](docs/08-bspwm-guide/02-workspaces.md)
+- [03-window-management.md](docs/08-bspwm-guide/03-window-management.md)
+- [04-layouts.md](docs/08-bspwm-guide/04-layouts.md)
+- [05-multi-monitor.md](docs/08-bspwm-guide/05-multi-monitor.md)
+- [06-customization.md](docs/08-bspwm-guide/06-customization.md)
 
 ### 09-troubleshooting — Xử lý sự cố
 
-- [black-screen.md](09-troubleshooting/black-screen.md) — Màn hình đen
-- [no-wifi.md](09-troubleshooting/no-wifi.md) — Không có Wi-Fi
-- [no-audio.md](09-troubleshooting/no-audio.md) — Không có âm thanh
-- [nvidia-issues.md](09-troubleshooting/nvidia-issues.md) — NVIDIA lỗi
-- [bspwm-not-starting.md](09-troubleshooting/bspwm-not-starting.md) — bspwm không khởi động
-- [grub-repair.md](09-troubleshooting/grub-repair.md) — GRUB lỗi
-- [emergency-recovery.md](09-troubleshooting/emergency-recovery.md) — Khôi phục khẩn cấp
+- [01-black-screen.md](docs/09-troubleshooting/01-black-screen.md)
+- [02-no-wifi.md](docs/09-troubleshooting/02-no-wifi.md)
+- [03-no-audio.md](docs/09-troubleshooting/03-no-audio.md)
+- [04-nvidia-issues.md](docs/09-troubleshooting/04-nvidia-issues.md)
+- [05-bspwm-not-starting.md](docs/09-troubleshooting/05-bspwm-not-starting.md)
+- [06-grub-repair.md](docs/09-troubleshooting/06-grub-repair.md)
+- [07-emergency-recovery.md](docs/09-troubleshooting/07-emergency-recovery.md)
 
 ### appendix — Phụ lục
 
-- [full-install-script.md](appendix/full-install-script.md) — Full install script
-- [post-install-checklist.md](appendix/post-install-checklist.md) — Checklist sau cài
-- [maintenance-checklist.md](appendix/maintenance-checklist.md) — Checklist bảo trì
-- [command-cheatsheet.md](appendix/command-cheatsheet.md) — Command cheatsheet
+- [01-full-install-script.md](docs/appendix/01-full-install-script.md)
+- [02-post-install-checklist.md](docs/appendix/02-post-install-checklist.md)
+- [03-maintenance-checklist.md](docs/appendix/03-maintenance-checklist.md)
+- [04-command-cheatsheet.md](docs/appendix/04-command-cheatsheet.md)
 
 ## Luồng thực hiện
 
@@ -121,7 +121,7 @@ Người dùng muốn chuyển từ Windows sang Linux, cài mới hoàn toàn, 
 7. Thiết lập snapshot theo **07-btrfs**.
 8. Đọc **08-bspwm-guide** để làm quen với bspwm.
 9. Gặp lỗi → vào **09-troubleshooting**.
-10. **appendix** — cheat sheet, script, checklist.
+10. **appendix** — script, checklist, cheatsheet.
 
 ## Yêu cầu
 
