@@ -83,6 +83,7 @@ Tài liệu cung cấp **2 cách tiếp cận**:
 | [07-nitrogen.md](docs/04-desktop/07-nitrogen.md) | Nitrogen wallpaper                                           |
 | [08-fonts.md](docs/04-desktop/08-fonts.md)       | FiraCode, Noto, Nerd Font                                    |
 | [09-themes.md](docs/04-desktop/09-themes.md)     | GTK theme, icon, cursor (Nordic, Papirus)                    |
+| [10-modern-setup.md](docs/04-desktop/10-modern-setup.md) | Bộ công cụ "r/unixporn": dunst, alacritty, flameshot, Catppuccin |
 
 ### 05-drivers — Driver đồ họa và phần cứng
 
