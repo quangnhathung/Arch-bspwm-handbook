@@ -2,31 +2,25 @@
 
 ## Mục tiêu
 
-Cài đặt và cấu hình Bluetooth trên laptop.
+Cài đặt và cấu hình Bluetooth trên Lenovo LOQ 15IAX9.
 
 ## Kiến thức nền
 
 ### Bluetooth trên Lenovo LOQ
 
-Bluetooth trên máy này đi kèm với chip Wi-Fi Realtek RTL8852BE.
-Nó hỗ trợ Bluetooth 5.2.
+Bluetooth tích hợp trong chip Wi-Fi Realtek RTL8852BE (cùng một module). Hỗ trợ Bluetooth 5.2.
 
-### BlueZ
-
-BlueZ là bộ giao thức Bluetooth chính thức cho Linux. Nó bao gồm:
-
-- `bluez`: Daemon Bluetooth và công cụ CLI (`bluetoothctl`).
-- `bluez-utils`: Công cụ dòng lệnh.
-
-### Bluetooth stack
+### BlueZ stack
 
 ```
-Application (pavucontrol, blueman)
+Application (blueman, pavucontrol)
     ↕ D-Bus
 bluetoothd (bluez daemon)
-    ↕ Kernel module (btusb, hci_uart)
-Bluetooth hardware (USB, PCI, UART)
+    ↕ Kernel module (btusb)
+Bluetooth hardware (USB bus — Realtek)
 ```
+
+BlueZ là bộ giao thức Bluetooth chính thức cho Linux.
 
 ## Các bước thực hiện
 
@@ -39,13 +33,13 @@ pacman -S bluez bluez-utils
 | Gói | Vai trò |
 |---|---|
 | `bluez` | Bluetooth daemon (`bluetoothd`) |
-| `bluez-utils` | Công cụ `bluetoothctl`, `hciconfig`, `rfcomm` |
+| `bluez-utils` | Công cụ CLI (`bluetoothctl`, `hciconfig`, `rfcomm`) |
 
 ### Bước 2: Enable Bluetooth service
 
 ```bash
-systemctl enable bluetooth
-systemctl start bluetooth
+sudo systemctl enable bluetooth
+sudo systemctl start bluetooth
 ```
 
 ### Bước 3: Cài blueman (GUI)
@@ -55,9 +49,10 @@ pacman -S blueman
 ```
 
 blueman cung cấp:
-- `blueman-manager`: Quản lý thiết bị Bluetooth.
-- `blueman-applet`: Tray icon (đã thêm trong bspwmrc).
-- `blueman-sendto`: Gửi file.
+
+- `blueman-manager`: Quản lý thiết bị Bluetooth
+- `blueman-applet`: Tray icon (đã thêm trong bspwmrc)
+- `blueman-sendto`: Gửi file
 
 ### Bước 4: Kiểm tra Bluetooth adapter
 
@@ -75,19 +70,19 @@ Output mong đợi:
 hci0:   Type: Primary  Bus: USB
         BD Address: xx:xx:xx:xx:xx:xx  ACL MTU: 1021:6  SCO MTU: 255:12
         UP RUNNING
-        ...
 ```
 
-### Bước 5: Cấu hình Audio (nếu dùng Bluetooth headset)
+### Bước 5: Bluetooth audio với PipeWire
 
-Cần thêm gói cho A2DP (âm thanh chất lượng cao):
+PipeWire (đã cài trong bài audio) hỗ trợ Bluetooth A2DP (âm thanh chất lượng cao) và HSP/HFP (micro + tai nghe) **tự động** — không cần `pulseaudio-bluetooth`.
+
+Kiểm tra module Bluetooth của PipeWire:
 
 ```bash
-pacman -S pulseaudio-bluetooth
+pactl list modules | grep blue
 ```
 
-Nếu dùng PipeWire (đã cấu hình trong bài audio.md), PipeWire tự động hỗ trợ
-Bluetooth audio qua module `pipewire-alsa` và `pipewire-pulse`.
+Nếu có `module-bluez5-discover` và `module-bluez5-manager` → PipeWire đã sẵn sàng cho Bluetooth audio.
 
 ### Bước 6: Kết nối thiết bị
 
@@ -103,7 +98,7 @@ pairable on
 # Quét thiết bị
 scan on
 
-# Kết nối đến thiết bị (dùng MAC address)
+# Kết nối (dùng MAC address từ scan)
 pair xx:xx:xx:xx:xx:xx
 trust xx:xx:xx:xx:xx:xx
 connect xx:xx:xx:xx:xx:xx
@@ -124,9 +119,9 @@ blueman-applet &
 
 ### Tự động kết nối
 
-BlueZ tự động kết nối đến thiết bị đã trust khi phát hiện.
+BlueZ tự động kết nối đến thiết bị đã trust khi ở trong tầm.
 
-### Cho phép kết nối từ thiết bị ẩn danh
+### Cho phép kết nối từ thiết bị lạ
 
 ```bash
 vim /etc/bluetooth/main.conf
@@ -151,25 +146,28 @@ remove xx:xx:xx:xx:xx:xx
 ### "No default controller available"
 
 ```bash
-# Kiểm tra adapter
+# Kiểm tra RF kill
 rfkill list
 # Nếu blocked → unblock
 rfkill unblock bluetooth
 
-# Kiểm tra module
+# Kiểm tra module btusb
 lsmod | grep btusb
 # Nếu không → load
 modprobe btusb
+
+# Kiểm tra dmesg
+dmesg | grep -i bluetooth
 ```
 
 ### Bluetooth không thấy thiết bị
 
 ```bash
-# Kiểm tra firmware Realtek
-dmesg | grep -i bluetooth
-
-# Cài firmware
+# Cài firmware Realtek
 pacman -S linux-firmware
+
+# Kiểm tra firmware đã load
+dmesg | grep -i "rtl.*bt"
 ```
 
 ### Thiết bị ghép được nhưng không kết nối
@@ -186,23 +184,34 @@ connect xx:xx:xx:xx:xx:xx
 
 ### Âm thanh Bluetooth không có
 
-- Kiểm tra PipeWire có module bluetooth không.
-
 ```bash
+# Kiểm tra PipeWire Bluetooth module
 pactl list modules | grep blue
+
+# Kiểm tra profile
+pactl list cards | grep -A 10 bluez
+
+# Set profile A2DP (âm thanh chất lượng cao)
+pactl set-card-profile bluez_card.xx_xx_xx_xx_xx_xx a2dp_sink
+
+# Restart PipeWire nếu cần
+systemctl --user restart pipewire wireplumber
 ```
 
-- Cài `pipewire-alsa pipewire-pulse ` nếu chưa.
-- Kiểm tra profile A2DP:
+### WirePlumber không quản lý Bluetooth
+
+WirePlumber đã hỗ trợ Bluetooth mặc định. Kiểm tra:
 
 ```bash
-pactl set-card-profile bluez_card.xx_xx_xx_xx_xx_xx a2dp_sink
+systemctl --user status wireplumber
+
+# Nếu thiếu policy, cài wireplumber (đã làm ở bài audio)
+pacman -S wireplumber
 ```
 
 ## Tổng kết
 
-- BlueZ đã được cài và enable.
-- blueman cung cấp giao diện đồ họa và tray icon.
-- Bluetooth adapter (Realtek) đi kèm chip Wi-Fi.
-- Hỗ trợ ghép nối tai nghe, chuột, bàn phím.
-- Audio Bluetooth qua PipeWire.
+- BlueZ + blueman: quản lý thiết bị Bluetooth
+- Bluetooth audio qua PipeWire (A2DP tự động)
+- Tray icon: `blueman-applet &`
+- Troubleshooting: rfkill, btusb, firmware, PipeWire profile

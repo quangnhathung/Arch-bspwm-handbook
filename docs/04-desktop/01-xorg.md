@@ -1,4 +1,6 @@
-# Xorg Display Server
+# Xorg — Display Server
+
+Ngày cập nhật: 25/06/2026
 
 ## Mục tiêu
 
@@ -46,15 +48,18 @@ exec bspwm
 ### Bước 1: Cài Xorg
 
 ```bash
-pacman -S xorg xorg-server xorg-init xorg-xrandr
+pacman -S xorg-server xorg-xinit xorg-xrandr
 ```
 
 | Gói | Vai trò |
 |---|---|
-| `xorg` | Nhóm gói Xorg (ký hiệu, font, v.v.) |
 | `xorg-server` | X server (phần lõi) |
-| `xorg-init` | Script khởi động (xinit, startx) |
+| `xorg-xinit` | Script khởi động (xinit, startx) — **KHÔNG phải `xorg-init`** |
 | `xorg-xrandr` | Công cụ quản lý màn hình (resolution, multi-monitor) |
+
+> **Lưu ý quan trọng:** Gói `xorg-init` **không tồn tại** trong kho chính thức
+> của Arch. Gói đúng là **`xorg-xinit`**. Nếu bạn gõ `pacman -S xorg-init`,
+> sẽ báo lỗi "target not found".
 
 ### Bước 2: Cài Xorg input drivers
 
@@ -143,11 +148,13 @@ EndSection
 
 ### "Failed to run /usr/bin/xinit"
 
-Chưa cài xorg-init → `pacman -S xorg-init`.
+```bash
+pacman -S xorg-xinit    # Không phải xorg-init!
+```
 
 ### "/usr/bin/xinit: No such file or directory"
 
-Chưa cài xorg-init.
+Chưa cài `xorg-xinit`.
 
 ### "Cannot open /dev/tty0"
 

@@ -1,5 +1,7 @@
 # Fonts
 
+Ngày cập nhật: 25/06/2026
+
 ## Mục tiêu
 
 Cài đặt font chữ cho terminal, UI desktop, và hỗ trợ hiển thị tiếng Việt đầy đủ.
@@ -30,26 +32,29 @@ Khi một font không có ký tự cần hiển thị, fontconfig tự động d
 
 ```bash
 pacman -S \
-  ttf-dejavu \
-  noto-fonts \
-  ttf-liberation \
   ttf-jetbrains-mono \
+  noto-fonts \
   noto-fonts-cjk \
   noto-fonts-emoji \
-  ttf-nerd-fonts-symbols-mono
+  ttf-dejavu \
+  ttf-liberation \
+  ttf-nerd-fonts-symbols
 ```
 
 Giải thích từng font:
 
 | Gói | Mục đích |
 |---|---|
-| `ttf-dejavu` | Font mặc định cho terminal/UI, hỗ trợ Latin Extended |
+| `ttf-jetbrains-mono` | Font monospace cho coding, có ligatures |
 | `noto-fonts` | Font đa ngôn ngữ của Google, phủ hầu hết Unicode |
-| `ttf-liberation` | Tương thích với Arial/Times/ Courier, dùng cho văn phòng |
-| `ttf-jetbrains-mono` | Font monospace cho coding, có ràng buộc (ligatures) |
 | `noto-fonts-cjk` | Hỗ trợ tiếng Trung/Nhật/Hàn (gián tiếp hỗ trợ Hán-Nôm) |
 | `noto-fonts-emoji` | Emoji đầy đủ màu sắc |
-| `ttf-nerd-fonts-symbols-mono` | Icon symbols cho polybar, rofi, terminal |
+| `ttf-dejavu` | Font mặc định cho terminal/UI, hỗ trợ Latin Extended |
+| `ttf-liberation` | Tương thích với Arial/Times/Courier, dùng cho văn phòng |
+| `ttf-nerd-fonts-symbols` | Icon symbols cho polybar, rofi, terminal |
+
+> **Lưu ý:** Tên gói đúng là **`ttf-nerd-fonts-symbols`**, không phải
+> `ttf-nerd-fonts-symbols-mono`. Gói `-mono` không tồn tại trong kho chính thức.
 
 ### Bước 2: Xem danh sách font đã cài
 
@@ -70,8 +75,6 @@ fc-query /path/to/font.ttf
 
 ### Bước 3: Kiểm tra font hỗ trợ tiếng Việt
 
-Dùng lệnh sau để kiểm tra xem font có glyph cho ký tự tiếng Việt không:
-
 ```bash
 # Kiểm tra Noto Sans có hỗ trợ ơ, ư, đ không
 echo "Tiếng Việt: ơ ư đ ê ô ă â" | fc-match -a | head -5
@@ -83,7 +86,7 @@ fc-match
 Kết quả `fc-match` cho biết font mặc định của hệ thống. Thường là
 `DejaVu Sans.ttf` hoặc `NotoSans-Regular.ttf`.
 
-### Bước 4: Cấu hình font fallback (nếu cần)
+### Bước 4: Cấu hình font fallback
 
 Tạo file `~/.config/fontconfig/fonts.conf`:
 
@@ -128,8 +131,6 @@ fc-cache -fv
 
 ### Bước 5: Cài font bổ sung (tùy chọn)
 
-Có thể cài thêm font từ AUR hoặc tải thủ công:
-
 ```bash
 # Font từ AUR (cần yay)
 yay -S ttf-ms-win11-auto     # Microsoft font (Windows tương thích)
@@ -141,11 +142,9 @@ cp /path/to/font.ttf ~/.local/share/fonts/
 fc-cache -fv
 ```
 
-### Bước 6: Cấu hình font cho terminal
+### Bước 6: Cấu hình font cho Terminal (Alacritty)
 
-Các terminal emulator thường dùng font monospace.
-
-Ví dụ với Alacritty (`~/.config/alacritty/alacritty.toml`):
+File `~/.config/alacritty/alacritty.toml`:
 
 ```toml
 [font]
@@ -170,10 +169,9 @@ Trong `~/.config/polybar/config.ini`:
 
 ```ini
 [bar/main]
-font-0 = "JetBrains Mono:size=10"
-font-1 = "DejaVu Sans:size=10"
-font-2 = "Noto Color Emoji:size=10"
-font-3 = "Symbols Nerd Font Mono:size=10"
+font-0 = "JetBrains Mono:size=11;3"
+font-1 = "Noto Sans:size=10;3"
+font-2 = "Symbols Nerd Font:size=11;3"
 ```
 
 ### Bước 8: Cấu hình font cho GTK
@@ -189,7 +187,38 @@ Hoặc sửa trực tiếp file `~/.config/gtk-3.0/settings.ini`:
 
 ```ini
 [Settings]
-gtk-font-name=DejaVu Sans 10
+gtk-font-name=Noto Sans 10
+```
+
+### Bước 9: Font rendering (Xresources)
+
+Tạo `~/.Xresources` nếu chưa có:
+
+```
+Xft.antialias: 1
+Xft.hinting: full
+Xft.hintstyle: hintfull
+Xft.rgba: rgb
+Xft.lcdfilter: lcddefault
+Xft.dpi: 96
+```
+
+Nạp cấu hình:
+
+```bash
+xrdb -merge ~/.Xresources
+```
+
+Điều chỉnh DPI nếu font quá nhỏ trên màn hình 1080p:
+
+```
+Xft.dpi: 120
+```
+
+Hoặc trong `bspwmrc`:
+
+```bash
+xrandr --output eDP-1 --mode 1920x1080 --rate 144 --dpi 120
 ```
 
 ## Troubleshooting
@@ -221,24 +250,10 @@ fc-cache -fv   # Force rebuild cache
 fc-list | grep -i "ten-font"
 ```
 
-### Font chữ quá nhỏ trên màn hình 1080p
-
-Tăng DPI trong `~/.Xresources`:
-
-```
-Xft.dpi: 120
-```
-
-Hoặc trong `bspwmrc`:
-
-```bash
-xrandr --output eDP-1 --mode 1920x1080 --rate 144 --dpi 120
-```
-
 ## Tổng kết
 
 - Đã cài đủ font cho terminal, desktop, và tiếng Việt.
 - Font monospace (JetBrains Mono) dùng cho coding.
 - Font UI (DejaVu Sans, Noto Sans) dùng cho giao diện.
-- Font icon (Nerd Font Symbols) dùng cho polybar/rofi.
+- Font icon (Symbols Nerd Font) dùng cho polybar/rofi.
 - Fontconfig cấu hình fallback để tránh lỗi hiển thị.

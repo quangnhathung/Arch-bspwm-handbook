@@ -1,26 +1,22 @@
-# Boot Live Environment
+# Boot vào môi trường Live Arch Linux
 
 ## Mục tiêu
 
-Boot từ USB Arch Linux để vào môi trường live, nơi chúng ta sẽ thực hiện toàn bộ
-quá trình cài đặt.
+Boot từ USB Arch Linux để vào môi trường live (chạy từ RAM), nơi thực hiện toàn bộ quá trình cài đặt.
 
-## Cách boot
+## Boot process — Lenovo LOQ 15IAX9
 
-### Trên Lenovo LOQ 15IAX9
+1. **Tắt máy** hoàn toàn (Shut down, không Restart)
+2. Cắm USB Arch đã ghi (xem bài 04-create-usb)
+3. Nhấn nút **Nguồn**
+4. Ngay khi màn hình sáng, nhấn liên tục **F12** (hoặc **Fn+F12**)
+5. Chọn USB trong danh sách Boot Menu (thường hiện là tên USB hoặc "USB HDD")
 
-1. **Tắt máy** hoàn toàn (Shut down, không Restart).
-2. Cắm USB Arch đã ghi.
-3. Nhấn **Nguồn**.
-4. Ngay khi màn hình sáng, nhấn liên tục **F12** (hoặc **Fn + F12**).
-5. Menu Boot xuất hiện → chọn USB của bạn (thường có tên "USB HDD" hoặc tên USB).
-6. Nhấn Enter.
+**Nếu F12 không hoạt động**: Vào BIOS (F2) → Boot → Boot Override → chọn USB.
 
-**Nếu F12 không hoạt động**: Vào BIOS → Boot → Boot Override → chọn USB.
+### Menu GRUB
 
-### Màn hình GRUB
-
-Sau khi chọn USB, bạn sẽ thấy menu GRUB của Arch:
+Sau khi chọn USB, màn hình GRUB:
 
 ```
 Arch Linux install medium (x86_64, UEFI)
@@ -28,37 +24,28 @@ Arch Linux install medium (x86_64, UEFI) — Copy to RAM
 UEFI Shell
 ```
 
-Chọn dòng đầu tiên và nhấn Enter.
+Chọn dòng đầu tiên, nhấn **Enter**.
 
-### Boot process
+### Boot log
 
-Máy sẽ hiện một loạt log kernel chạy qua. Sau khoảng 10-30 giây, bạn sẽ thấy
-terminal với dấu nhắc:
+Khoảng 10–30 giây sau, kernel log chạy qua màn hình. Kết thúc:
 
 ```
 root@archiso ~ #
 ```
 
-Bạn đang ở trong môi trường live. Đây là một Arch Linux đầy đủ chạy từ RAM.
-
-## Môi trường live có gì?
-
-- **Root**: Bạn đang là `root`, không cần password.
-- **RAM**: Hệ thống chạy hoàn toàn từ RAM (khoảng 1-2GB).
-- **Công cụ**: Có sẵn `pacman`, `iwd`, `systemctl`, `fdisk`, `vim`, `ping`, `curl`.
-- **Phiên bản**: Linux kernel mới nhất.
-- **Không có giao diện đồ họa**: Chỉ terminal.
+Đây là terminal của môi trường live. Toàn bộ hệ thống chạy từ RAM.
 
 ## Kiểm tra cơ bản
 
-### 1. Kiểm tra chế độ boot
+### 1. Kiểm tra chế độ boot (UEFI vs Legacy)
 
 ```bash
 ls /sys/firmware/efi/efivars
 ```
 
-Nếu thư mục tồn tại → **đã boot đúng UEFI mode**.
-Nếu không → máy đang boot Legacy → vào BIOS chỉnh lại.
+- **Thư mục tồn tại** → boot đúng chế độ **UEFI** ✓
+- **Không tìm thấy** → máy đang boot Legacy → vào BIOS chỉnh lại
 
 ### 2. Kiểm tra ổ cứng
 
@@ -66,52 +53,75 @@ Nếu không → máy đang boot Legacy → vào BIOS chỉnh lại.
 lsblk
 ```
 
-Đầu ra sẽ giống:
+Đầu ra tham khảo — Lenovo LOQ 15IAX9 (NVMe 512GB):
 
 ```
 NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
 nvme0n1     259:0    0 476.9G  0 disk
-├─nvme0n1p1 259:1    0   100M  0 part
-├─nvme0n1p2 259:2    0    16M  0 part
-├─nvme0n1p3 259:3    0 476.5G  0 part
+├─nvme0n1p1 259:1    0   100M  0 part  # EFI system partition
+├─nvme0n1p2 259:2    0    16M  0 part  # Microsoft reserved
+├─nvme0n1p3 259:3    0 476.5G  0 part  # Windows C:
 ```
 
-`nvme0n1` là ổ NVMe 512GB. Các partition (p1, p2, p3) là của Windows.
+Nếu **không thấy nvme0n1**: Vào BIOS kiểm tra SATA Mode đã là AHCI chưa.
 
-### 3. Kiểm tra kết nối mạng
+### 3. Kiểm tra thông tin phần cứng
 
-#### Nếu dùng LAN (cable)
+```bash
+# RAM
+free -h
+
+# CPU
+cat /proc/cpuinfo | grep "model name" | head -1
+
+# GPU — Intel + NVIDIA
+lspci | grep -E "VGA|3D"
+```
+
+Kết quả tham khảo — Lenovo LOQ 15IAX9 (i5-12450HX + RTX 4050):
+
+```
+00:02.0 VGA compatible controller: Intel Corporation Alder Lake-HX GT1 [UHD Graphics]
+01:00.0 3D controller: NVIDIA Corporation AD107M [GeForce RTX 4050 Max-Q]
+```
+
+## Kết nối mạng
+
+Bắt buộc phải có Internet để cài Arch. Kiểm tra:
 
 ```bash
 ping -c 3 archlinux.org
 ```
 
-Nếu có kết quả → có mạng rồi.
+### LAN (cáp mạng)
 
-#### Nếu dùng Wi-Fi — dùng iwctl
+Cắm dây mạng → tự động nhận IP. Kiểm tra:
+
+```bash
+ip a
+ping -c 3 archlinux.org
+```
+
+### Wi-Fi — iwd
+
+Card Wi-Fi Lenovo LOQ 15IAX9 dùng chip **Realtek RTL8852BE**. iwd hỗ trợ card này:
 
 ```bash
 iwctl
 ```
 
-Bên trong iwctl (dấu nhắc `[iwd]#`):
+Trong iwctl:
 
-```bash
-# Liệt kê thiết bị Wi-Fi
-device list
+```
+[iwd]# device list
+                Name             Mac address          Enabled          Power Save
 
-# Quét mạng
-station wlan0 scan
+         wlan0                   xx:xx:xx:xx:xx:xx       on               off
 
-# Liệt kê mạng tìm thấy
-station wlan0 get-networks
-
-# Kết nối
-station wlan0 connect "Tên Wi-Fi"
-# Nhập password khi được hỏi
-
-# Thoát
-exit
+[iwd]# station wlan0 scan
+[iwd]# station wlan0 get-networks
+[iwd]# station wlan0 connect "Tên Wi-Fi"
+[iwd]# exit
 ```
 
 Kiểm tra lại:
@@ -120,83 +130,93 @@ Kiểm tra lại:
 ping -c 3 archlinux.org
 ```
 
-#### Nếu dùng USB tethering Android
+**Nếu Wi-Fi không hoạt động**: Dùng USB tethering (bên dưới). Realtek RTL8852BE có thể cần firmware từ `linux-firmware` — có sẵn trên live USB.
 
-1. Cắm Android vào máy qua USB.
-2. Trên Android: Settings → Network → USB Tethering → Bật.
+### USB tethering — Android
+
+1. Cắm Android vào máy qua cáp USB
+2. Trên Android: **Settings → Network → Hotspot & Tethering → USB Tethering** (bật)
 3. Trong Arch live:
 
 ```bash
 ip link show
-# Sẽ thấy interface mới như enp0s20f0u1
+# Thấy interface mới: enp0s20f0u1 (hoặc tương tự)
 ping -c 3 archlinux.org
 ```
 
-#### Nếu dùng USB tethering iPhone
+### USB tethering — iPhone
 
-1. Cắm iPhone vào máy qua USB.
-2. Trên iPhone: Settings → Personal Hotspot → Bật. Chọn "USB Only".
+1. Cắm iPhone vào máy qua cáp USB
+2. Trên iPhone: **Settings → Personal Hotspot → "Allow Others to Join"** (chọn "USB Only")
 3. Trong Arch live:
 
 ```bash
 ip link show
-# Sẽ thấy interface enp0s20f0u2 (hoặc tương tự)
+# Thấy interface mới
 dhcpcd enp0s20f0u2
 ping -c 3 archlinux.org
 ```
 
-### 4. Cập nhật đồng hồ hệ thống
+## Cập nhật đồng hồ hệ thống
 
 ```bash
 timedatectl set-ntp true
 timedatectl status
 ```
 
-## Các thao tác hữu ích trong live
+Xác nhận: `NTP service: active`, thời gian đúng múi giờ.
 
-### Xem dung lượng RAM
-
-```bash
-free -h
-```
-
-### Xem CPU
+## Các lệnh kiểm tra khác (tham khảo)
 
 ```bash
-cat /proc/cpuinfo | grep "model name" | head -1
+# Phiên bản kernel
+uname -a
+# Đầu ra: Linux archiso 7.x-arch1-1 ... (kernel 7.x)
+
+# Phân vùng ổ cứng chi tiết
+fdisk -l
+
+# Thông tin block device
+lsblk -f
+
+# Kiểm tra module kernel cho NVIDIA (có sẵn trong live)
+lsmod | grep nvidia
 ```
 
-### Xem GPU
+## Troubleshooting
 
-```bash
-lspci | grep -E "VGA|3D"
-```
+### Màn hình đen sau khi chọn USB boot
 
-## Nếu không boot được
+| Nguyên nhân | Cách xử lý |
+|---|---|
+| Secure Boot chưa tắt | Vào BIOS, tắt Secure Boot |
+| Fast Boot gây lỗi USB | Vào BIOS, tắt Fast Boot |
+| ISO ghi sai chế độ | Ghi lại USB với Rufus DD mode |
+| Lỗi driver đồ họa | Thử dùng GRUB option **"Copy to RAM"** |
+| Cổng USB 3.0 không tương thích | Thử cổng USB 2.0 (màu đen) |
 
-### Màn hình đen sau khi chọn USB
+### USB không xuất hiện trong Boot Menu
 
-- Secure Boot đã tắt chưa? Vào BIOS kiểm tra lại.
-- Fast Boot đã tắt chưa?
-- Thử option "Copy to RAM" trong GRUB menu.
-- Thử cổng USB 2.0 (màu đen) thay vì 3.0 (màu xanh).
+- Ghi lại USB với Rufus DD mode (quan trọng)
+- Thử cổng USB khác
+- Vào BIOS → Boot → Boot Override → chọn USB (nếu F12 không hoạt động)
+- USB hỏng → thử USB khác
 
-### USB không xuất hiện trong boot menu
+### Wi-Fi không hoạt động
 
-- USB chưa được ghi đúng cách → ghi lại với Rufus DD mode.
-- USB hỏng → thử USB khác.
-- Cổng USB hỏng → thử cổng khác.
+- Card Realtek RTL8852BE: iwd có hỗ trợ — thử `rfkill unblock all`
+- Kiểm tra `rfkill list` — nếu bị block: `rfkill unblock wifi`
+- Dùng USB tethering làm phương án dự phòng
+- Nếu vẫn không được, cắm dây LAN hoặc dùng điện thoại tethering
 
-### Lỗi "No WIFI adapter found"
+## Pre-installation checklist
 
-- iwd không hỗ trợ card này → dùng USB tethering để có mạng.
-- Card Wi-Fi chưa được bật → kiểm tra bằng `rfkill list`.
+Trước khi sang bước cài đặt, xác nhận:
 
-## Tổng kết
+- [x] Đã boot thành công vào Arch live environment
+- [x] `ls /sys/firmware/efi/efivars` → có thư mục (UEFI mode)
+- [x] `lsblk` → thấy ổ NVMe
+- [x] `ping -c 3 archlinux.org` → có Internet
+- [x] `timedatectl status` → NTP active, giờ đúng
 
-- Boot USB thành công với UEFI mode.
-- Có terminal với quyền root.
-- Có kết nối Internet.
-- Đồng hồ đã đồng bộ.
-
-Sẵn sàng bắt đầu cài đặt.
+Tất cả các điều kiện đã sẵn sàng. Chuyển sang phần cài đặt Arch Linux.

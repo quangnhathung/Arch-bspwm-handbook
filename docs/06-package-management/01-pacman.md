@@ -9,7 +9,9 @@ Hiểu và sử dụng pacman — trình quản lý gói của Arch Linux.
 Pacman (Package Manager) là công cụ quản lý gói của Arch Linux.
 Nó quản lý cài đặt, cập nhật, xóa gói phần mềm.
 
-Pacman sử dụng format `.pkg.tar.zst` (tar compressed với zstd).
+Pacman sử dụng định dạng `.pkg.tar.zst` (tar nén với zstd).
+
+Ngày viết: 25/06/2026, kernel 7.x.
 
 ## Cấu trúc lệnh pacman
 
@@ -29,10 +31,9 @@ pacman <tác vụ> [options] [gói]
 
 ## Các lệnh thường dùng
 
-### Cập nhật hệ thống
+### Cập nhật hệ thống (`-Syu`)
 
 ```bash
-# Đồng bộ database và cập nhật tất cả gói
 pacman -Syu
 ```
 
@@ -41,8 +42,9 @@ pacman -Syu
 - `-u`: Upgrade (cập nhật gói).
 
 **Luôn chạy `pacman -Syu` trước khi cài gói mới.**
+**Cảnh báo: Không bao giờ chạy `pacman -Sy` mà không có `-u` — đây là partial upgrade, có thể gây hỏng hệ thống.**
 
-### Cài gói
+### Cài gói (`-S`)
 
 ```bash
 # Cài một gói
@@ -55,153 +57,201 @@ pacman -S gói1 gói2 gói3
 pacman -S nhóm
 ```
 
-### Tìm kiếm gói
+### Xóa gói (`-R`)
 
 ```bash
-# Tìm trong database (chưa cài)
-pacman -Ss từ_khóa
-
-# Tìm trong gói đã cài
-pacman -Qs từ_khóa
-```
-
-### Xem thông tin gói
-
-```bash
-# Thông tin gói trong database
-pacman -Si gói
-
-# Thông tin gói đã cài
-pacman -Qi gói
-
-# File của gói đã cài
-pacman -Ql gói
-
-# Gói nào sở hữu file
-pacman -Qo /path/to/file
-```
-
-### Xóa gói
-
-```bash
-# Xóa gói (giữ config)
+# Xóa gói (giữ cấu hình)
 pacman -R gói
 
 # Xóa gói + dependencies không cần thiết
 pacman -Rs gói
 
-# Xóa gói + config + dependencies
+# Xóa gói + cấu hình + dependencies
 pacman -Rns gói
 ```
 
-### Database
+### Truy vấn gói đã cài (`-Q`)
 
 ```bash
-# Refresh database
-pacman -Sy
+# Liệt kê tất cả gói đã cài
+pacman -Q
 
-# Force refresh (nếu mirror lỗi)
-pacman -Syy
+# Tìm gói đã cài theo từ khóa
+pacman -Qs từ_khóa
+
+# Thông tin chi tiết gói đã cài
+pacman -Qi gói
+
+# File của gói đã cài
+pacman -Ql gói
+
+# Gói nào sở hữu file này?
+pacman -Qo /usr/bin/firefox
 ```
 
-## Các option hữu ích
+### Tìm gói trong database (`-F`)
 
-| Option | Mô tả |
-|---|---|
-| `--noconfirm` | Không hỏi xác nhận |
-| `--needed` | Chỉ cài nếu chưa có |
-| `--overwrite='*'` | Ghi đè file xung đột (cẩn thận) |
-| `--cachedir` | Chỉ định thư mục cache |
-| `--dbonly` | Chỉ cập nhật database, không cài file |
+```bash
+# Tìm gói nào sở hữu file (không cần cài)
+pacman -F /path/to/file
 
-## Cache pacman
+# Cập nhật database của -F
+pacman -Fy
+```
+
+### Cài từ file (`-U`)
+
+```bash
+# Cài gói từ file .pkg.tar.zst (downgrade hoặc offline)
+pacman -U /var/cache/pacman/pkg/gói-cũ.pkg.tar.zst
+```
+
+## Quản lý cache
 
 Pacman lưu các gói đã tải trong `/var/cache/pacman/pkg/`.
-Đây là thư mục được mount là subvolume `@pkg`.
 
-### Dọn cache
+### paccache (từ pacman-contrib)
 
 ```bash
-# Xóa cache cũ (giữ 3 phiên bản gần nhất)
+# Cài pacman-contrib nếu chưa có
+pacman -S pacman-contrib
+
+# Giữ 3 phiên bản gần nhất (mặc định)
 paccache -r
 
-# Xóa tất cả cache
-pacman -Scc
-```
+# Giữ 1 phiên bản gần nhất
+paccache -rk1
 
-### Xem kích thước cache
-
-```bash
+# Xem kích thước cache
 du -sh /var/cache/pacman/pkg/
 ```
 
+`paccache` nằm trong gói `pacman-contrib`, không có sẵn khi cài Arch cơ bản.
+Cần cài riêng:
+
+```bash
+pacman -S pacman-contrib
+```
+
+### Xóa toàn bộ cache (cẩn thận)
+
+```bash
+pacman -Scc
+```
+
+Chỉ dùng khi cần gấp dung lượng. Sẽ mất khả năng downgrade từ cache.
+
+## Quản lý mirror
+
+File cấu hình mirror: `/etc/pacman.d/mirrorlist`
+
+### Dùng reflector (tự động)
+
+```bash
+# Cài reflector
+pacman -S reflector
+
+# Tìm 5 mirror gần nhất theo tốc độ
+reflector --country Vietnam --latest 5 --sort rate --save /etc/pacman.d/mirrorlist
+```
+
+### Rating thủ công
+
+Mở file mirrorlist và di chuyển mirror gần nhất lên đầu:
+
+```bash
+vim /etc/pacman.d/mirrorlist
+```
+
+Mirror Việt Nam (ví dụ): `fpt.vn`, `viettelnap.vn`.
+
 ## Cấu hình pacman
 
-File cấu hình: `/etc/pacman.conf`
+File: `/etc/pacman.conf`
 
 ### Parallel downloads
 
-```bash
-vim /etc/pacman.conf
-```
-
-Tìm và bỏ comment (sửa số):
-
-```
+```ini
 ParallelDownloads = 5
 ```
 
-### Mirror list
+Bỏ comment và đặt số luồng tải song song.
 
-File: `/etc/pacman.d/mirrorlist`
+### Color
 
-Chọn mirror gần Việt Nam nhất. Arch Linux có mirror ở Việt Nam:
+```ini
+Color
+```
+
+Hiển thị màu trong output.
+
+### VerbosePkgLists
+
+```ini
+VerbosePkgLists
+```
+
+Hiện danh sách gói chi tiết khi cập nhật.
+
+### ILoveCandy
+
+```ini
+ILoveCandy
+```
+
+Progress bar dạng candy (tùy chọn, cho vui).
+
+## Partial upgrade — Cảnh báo nguy hiểm
+
+**Không bao giờ** chạy `pacman -Sy` (chỉ refresh database mà không upgrade).
+
+Hậu quả: Cài gói mới lên hệ thống với database mới nhưng gói cũ chưa được cập nhật → xung đột thư viện → hỏng hệ thống.
 
 ```bash
-# Cập nhật mirror list tự động
-pacman -S reflector
+# SAI — nguy hiểm:
+pacman -Sy firefox
 
-# Tìm 5 mirror gần nhất, theo tốc độ
-reflector --country Vietnam --latest 5 --sort rate --save /etc/pacman.d/mirrorlist
+# ĐÚNG:
+pacman -Syu firefox
 ```
+
+Nếu lỡ chạy `pacman -Sy`, chạy ngay `pacman -Su` để đồng bộ lại.
 
 ## Troubleshooting
 
 ### "failed to commit transaction (conflicting files)"
 
-Một số file xung đột với gói khác:
-
 ```bash
-# Xem file nào xung đột
 pacman -S --overwrite='*' gói
 ```
 
 ### "database is locked"
 
-Một tiến trình pacman khác đang chạy:
+Xóa lock file:
 
 ```bash
-# Xóa lock
 rm /var/lib/pacman/db.lck
 ```
 
 ### "error: key could not be looked up remotely"
 
 ```bash
-# Refresh keyring
 pacman -Sy archlinux-keyring
 ```
 
 ## Best practices
 
-1. **Luôn đọc tin tức trước khi update**: https://archlinux.org/news/
+1. **Đọc tin tức Arch trước khi update lớn**: https://archlinux.org/news/
 2. **Không dùng `--force`** (đã bị deprecated).
-3. **Kiểm tra pacman -Qtd** để xóa orphan packages.
-4. **Không can thiệp vào pacman khi đang chạy**.
+3. **Xóa orphan packages định kỳ**: `pacman -Qtdq`.
+4. **Không can thiệp pacman khi đang chạy**.
+5. **Cài `pacman-contrib` để dùng `paccache`**.
+6. **Luôn snapshot trước update lớn**.
 
 ## Tổng kết
 
-- Pacman là công cụ quản lý gói mạnh mẽ và đơn giản.
-- Lệnh quan trọng nhất: `pacman -Syu` (update), `-S` (install), `-Rs` (remove), `-Ss` (search).
-- Cache pacman được quản lý riêng (subvolume @pkg).
-- Cấu hình parallel downloads và mirror cho tốc độ tốt hơn.
+- Pacman quản lý gói với các tác vụ `-S` (cài), `-R` (xóa), `-Q` (truy vấn), `-F` (file), `-U` (file).
+- Lệnh quan trọng nhất: `pacman -Syu` (cập nhật toàn bộ).
+- Không bao giờ partial upgrade.
+- Dọn cache với `paccache` (cần `pacman-contrib`).
+- ParallelDownloads và mirror tốt giúp tăng tốc.

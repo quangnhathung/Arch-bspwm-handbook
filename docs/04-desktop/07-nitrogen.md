@@ -1,5 +1,7 @@
 # Nitrogen — Wallpaper
 
+Ngày cập nhật: 25/06/2026
+
 ## Mục tiêu
 
 Cài đặt Nitrogen để quản lý hình nền (wallpaper).
@@ -20,10 +22,11 @@ Nitrogen là chương trình quản lý wallpaper cho X11. Nó hỗ trợ:
 | Công cụ | Loại | Đặc điểm |
 |---|---|---|
 | Nitrogen | GUI | Có giao diện để chọn wallpaper |
-| feh | CLI | Không GUI, dùng được cho slideshow |
+| feh | CLI | Không GUI, nhẹ, dùng được cho slideshow |
 | hsetroot | CLI | Nhẹ nhất, chỉ set màu nền |
 
 Dùng Nitrogen vì dễ chọn wallpaper, lưu cấu hình tự động.
+Nếu bạn thích CLI, dùng feh (lighter).
 
 ## Các bước thực hiện
 
@@ -42,8 +45,6 @@ exit
 ```
 
 ### Bước 3: Copy wallpaper vào thư mục
-
-Bạn có thể dùng wget để tải wallpaper hoặc copy từ USB.
 
 ```bash
 # Ví dụ tải wallpaper từ internet (trong user session)
@@ -132,6 +133,17 @@ dirs=/home/archuser/Pictures/wallpapers;
 | Zoomed | 4 | Scale giữ tỉ lệ, crop phần thừa |
 | Tiled | 5 | Lặp ảnh |
 
+## Multi-monitor wallpaper
+
+Với nhiều màn hình, Nitrogen có thể set wallpaper khác nhau cho từng màn hình:
+
+```bash
+nitrogen --set-zoom-fill --head=0 ~/Pictures/wallpapers/left.jpg
+nitrogen --set-zoom-fill --head=1 ~/Pictures/wallpapers/right.jpg
+```
+
+Hoặc dùng chế độ `span` để ảnh trải đều các màn hình.
+
 ## Không có hình nền (chỉ màu nền)
 
 Nếu chưa có wallpaper hoặc không muốn dùng ảnh:
@@ -145,6 +157,26 @@ Hoặc dùng hsetroot cho đơn giản:
 ```bash
 pacman -S hsetroot
 hsetroot -solid "#282A36"
+```
+
+## Alternative: feh (lighter, CLI-based)
+
+Nếu bạn không muốn GUI, dùng feh:
+
+```bash
+pacman -S feh
+
+# Set wallpaper
+feh --bg-fill ~/Pictures/wallpapers/default.jpg
+
+# Trong bspwmrc (thay thế nitrogen --restore)
+feh --bg-fill ~/Pictures/wallpapers/default.jpg
+```
+
+feh tự động lưu config vào `~/.fehbg` và có thể restore bằng:
+
+```bash
+eval $(cat ~/.fehbg)
 ```
 
 ## Troubleshooting
@@ -164,3 +196,4 @@ Thêm thư mục trong Preferences hoặc sửa `nitrogen.cfg`.
 - Nitrogen đã được cài để quản lý wallpaper.
 - Wallpaper tự động restore khi khởi động.
 - Hỗ trợ các chế độ hiển thị khác nhau.
+- Có thể dùng feh thay thế nếu muốn nhẹ hơn.

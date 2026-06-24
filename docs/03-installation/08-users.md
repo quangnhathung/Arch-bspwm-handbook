@@ -2,36 +2,49 @@
 
 ## Mục tiêu
 
-Tạo user thường (không phải root), cấp quyền sudo, và thiết lập password.
+Tạo user thường (không phải root), cấp quyền sudo, thiết lập password.
+
+## Điều kiện tiên quyết
+
+- Đã chroot vào hệ thống mới.
+- Đã cấu hình locale và network.
 
 ## Kiến thức nền
 
 ### Tại sao không dùng root hàng ngày?
 
-- **Bảo mật**: Nếu dùng root, mọi ứng dụng đều có toàn quyền.
-- **An toàn**: Lỡ gõ `rm -rf /` sẽ xóa toàn bộ hệ thống. Với user thường,
-  chỉ xóa được file của mình.
-- **Best practice**: Unix truyền thống dùng root chỉ cho quản trị.
+| Root | User thường |
+|---|---|
+| Toàn quyền — cài/gỡ/xóa bất kỳ file nào | Chỉ có quyền trên file của mình |
+| `rm -rf /` → xóa toàn bộ hệ thống | `rm -rf /` → permission denied |
+| Mọi ứng dụng chạy với quyền tối đa | Ứng dụng chạy với quyền giới hạn |
+| Cần login riêng | Dùng `sudo` khi cần quyền root |
+
+**Nguyên tắc an toàn**: Chỉ dùng root khi thực sự cần (cài gói, sửa cấu hình
+hệ thống). Dùng user thường cho mọi hoạt động hàng ngày.
 
 ### Root vs User thường
 
 | Đặc điểm | Root | User thường |
 |---|---|---|
-| Quyền | Vô hạn | Giới hạn |
-| Sudo | Không cần | Cần password |
-| Home | /root | /home/username |
-| Shell mặc định | /bin/bash | /bin/bash |
+| Home | `/root` | `/home/archuser` |
+| Shell mặc định | `/bin/bash` | `/bin/bash` |
+| Sudo | Không cần | Cần |
+| UID | 0 | 1000+ |
 
-## Các bước thực hiện
+---
 
-### Bước 1: Đặt password cho root (không bắt buộc)
+## Cách A: Cài thủ công
+
+### Bước 1: Đặt password cho root
 
 ```bash
 passwd
 ```
 
-Nhập password cho root. Có thể để trống nếu không có nhu cầu dùng root trực tiếp.
-Tuy nhiên, nên đặt phòng trường hợp sudo hỏng.
+- Nhập password cho root (xác nhận 2 lần).
+- Nên đặt phòng trường hợp sudo bị hỏng.
+- Gõ password → không có gì hiện trên màn hình (tính năng bảo mật).
 
 ### Bước 2: Tạo user mới
 
@@ -41,11 +54,10 @@ useradd -m -G wheel -s /bin/bash archuser
 
 Giải thích:
 - `useradd`: Lệnh tạo user mới.
-- `-m`: Tạo home directory (`/home/archuser`).
-- `-G wheel`: Thêm user vào group `wheel`. Group wheel được sudo cho phép
-  chạy lệnh với quyền root.
-- `-s /bin/bash`: Shell mặc định là bash.
-- `archuser`: Tên user. Bạn có thể đổi tên khác.
+- `-m` (create home): Tạo `/home/archuser`.
+- `-G wheel`: Thêm user vào group `wheel` (cần cho sudo).
+- `-s /bin/bash`: Shell mặc định là Bash.
+- `archuser`: Tên user. **Đổi thành tên bạn muốn** (vd: `hung`, `quang`, ...).
 
 ### Bước 3: Đặt password cho user
 
@@ -53,85 +65,146 @@ Giải thích:
 passwd archuser
 ```
 
-Nhập password (xác nhận 2 lần). Lưu ý: khi gõ password, không có gì hiện trên màn hình
-(đây là tính năng bảo mật mặc định).
+- Nhập password (xác nhận 2 lần).
+- Password nên mạnh: ít nhất 8 ký tự, có chữ hoa, số, ký tự đặc biệt.
 
 ### Bước 4: Cấp quyền sudo
+
+Dùng `visudo` để sửa file `/etc/sudoers` một cách an toàn:
 
 ```bash
 EDITOR=vim visudo
 ```
 
-Tìm và bỏ comment dòng (xóa dấu `#` ở đầu):
+Tìm dòng:
+```
+# %wheel ALL=(ALL:ALL) ALL
+```
 
+Bỏ dấu `#` ở đầu:
 ```
 %wheel ALL=(ALL:ALL) ALL
 ```
 
-Giải thích:
-- `EDITOR=vim`: Dùng vim để edit (mặc định có thể là nano).
-- `visudo`: Lệnh an toàn để edit sudoers file. Nó kiểm tra syntax trước khi save,
-  tránh lock mình khỏi sudo.
+**Giải thích:**
+- `EDITOR=vim`: Dùng vim làm editor (mặc định có thể là nano).
+- `visudo`: Lệnh an toàn — kiểm tra syntax trước khi save.
 - `%wheel`: Group wheel.
 - `ALL=(ALL:ALL) ALL`: Cho phép chạy mọi lệnh với tư cách mọi user.
 
-Cuối cùng, dòng sẽ là:
-
-```
-%wheel ALL=(ALL:ALL) ALL
-```
-
-**Lưu ý**: Nếu muốn sudo không cần password (tiện nhưng kém an toàn hơn):
-
-```
-%wheel ALL=(ALL:ALL) NOPASSWD: ALL
-```
+**Lưu ý an toàn**: Không dùng `NOPASSWD` trừ khi bạn hiểu rủi ro.
 
 ### Bước 5: Kiểm tra
 
 ```bash
-# Kiểm tra user đã được tạo
+# Kiểm tra user
 id archuser
 
-# Kiểm tra group
+# Kiểm tra groups
 groups archuser
 
-# Output phải bao gồm "wheel"
+# Kiểm tra home directory
+ls -la /home/archuser
+
+# Kiểm tra sudo syntax (từ root)
+visudo -c
 ```
 
-## Các lệnh hữu ích liên quan đến user
+Output mong đợi:
+```
+# id archuser
+uid=1000(archuser) gid=1000(archuser) groups=1000(archuser),998(wheel)
+
+# groups archuser
+archuser wheel
+
+# visudo -c
+/etc/sudoers: parsed OK
+```
+
+---
+
+## Cách B: Dùng Archinstall
+
+### Trong quá trình archinstall
+
+Khi đến mục **`Users`**:
+1. **Root password**: Nhập password cho root.
+2. **Add user**: Nhập thông tin:
+   - `Username`: `archuser` (hoặc tên bạn muốn).
+   - `Password`: Nhập password.
+   - `Groups`: Chọn `wheel` (và `audio`, `video`, `storage` nếu muốn).
+   - `Shell`: `/bin/bash` (mặc định).
+
+### Archinstall tự động xử lý:
+
+- Tạo user với home directory.
+- Thêm user vào group wheel.
+- Cấu hình sudo (uncomment `%wheel ALL=(ALL:ALL) ALL`).
+- Đặt password.
+
+### Kiểm tra sau archinstall
+
+```bash
+arch-chroot /mnt
+id archuser
+groups archuser
+visudo -c
+```
+
+---
+
+## Các lệnh quản lý user hữu ích
 
 ```bash
 # Đổi tên user
 usermod -l newname oldname
+usermod -d /home/newname -m newname
 
 # Thêm user vào group khác
 usermod -aG video,audio,storage,optical archuser
 
-# Xóa user
+# Xóa user (cẩn thận)
 userdel -r archuser
+
+# Khóa/mở user
+passwd -l archuser   # lock
+passwd -u archuser   # unlock
+
+# Đổi shell
+chsh -s /bin/zsh archuser
 ```
 
-## Nếu có lỗi
+---
 
-### "useradd: command not found"
+## Bảo mật
 
-Trong chroot, useradd phải có sẵn. Nếu không, kiểm tra base package.
+### Đổi password sau lần đầu login
 
-### "visudo: syntax error"
+Sau khi reboot và login lần đầu:
+```bash
+passwd
+```
 
-Nếu lỡ làm hỏng sudoers, fix bằng cách:
+### Kiểm tra ai có quyền sudo
 
 ```bash
-# Chạy với tư cách root
-pkexec visudo
-# Hoặc boot vào live environment, mount và sửa trực tiếp
+cat /etc/sudoers
+cat /etc/sudoers.d/* 2>/dev/null
 ```
+
+### Không dùng root cho SSH
+
+Nếu mở SSH, tắt root login:
+```bash
+echo "PermitRootLogin no" >> /etc/ssh/sshd_config
+```
+
+---
 
 ## Tổng kết
 
-- User `archuser` đã được tạo với home directory.
+- User `archuser` đã được tạo với home directory và shell bash.
 - User có quyền sudo qua group wheel.
-- Password đã được đặt.
-
-Sẵn sàng cài bootloader.
+- Password đã được đặt cho cả root và user.
+- Sẵn sàng cài GRUB bootloader và reboot.

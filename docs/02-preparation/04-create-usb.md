@@ -1,108 +1,131 @@
 # Tạo USB Boot Arch Linux
 
-## Mục tiêu
+## Yêu cầu
 
-Tạo USB boot từ file ISO Arch Linux để khởi động máy và bắt đầu quá trình cài đặt.
+- USB tối thiểu **4GB** (sẽ bị format sạch hoàn toàn)
+- File ISO Arch Linux (khoảng 900MB)
+- Máy tính có Windows (hoặc Linux) để ghi USB
 
-## Điều kiện
+## Bước 1: Tải Arch Linux ISO
 
-- USB 4GB+ (sẽ bị format sạch)
-- File ISO Arch Linux (đã tải)
-- Máy tính có Windows để ghi USB
+Truy cập: [https://archlinux.org/download/](https://archlinux.org/download/)
 
-## Tải Arch Linux ISO
+Chọn mirror gần Việt Nam:
 
-1. Mở trình duyệt, vào: https://archlinux.org/download/
-2. Chọn mirror gần Việt Nam nhất:
-   - `fcix.vn` (FPT Cloud)
-   - hoặc `archlinux.mirror.dkm.cz`
-3. Tải file: `archlinux-YYYY.MM.DD-x86_64.iso`
-4. Tải kèm file checksum: `sha256sums.txt`
+- **FPT Cloud** (fcix.vn) — nhanh nhất
+- hoặc **kmweb** (Hàn Quốc)
 
-### Kiểm tra checksum (quan trọng)
+Tải 2 file:
 
-Trên PowerShell:
+- `archlinux-2026.06.01-x86_64.iso` (tên file tùy theo ngày phát hành)
+- `sha256sums.txt`
+
+## Bước 2: Kiểm tra checksum
+
+Mở **PowerShell** trong thư mục chứa file ISO:
 
 ```powershell
-# Tính checksum file ISO vừa tải
-Get-FileHash -Path "D:\Downloads\archlinux-2025.06.01-x86_64.iso" -Algorithm SHA256
-
-# So sánh với nội dung trong sha256sums.txt
-# Mở file txt và đối chiếu mã hash
+Get-FileHash -Path ".\archlinux-2026.06.01-x86_64.iso" -Algorithm SHA256
 ```
 
-Nếu không khớp → ISO bị hỏng → tải lại.
+Mở file `sha256sums.txt` và so sánh mã hash. Nếu không khớp:
 
-## Cách 1: Rufus (Windows, được khuyên dùng)
+- ISO bị hỏng trong quá trình tải
+- Tải lại từ mirror khác
 
-1. Cắm USB vào máy.
-2. Mở **Rufus** (tải từ https://rufus.ie/ nếu chưa có).
-3. Device: chọn USB của bạn.
-4. Boot selection: nhấn **SELECT** → chọn file ISO Arch vừa tải.
-5. Partition scheme: **GPT**.
-6. Target system: **UEFI (non CSM)**.
-7. File system: **FAT32** (mặc định).
-8. Nhấn **START**.
+## Bước 3: Ghi USB
 
-   Rufus sẽ hỏi:
-   - "Write in ISO image mode" → OK
-   - "Syslinux warning" → **Write in DD mode** (quan trọng!)
+### Cách 1: Rufus (Windows — khuyến nghị)
 
-9. Chờ Rufus ghi xong. Báo "READY" là hoàn tất.
+1. Tải Rufus từ [https://rufus.ie](https://rufus.ie) (bản portable, không cần cài)
+2. Cắm USB vào máy
+3. Mở Rufus:
 
-## Cách 2: balenaEtcher (đơn giản)
+| Trường | Giá trị |
+|---|---|
+| Device | USB của bạn |
+| Boot selection | Chọn file ISO Arch Linux |
+| Partition scheme | **GPT** |
+| Target system | **UEFI (non CSM)** |
+| File system | FAT32 (mặc định) |
 
-1. Mở balenaEtcher.
-2. **Flash from file** → chọn ISO Arch.
-3. **Select target** → chọn USB.
-4. **Flash!** → Chờ hoàn tất.
+4. Nhấn **START**
 
-Lưu ý: Etcher tự động verify sau khi ghi.
+5. Rufus sẽ hiện các cảnh báo:
 
-## Cách 3: dd (Linux)
+   - *"Write in ISO image mode"* → OK
+   - *"Syslinux warning"* / *"Image is not DD-writable"* → **Write in DD mode** (cực kỳ quan trọng)
+
+   > DD mode ghi ISO raw bit-by-bit, tạo USB boot UEFI đúng chuẩn. Nếu chọn "Write in ISO mode", USB sẽ không boot được trên UEFI.
+
+6. Chờ Rufus ghi xong (2–5 phút). Màn hình báo **READY**.
+
+### Cách 2: balenaEtcher (Windows / macOS / Linux)
+
+1. Tải từ [https://etcher.balena.io](https://etcher.balena.io)
+2. **Flash from file** → chọn file ISO
+3. **Select target** → chọn USB
+4. **Flash!**
+5. Etcher tự động verify sau khi ghi
+
+**Ưu điểm**: Đơn giản, tự động verify. **Nhược điểm**: Không có tùy chọn DD mode — có thể lỗi với một số USB.
+
+### Cách 3: dd (Linux)
 
 ```bash
 # Xác định ổ USB
 lsblk
-# Giả sử USB là /dev/sdb
-sudo dd if=archlinux-2025.06.01-x86_64.iso of=/dev/sdb bs=4M status=progress conv=fsync
+# Giả sử USB là /dev/sdb (kiểm tra kỹ, không nhầm với ổ cứng chính!)
+
+# Ghi ISO
+sudo dd if=archlinux-2026.06.01-x86_64.iso of=/dev/sdb bs=4M status=progress conv=fsync
 ```
 
-## Sau khi ghi USB
+## Kiểm tra USB sau khi ghi
 
-### Trên Windows, kiểm tra cấu trúc USB
+Cắm USB vào máy, mở File Explorer (Windows) hoặc lsblk (Linux):
 
-Mở File Explorer → USB sẽ có tên **ARCH_2025xx** (hoặc tương tự).
-Trong USB có các thư mục: `boot/`, `EFI/`, `arch/`, `loader/`.
+```
+USB label: ARCH_202606
+Cấu trúc thư mục:
+├── boot/
+├── EFI/
+├── arch/
+├── loader/
+└── (các file khác)
+```
 
-Đây là USB boot UEFI hợp lệ.
-
-### Không nên dùng
-
-- **Ventoy**: Có thể gây lỗi với Arch Linux trong một số trường hợp.
-  Nếu Ventoy hoạt động thì dùng được, nhưng ưu tiên Rufus/Diskpart.
+Nếu thấy cấu trúc này → USB boot UEFI hợp lệ.
 
 ## Troubleshooting
 
-### Rufus báo "Disk is not enough"
+### USB không xuất hiện trong Rufus
 
-- USB < 4GB → cần USB lớn hơn.
-- USB fake dung lượng → dùng h2testw để kiểm tra.
+- Cắm USB trực tiếp vào cổng trên máy, không qua hub
+- Thử cổng USB khác (ưu tiên USB 2.0 nếu có)
+- Mở `diskmgmt.msc` → kiểm tra USB có hiện trong Disk Management không
+- USB hỏng → thử USB khác
 
-### Rufus không thấy USB
+### Lỗi ghi không thành công
 
-- Cắm USB trực tiếp vào cổng máy (không qua hub).
-- Thử cổng USB khác.
-- Dùng Disk Management (diskmgmt.msc) → check trạng thái USB.
+- ISO hỏng → tải lại + kiểm tra checksum
+- USB bị lỗi bad sector → dùng `h2testw` (Windows) để kiểm tra
+- USB giả dung lượng (fake 64GB nhưng thực tế 4GB) → dùng `h2testw` hoặc `ChipGenius`
+- Thử cổng USB 2.0 thay vì 3.0
+- Dùng Rufus **DD mode** — ISO mode gây lỗi boot
 
-### ISO không ghi được
+### USB đã ghi nhưng không boot được
 
-- File ISO hỏng → tải lại + kiểm tra checksum.
-- USB hỏng → thử USB khác.
+- Vào BIOS kiểm tra Secure Boot đã tắt chưa
+- Boot Mode có đang là UEFI không
+- Fast Boot đã tắt chưa
+- Ghi lại USB với DD mode
+- Thử balenaEtcher nếu Rufus không được
 
 ## Tổng kết
 
-- Tải ISO từ mirror chính thức.
-- Kiểm tra checksum.
-- Ghi USB bằng Rufus (DD mode) hoặc balenaEtcher.
-- USB sẵn sàng để boot.
+- [x] Tải ISO từ mirror chính thức
+- [x] Kiểm tra checksum SHA256
+- [x] Ghi USB bằng Rufus (DD mode) hoặc balenaEtcher
+- [x] Kiểm tra cấu trúc USB có đúng UEFI
+- [x] USB sẵn sàng để boot

@@ -1,110 +1,118 @@
 # Không có âm thanh
 
-## Symptoms
+*Áp dụng cho Lenovo LOQ 15IAX9 — Intel SST + Realtek ALC — Kernel 7.x — 25/06/2026*
 
-- Không có tiếng từ loa trong.
-- Tai nghe không hoạt động.
-- HDMI audio không có.
-- Volume icon báo muted hoặc không thấy thiết bị.
+## Triệu chứng (Symptoms)
 
-## Cause
+- Loa trong không phát tiếng, tai nghe 3.5mm không hoạt động.
+- HDMI/DisplayPort audio không có (khi cắm màn hình ngoài).
+- `pactl list sinks` không hiển thị thiết bị đầu ra.
+- Biểu tượng âm thanh trên polybar báo muted hoặc "Dummy Output".
 
-1. **PipeWire chưa chạy** hoặc chưa được enable.
-2. **ALSA card sai** — card mặc định là HDMI thay vì analog.
-3. **SOF firmware thiếu** — Intel SST không hoạt động.
-4. **Muted trong alsamixer**.
-5. **WirePlumber chưa chạy**.
-6. **Module sai** — pipewire-alsa hoặc pipewire-pulse thiếu.
+## Nguyên nhân (Causes)
 
-## Diagnosis
+1. **PipeWire chưa được khởi động** — `systemctl --user status pipewire` không active.
+2. **WirePlumber (session manager) chưa chạy** — PipeWire cần WirePlumber để quản lý thiết bị.
+3. **SOF (Sound Open Firmware) thiếu** — Intel SST (Smart Sound Technology) trên LOQ 15IAX9 yêu cầu `sof-firmware`.
+4. **ALSA card mặc định sai** — card ưu tiên là HDMI (NVIDIA) thay vì HDA Intel PCH (analog).
+5. **Alsamixer muted** — Master hoặc Headphone bị mute (chữ `MM`).
+6. **PipeWire components thiếu** — `pipewire-alsa` hoặc `pipewire-pulse` chưa cài.
+
+## Chẩn đoán (Diagnosis)
 
 ```bash
-# Kiểm tra PipeWire
-systemctl --user status pipewire
-systemctl --user status pipewire-pulse
-systemctl --user status wireplumber
+# 1. PipeWire services
+systemctl --user status pipewire wireplumber pipewire-pulse
 
-# Kiểm tra ALSA cards
+# 2. ALSA cards
 cat /proc/asound/cards
 
-# Kiểm tra output devices
+# 3. PulseAudio devices (qua PipeWire)
 pactl list sinks short
 
-# Kiểm tra SOF firmware
-dmesg | grep -i sof
+# 4. SOF firmware
+dmesg | grep -iE "sof|snd_soc_skl"
 
-# Kiểm tra alsamixer
+# 5. Kernel modules
+lsmod | grep -iE "snd_hda_intel|snd_sof"
+
+# 6. Kiểm tra mute
 alsamixer
-# Nhấn F6 để chọn card, kiểm tra Master và PCM
+# F6 → chọn card → Master / Headphone có chữ MM?
 ```
 
-## Fix
+## Khắc phục (Fix)
 
-### Fix 1: Start PipeWire
+### Fix 1: Khởi động PipeWire + WirePlumber
 
 ```bash
 systemctl --user enable --now pipewire pipewire-pulse wireplumber
+
+# Kiểm tra lại
+systemctl --user status pipewire
+pactl info
 ```
 
-### Fix 2: Kiểm tra và chọn đúng card
+### Fix 2: Cài đầy đủ PipeWire components
 
 ```bash
-# Xem card
-aplay -l
-
-# Set card mặc định
-cat /etc/asound.conf
-
-# Hoặc set bằng pactl
-pactl set-default-sink <tên-sink>
+sudo pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber
 ```
 
-### Fix 3: Cài lại SOF firmware
+### Fix 3: Cài SOF firmware (cho Intel SST)
 
 ```bash
 sudo pacman -S sof-firmware alsa-firmware
 sudo reboot
 ```
 
-### Fix 4: Unmute trong alsamixer
+Sau reboot, kiểm tra:
+```bash
+dmesg | grep sof
+# Phải thấy "sof-audio-pci ... bound to ..."
+```
+
+### Fix 4: Chọn đúng ALSA card mặc định
+
+```bash
+# Xem card analog (thường là card 0 hoặc 1)
+cat /proc/asound/cards
+
+# Nếu card sai → tạo /etc/asound.conf
+echo 'defaults.pcm.card 0' | sudo tee -a /etc/asound.conf
+echo 'defaults.ctl.card 0' | sudo tee -a /etc/asound.conf
+
+# Hoặc dùng pipewire config
+pactl set-default-sink alsa_output.pci-0000_00_1f.3.analog-stereo
+```
+
+### Fix 5: Unmute trong alsamixer
 
 ```bash
 alsamixer
-# F6 → chọn card HDA Intel PCH
-# Phím m → mute/unmute
-# Đảm bảo Master, PCM, Headphone không có chữ MM
-# ↑ để tăng volume
+# F6 → chọn "HDA Intel PCH"
+# ↑ ↓ để chọn kênh
+# m → mute/unmute
+# Đảm bảo: Master, PCM, Headphone (không có MM)
+# ↑ để tăng volume lên ~80%
 ```
 
-### Fix 5: Kiểm tra kernel module
+### Fix 6: Restart audio stack
 
 ```bash
-lsmod | grep snd_hda_intel
-lsmod | grep snd_sof
-
-# Nếu thiếu
-sudo modprobe snd_hda_intel
+systemctl --user restart pipewire wireplumber
+# Nếu không được → reboot
+sudo reboot
 ```
 
-### Fix 6: Cài PipeWire components đầy đủ
+## Phòng ngừa (Prevention)
 
-```bash
-sudo pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber
-```
-
-### Fix 7: Restart âm thanh
-
-```bash
-systemctl --user restart pipewire pipewire-pulse wireplumber
-```
-
-## Prevention
-
-1. **Cài đầy đủ PipeWire + WirePlumber ngay từ đầu**.
-2. **Cài sof-firmware trong pacstrap** (đã làm).
-3. **Kiểm tra alsamixer sau mỗi lần update kernel**.
-4. **Enable user services** ngay sau khi cài:
+1. **Cài `sof-firmware` và `alsa-firmware` ngay trong `pacstrap`.**
+2. **Enable user services ngay sau khi cài:**
 
 ```bash
 systemctl --user enable pipewire pipewire-pulse wireplumber
 ```
+
+3. **Kiểm tra `dmesg | grep sof` sau mỗi lần cập nhật kernel.**
+4. **Kiểm tra `alsamixer` sau khi cài lại alsa-utils.**

@@ -1,89 +1,125 @@
-# Sao lưu dữ liệu
+# Sao lưu dữ liệu trước khi cài đặt
 
-## Cảnh báo trước khi bắt đầu
+## Cảnh báo
 
-Quá trình cài đặt Arch Linux sẽ **xóa sạch toàn bộ dữ liệu hiện tại** trên ổ cứng.
+Quá trình cài đặt Arch Linux sẽ **xóa sạch toàn bộ ổ cứng**. Mọi dữ liệu trên máy sẽ mất vĩnh viễn nếu không backup trước.
 
 | Sẽ bị xóa | Sẽ giữ lại |
 |---|---|
-| Windows và tất cả ứng dụng | Dữ liệu trên USB / ổ cứng ngoài |
-| Tài liệu, nhạc, video trên ổ C: | Dữ liệu đã backup sang nơi khác |
-| Cài đặt, driver, license | — |
-| Phân vùng ổ cứng gốc | — |
-| Recovery partition | — |
+| Windows và toàn bộ ứng dụng | Dữ liệu trên USB / ổ cứng gắn ngoài |
+| Tài liệu, nhạc, video, ảnh trên ổ C: | Dữ liệu đã sao chép sang thiết bị khác |
+| Cài đặt hệ thống, driver Windows | Windows license key (nhúng trong firmware) |
+| Phân vùng ổ cứng gốc | Dữ liệu trên cloud / NAS |
+| Recovery partition của OEM | — |
 
-## Không thể khôi phục
+## Lấy Windows license key
 
-Những thứ sẽ mất vĩnh viễn nếu không backup:
+Máy Lenovo LOQ 15IAX9 có key Windows được nhúng sẵn trong firmware (OA3). Sau khi cài Arch, key này vẫn còn trong UEFI — có thể dùng lại nếu cần cài Windows sau này.
 
-- **Windows license**: Key Windows thường được nhúng trong firmware (OA3).
-  Sau khi cài Arch, bạn vẫn có key Windows gốc nếu cần cài lại sau này.
-  Kiểm tra trước:
-  ```powershell
-  # Trên Windows, mở PowerShell Admin và chạy:
-  wmic path SoftwareLicensingService get OA3xOriginalProductKey
-  ```
-  Ghi lại key này nếu bạn muốn.
-
-- **Driver laptop**: Driver Lenovo, NVIDIA, Realtek không dùng được trên Linux.
-  Không cần backup driver.
-
-- **File cá nhân**: Cần backup thủ công.
-
-## Dữ liệu cần backup
-
-### Trên Windows
-
-1. **Documents, Desktop, Downloads, Pictures, Videos, Music**
-   → Copy sang ổ cứng ngoài hoặc cloud.
-
-2. **Bookmarks trình duyệt**
-   → Chrome/Edge/Firefox đều có chức năng export bookmark.
-
-3. **Mật khẩu và key**
-   - Mật khẩu Wi-Fi (nếu có)
-   - Key SSH nếu bạn có
-   - Token / 2FA recovery codes
-
-4. **License phần mềm**
-   - Windows license key (ghi lại)
-   - License phần mềm mua riêng
-
-5. **Database trình duyệt (tùy chọn)**
-   - Password manager export (Bitwarden, KeePass, etc.)
-
-### Cách backup nhanh
+Mở **PowerShell (Admin)** và chạy:
 
 ```powershell
-# Mở PowerShell Admin trên Windows
-
-# Tạo thư mục backup trên ổ D: hoặc USB ngoài
-New-Item -ItemType Directory -Path "D:\backup-$(Get-Date -Format 'yyyyMMdd')"
-
-# Copy thư mục người dùng
-Copy-Item "$env:USERPROFILE\Documents" "D:\backup-$(Get-Date -Format 'yyyyMMdd')\" -Recurse
-Copy-Item "$env:USERPROFILE\Desktop" "D:\backup-$(Get-Date -Format 'yyyyMMdd')\" -Recurse
-Copy-Item "$env:USERPROFILE\Downloads" "D:\backup-$(Get-Date -Format 'yyyyMMdd')\" -Recurse
-Copy-Item "$env:USERPROFILE\Pictures" "D:\backup-$(Get-Date -Format 'yyyyMMdd')\" -Recurse
-Copy-Item "$env:USERPROFILE\Videos" "D:\backup-$(Get-Date -Format 'yyyyMMdd')\" -Recurse
-Copy-Item "$env:USERPROFILE\Music" "D:\backup-$(Get-Date -Format 'yyyyMMdd')\" -Recurse
+wmic path SoftwareLicensingService get OA3xOriginalProductKey
 ```
 
-## Kiểm tra trước khi mất Windows
+Ghi lại key hiện ra. Nếu không thấy key (trống), máy dùng license kỹ thuật số liên kết với tài khoản Microsoft — không cần key.
 
-- Mở File Explorer và xác nhận các file quan trọng đã có bản sao.
-- Boot thử USB Arch để kiểm tra máy boot được từ USB không (xem bài tiếp theo).
-- Nếu máy không boot USB, cần vào BIOS chỉnh sửa trước khi xóa Windows.
+## Danh sách dữ liệu cần backup
 
-## Sau khi backup
+### Thư mục người dùng
 
-1. Rút ổ cứng ngoài / USB chứa backup ra khỏi máy.
-2. Để sang một bên, không cắm trong lúc cài Arch.
-3. Chuẩn bị USB boot Arch (bài tiếp theo).
+| Thư mục | Vị trí mặc định trên Windows |
+|---|---|
+| Documents | `C:\Users\<tên>\Documents` |
+| Desktop | `C:\Users\<tên>\Desktop` |
+| Downloads | `C:\Users\<tên>\Downloads` |
+| Pictures | `C:\Users\<tên>\Pictures` |
+| Videos | `C:\Users\<tên>\Videos` |
+| Music | `C:\Users\<tên>\Music` |
+
+### Trình duyệt web
+
+- **Google Chrome**: `C:\Users\<tên>\AppData\Local\Google\Chrome\User Data\Default\Bookmarks` — hoặc dùng Chrome Settings → Bookmarks → Export
+- **Firefox**: Ctrl+Shift+O → Import/Export → Export Bookmarks
+- **Edge**: Settings → Favorites → Export
+
+### Mật khẩu và khóa bảo mật
+
+- Export mật khẩu từ trình quản lý mật khẩu (Bitwarden, KeePass, 1Password)
+- Copy thư mục `.ssh` nếu có: `C:\Users\<tên>\.ssh`
+- Recovery codes của 2FA (GitHub, Google, Discord, etc.)
+- Mật khẩu Wi-Fi của mạng tại nhà
+- Token / API key đã lưu trong file text
+
+### Dữ liệu khác
+
+- File dự án, source code (thường ở `C:\Users\<tên>\source` hoặc `C:\Projects`)
+- File cấu hình ứng dụng (`.gitconfig`, file cài đặt IDE)
+- Email local nếu dùng Thunderbird / Outlook
+
+## Lệnh backup bằng PowerShell
+
+Mở **PowerShell (Admin)** và chạy:
+
+```powershell
+# Tạo thư mục backup trên ổ D: hoặc USB ngoài
+$backupDir = "D:\backup-$(Get-Date -Format 'yyyyMMdd')"
+New-Item -ItemType Directory -Path $backupDir -Force
+
+# Copy các thư mục người dùng
+$folders = @("Documents", "Desktop", "Downloads", "Pictures", "Videos", "Music")
+foreach ($folder in $folders) {
+    $src = "$env:USERPROFILE\$folder"
+    if (Test-Path $src) {
+        Write-Host "Đang backup $folder ..."
+        Copy-Item "$src\*" "$backupDir\$folder\" -Recurse -Force
+    }
+}
+
+# Copy thư mục .ssh
+if (Test-Path "$env:USERPROFILE\.ssh") {
+    Copy-Item "$env:USERPROFILE\.ssh" "$backupDir\" -Recurse -Force
+}
+
+# Copy bookmarks Chrome
+$chromeBookmark = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks"
+if (Test-Path $chromeBookmark) {
+    Copy-Item $chromeBookmark "$backDir\chrome-bookmarks.html"
+}
+
+Write-Host "Hoàn tất backup tại: $backupDir"
+```
+
+**Thủ công**: Cũng có thể kéo-thả thư mục từ File Explorer sang USB.
+
+## Kiểm tra backup
+
+Trước khi xóa Windows, mở ổ backup và kiểm tra:
+
+- File PDF, docx có mở được không
+- Ảnh có xem được không
+- Dung lượng backup có hợp lý không (không bị 0KB)
+- Kiểm tra bookmarks đã export được chưa
+
+## Chuẩn bị USB boot
+
+Sau khi backup xong, cần chuẩn bị USB để cài Arch:
+
+- USB tối thiểu 4GB (sẽ bị format sạch)
+- Có thể dùng chính USB vừa backup nếu dung lượng đủ
+- Tốc độ USB 3.0 trở lên khuyến khích
+- Xem hướng dẫn tạo USB boot ở bài 04-create-usb
+
+## Lưu ý
+
+- **Rút USB/ổ cứng chứa backup ra khỏi máy** trước khi cài Arch — tránh ghi đè nhầm.
+- Nếu có 2 ổ cứng vật lý, ngắt kết nối ổ chứa backup để an toàn tuyệt đối.
 
 ## Tổng kết
 
-- Backup tất cả dữ liệu quan trọng.
-- Ghi lại Windows key (nếu cần).
-- Kiểm tra USB boot trước khi xóa Windows.
-- Sau khi xóa, KHÔNG có đường quay lại.
+- Ghi lại Windows license key (nếu có)
+- Backup Documents, Desktop, Downloads, Pictures, Videos, Music
+- Export bookmarks, mật khẩu, SSH keys
+- Chạy PowerShell script hoặc copy thủ công
+- Kiểm tra file backup trước khi mất Windows
+- Rút thiết bị backup ra sau khi hoàn tất

@@ -1,69 +1,82 @@
 # NVIDIA Issues
 
-## Symptoms
+*Áp dụng cho Lenovo LOQ 15IAX9 — RTX 30/40 series — nvidia-open — Kernel 7.x — 25/06/2026*
 
-- Màn hình đen hoặc treo sau khi boot với NVIDIA.
-- `nvidia-smi` không thấy GPU.
-- Screen tearing.
-- Hiệu năng đồ họa kém.
-- Nhiệt độ cao / quạt chạy liên tục (do NVIDIA không tắt).
+## Triệu chứng (Symptoms)
 
-## Cause
+- Màn hình đen hoặc treo ngay sau boot khi NVIDIA được kích hoạt.
+- `nvidia-smi` không thấy GPU — hiện "NVIDIA-SMI has failed because it couldn't communicate".
+- Screen tearing trong trình duyệt, video, game.
+- Nhiệt độ cao / quạt chạy liên tục dù ở chế độ Intel (NVIDIA không tắt).
+- Hiệu năng đồ họa kém, thấp hơn mong đợi.
 
-1. **Kernel module không được load**.
-2. **Kernel parameter `nvidia-drm.modeset` thiếu hoặc sai**.
-3. **Xung đột giữa Intel và NVIDIA**.
-4. **NVIDIA không tắt khi dùng Intel mode**.
-5. **NVIDIA driver không tương thích với kernel mới**.
+## Nguyên nhân (Causes)
 
-## Diagnosis
+1. **Module NVIDIA chưa được load** — `nvidia_open`, `nvidia_modeset`, `nvidia_uvm`, `nvidia_drm`.
+2. **Thiếu kernel parameter `nvidia-drm.modeset=1`** — cần để kích hoạt DRM (modesetting).
+3. **Xung đột giữa Intel (i915) và NVIDIA (nvidia-open)** — sai thứ tự module trong mkinitcpio.
+4. **NVIDIA không tắt ở Intel mode** — `nvidia-smi` vẫn show GPU active, hao pin.
+5. **Cấu hình Xorg thiếu ForceFullCompositionPipeline** — gây screen tearing.
+6. **Dùng `nvidia` thay vì `nvidia-open`** — kernel 7.x khuyên dùng `nvidia-open-dkms` cho RTX 30/40.
+
+## Chẩn đoán (Diagnosis)
 
 ```bash
-# Kiểm tra module
+# 1. Module NVIDIA
 lsmod | grep nvidia
 
-# Kiểm tra kernel parameter
+# 2. Kernel parameters
 cat /proc/cmdline
 
-# Kiểm tra Xorg log
-cat /var/log/Xorg.0.log | grep -i nvidia
+# 3. Xorg log
+cat /var/log/Xorg.0.log | grep -iE "nvidia|fail|error"
 
-# Kiểm tra GPU
-lspci | grep -i nvidia
+# 4. nvidia-smi
+nvidia-smi
 
-# Kiểm tra nhiệt độ
+# 5. GPU nhiệt độ
 nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader
+
+# 6. Driver version
+nvidia-smi | grep "Driver Version"
 ```
 
-## Fix
+## Khắc phục (Fix)
 
-### Fix 1: Kernel module không load
+### Fix 1: Load kernel modules
 
 ```bash
-# Load thủ công
-sudo modprobe nvidia
+# Load thủ công (test)
+sudo modprobe nvidia_open
 sudo modprobe nvidia_modeset
 sudo modprobe nvidia_uvm
 sudo modprobe nvidia_drm
 
-# Thêm vào mkinitcpio
-vim /etc/mkinitcpio.conf
-# MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
-mkinitcpio -P
+# Nếu OK → thêm vào mkinitcpio
+echo 'MODULES=(nvidia_open nvidia_modeset nvidia_uvm nvidia_drm)' | sudo tee /etc/mkinitcpio.conf.d/nvidia.conf
+sudo mkinitcpio -P
 ```
+
+> **Lưu ý:** dùng `nvidia_open` (cho `nvidia-open-dkms`), không phải `nvidia`.
 
 ### Fix 2: Kernel parameter
 
 ```bash
-vim /etc/default/grub
-# GRUB_CMDLINE_LINUX_DEFAULT="... nvidia-drm.modeset=1 ..."
-grub-mkconfig -o /boot/grub/grub.cfg
+# Sửa /etc/default/grub
+sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& nvidia-drm.modeset=1/' /etc/default/grub
+
+# Hoặc mở thủ công
+sudo vim /etc/default/grub
+# Thêm: nvidia-drm.modeset=1
+
+sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
-### Fix 3: Screen tearing
+### Fix 3: Screen tearing — ForceFullCompositionPipeline
 
-```bash
-# Tạo /etc/X11/xorg.conf.d/10-nvidia.conf
+Tạo `/etc/X11/xorg.conf.d/10-nvidia.conf`:
+
+```conf
 Section "OutputClass"
     Identifier "nvidia"
     MatchDriver "nvidia-drm"
@@ -73,41 +86,53 @@ Section "OutputClass"
     Option "SLI" "Off"
     Option "MetaModes" "nvidia-auto-select +0+0 {ForceFullCompositionPipeline=On}"
 EndSection
+```
 
-# Picom
+Nếu dùng picom (fork ibhagwan/picom), tắt unredir:
+
+```bash
 vim ~/.config/picom/picom.conf
 # unredir-if-possible = false
 ```
 
+> **picom animation/blur chỉ có trên fork ibhagwan/picom**, không phải picom gốc.
+
 ### Fix 4: NVIDIA không tắt ở Intel mode
 
 ```bash
-# Kiểm tra
+# Kiểm tra GPU đang hoạt động
 nvidia-smi
-# Nếu có process → NVIDIA đang hoạt động
+# Nếu có process → NVIDIA đang chạy
 
-# Dùng envycontrol để tắt
+# Chuyển sang Intel bằng envycontrol
 sudo envycontrol -s intel
 sudo reboot
 
-# Hoặc tắt thủ công
-sudo tee /proc/acpi/bbswitch <(echo OFF)
+# Kiểm tra lại
+nvidia-smi  # "No devices were found" → NVIDIA đã tắt
+
+# Nếu vẫn không tắt → kiểm tra bbswitch
+sudo tee /proc/acpi/bbswitch <<< OFF
 ```
 
-### Fix 5: Driver không tương thích
+### Fix 5: Cài nvidia-open-dkms (khuyên dùng cho RTX 30/40)
 
 ```bash
-# Cài nvidia-dkms (tự rebuild với kernel mới)
-sudo pacman -S nvidia-dkms
+# Xóa driver cũ
+sudo pacman -Rnsc nvidia nvidia-utils nvidia-dkms
 
-# Hoặc downgrade driver
-sudo pacman -U /var/cache/pacman/pkg/nvidia-xxx.pkg.tar.zst
+# Cài nvidia-open-dkms
+sudo pacman -S nvidia-open-dkms nvidia-utils nvidia-settings
+
+# Sửa module name trong mkinitcpio
+sed -i 's/nvidia /nvidia_open /g' /etc/mkinitcpio.conf.d/nvidia.conf
+sudo mkinitcpio -P
 ```
 
-## Prevention
+## Phòng ngừa (Prevention)
 
-1. **Luôn dùng `nvidia-drm.modeset=1`**.
-2. **Cấu hình ForceFullCompositionPipeline** để chống tearing.
-3. **Dùng nvidia-dkms** nếu kernel update thường xuyên.
-4. **Kiểm tra nvidia-smi** sau mỗi update.
-5. **Snapshot trước update NVIDIA driver**.
+1. **Luôn dùng `nvidia-open-dkms` thay vì `nvidia` trên RTX 30/40 series** — tương thích kernel 7.x.
+2. **Luôn set `nvidia-drm.modeset=1` trong GRUB.**
+3. **Cấu hình ForceFullCompositionPipeline ngay khi cài NVIDIA.**
+4. **Snapshot BTRFS trước mỗi lần cập nhật NVIDIA driver.**
+5. **Kiểm tra `nvidia-smi` sau mỗi lần update kernel.**

@@ -1,5 +1,7 @@
 # Themes — Giao diện
 
+Ngày cập nhật: 25/06/2026
+
 ## Mục tiêu
 
 Cài đặt theme cho GTK, icon, và cursor để có giao diện đồng bộ.
@@ -23,21 +25,20 @@ Cần cài theme riêng.
 ### Bước 1: Cài GTK theme
 
 ```bash
-pacman -S arc-gtk-theme materia-gtk-theme nordic-theme
+pacman -S nordic-theme materia-gtk-theme
 ```
 
 | Theme | Đặc điểm |
 |---|---|
-| Arc | Phổ biến, phẳng, đẹp |
-| Materia | Material Design, tối |
 | Nordic | Bảng màu nord, tối, dễ chịu |
+| Materia | Material Design, tối |
 
-Chọn **Nordic** vì hợp với Dracula/Nord scheme của bspwm-config ở trên.
+Chọn **Nordic** vì hợp với Dracula/Nord scheme của bspwm-config.
 
 ### Bước 2: Cài icon theme
 
 ```bash
-pacman -S papirus-icon-theme adwaita-icon-theme
+pacman -S papirus-icon-theme
 ```
 
 Papirus là icon theme đẹp, hiện đại, hỗ trợ folder màu.
@@ -45,7 +46,7 @@ Papirus là icon theme đẹp, hiện đại, hỗ trợ folder màu.
 ### Bước 3: Cài cursor theme
 
 ```bash
-pacman -S capitaine-cursors bibata-cursor-theme
+pacman -S bibata-cursor-theme
 ```
 
 ### Bước 4: Cấu hình GTK theme
@@ -77,9 +78,6 @@ gtk-application-prefer-dark-theme=1
 
 ```bash
 mkdir -p /home/archuser/.config/gtk-4.0
-```
-
-```bash
 vim /home/archuser/.config/gtk-4.0/settings.ini
 ```
 
@@ -93,79 +91,79 @@ Nếu có ứng dụng Qt (như qBittorrent, v.v.):
 pacman -S qt5ct qt6ct
 ```
 
+Sau đó cấu hình biến môi trường. **Không dùng `/etc/environment`** (file này đã
+được deprecated trên systemd hiện đại). Thay vào đó, dùng một trong các cách sau:
+
+**Cách A — Dùng environment.d (khuyên dùng):**
+
 ```bash
-vim /etc/environment
+mkdir -p ~/.config/environment.d
+echo 'QT_QPA_PLATFORMTHEME=qt5ct' >> ~/.config/environment.d/qt.conf
 ```
 
-Thêm:
+**Cách B — Dùng shell profile:**
 
-```
-QT_QPA_PLATFORMTHEME=qt5ct
+```bash
+echo 'export QT_QPA_PLATFORMTHEME=qt5ct' >> ~/.profile
 ```
 
 Sau đó chạy `qt5ct` để chọn theme.
 
-Hoặc dùng kvantum:
-
-```bash
-pacman -S kvantum
-```
-
 ### Bước 6: Cấu hình cursor theme toàn hệ thống
 
+**Không dùng `/etc/environment`.** Dùng `environment.d` hoặc `~/.profile`:
+
 ```bash
-vim /etc/environment
-```
-
-Thêm:
-
-```
+mkdir -p ~/.config/environment.d
+cat > ~/.config/environment.d/cursor.conf << 'EOF'
 XCURSOR_THEME=Bibata-Modern-Ice
 XCURSOR_SIZE=24
+EOF
 ```
 
 ### Bước 7: Cài theme cho các ứng dụng cụ thể
 
-#### Alacritty
+#### Alacritty (Dracula colors)
 
-```bash
-vim /home/archuser/.config/alacritty/alacritty.yml
+File `~/.config/alacritty/alacritty.toml`:
+
+```toml
+[colors.primary]
+background = "#282A36"
+foreground = "#F8F8F2"
+
+[colors.normal]
+black   = "#21222C"
+red     = "#FF5555"
+green   = "#50FA7B"
+yellow  = "#FFB86C"
+blue    = "#BD93F9"
+magenta = "#FF79C6"
+cyan    = "#8BE9FD"
+white   = "#F8F8F2"
+
+[colors.bright]
+black   = "#6272A4"
+red     = "#FF6E6E"
+green   = "#69FF94"
+yellow  = "#FFCA80"
+blue    = "#CAA9FA"
+magenta = "#FF92D0"
+cyan    = "#A4FFFF"
+white   = "#FFFFFF"
 ```
 
-Thêm colorscheme (ví dụ Dracula):
-
-```yaml
-colors:
-  primary:
-    background: '#282A36'
-    foreground: '#F8F8F2'
-  normal:
-    black:   '#21222C'
-    red:     '#FF5555'
-    green:   '#50FA7B'
-    yellow:  '#FFB86C'
-    blue:    '#BD93F9'
-    magenta: '#FF79C6'
-    cyan:    '#8BE9FD'
-    white:   '#F8F8F2'
-  bright:
-    black:   '#6272A4'
-    red:     '#FF6E6E'
-    green:   '#69FF94'
-    yellow:  '#FFCA80'
-    blue:    '#CAA9FA'
-    magenta: '#FF92D0'
-    cyan:    '#A4FFFF'
-    white:   '#FFFFFF'
-```
-
-#### Rofi
+#### Rofi (Nord theme)
 
 Trong `config.rasi` đã set theme:
 
 ```
 @theme "/usr/share/rofi/themes/nord.rasi"
 ```
+
+#### Polybar (Dracula colors)
+
+Đã được cấu hình trong bài Polybar (04-polybar.md).
 
 ## Công cụ quản lý theme
 
@@ -210,12 +208,14 @@ gsettings set org.gnome.desktop.interface gtk-theme Nordic
 ### Icon không hiển thị
 
 - Kiểm tra `ls /usr/share/icons/`.
-- Papirus phải được cài.
+- Papirus phải được cài: `pacman -S papirus-icon-theme`.
 
 ### Cursor không đổi
 
-- Kiểm tra `ls /usr/share/icons/`.
-- Thêm `XCURSOR_THEME` vào `/etc/environment`.
+- Kiểm tra `ls /usr/share/icons/` có Bibata không.
+- Kiểm tra biến môi trường: `echo $XCURSOR_THEME`.
+- Nếu dùng `/etc/environment`, chuyển sang `~/.config/environment.d/cursor.conf`
+  như hướng dẫn ở Bước 6.
 
 ## Tổng kết
 
@@ -223,3 +223,4 @@ gsettings set org.gnome.desktop.interface gtk-theme Nordic
 - Icon Papirus-Dark cho icon đồng bộ.
 - Cursor Bibata hiện đại.
 - Cấu hình cho GTK3, GTK4, Qt, và các ứng dụng cụ thể.
+- **Không dùng `/etc/environment`** — dùng `~/.config/environment.d/` thay thế.

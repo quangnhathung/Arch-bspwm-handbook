@@ -2,38 +2,51 @@
 
 ## Mục tiêu
 
-Giữ hệ thống sạch sẽ bằng cách xóa các gói và file không cần thiết.
+Giữ hệ thống sạch sẽ bằng cách xóa cache, orphan packages, journal cũ.
 
 ## Kiến thức nền
 
 ### Tại sao cần dọn dẹp?
 
 - Cache pacman có thể lên đến vài GB.
-- Orphan packages (gói mồ côi) chiếm dung lượng.
-- Gói không dùng làm chậm hệ thống (dependencies check).
+- Orphan packages (gói mồ côi) chiếm dung lượng và có thể gây xung đột.
+- Journald log tích tụ theo thời gian.
 - Dọn dẹp = bảo trì hệ thống.
 
 ### Orphan packages là gì?
 
-Orphan packages là gói được cài tự động như dependency của một gói khác,
-nhưng gói đó đã bị xóa. Chúng không còn được sử dụng bởi bất kỳ gói nào.
+Gói được cài tự động làm dependency của một gói khác, nhưng gói đó đã bị xóa.
+Chúng không còn được sử dụng bởi bất kỳ gói nào.
 
-## Các bước dọn dẹp
+## 1. Dọn cache pacman
 
-### Bước 1: Xóa cache pacman
+### paccache (cần pacman-contrib)
+
+`paccache` nằm trong gói `pacman-contrib`, không có sẵn khi cài Arch cơ bản.
 
 ```bash
-# Giữ 3 phiên bản gần nhất của mỗi gói
+# Cài pacman-contrib nếu chưa có
+pacman -S pacman-contrib
+
+# Giữ 3 phiên bản gần nhất (mặc định)
 paccache -r
 
-# Giữ 1 phiên bản
-paccache -rk 1
+# Giữ 1 phiên bản (tiết kiệm nhất)
+paccache -rk1
 
-# Xóa tất cả cache (không khuyên dùng)
+# Xem kích thước cache
+du -sh /var/cache/pacman/pkg/
+```
+
+### Xóa toàn bộ cache
+
+```bash
 pacman -Scc
 ```
 
-### Bước 2: Xóa orphan packages
+Chỉ dùng khi thực sự cần dung lượng. Sẽ mất khả năng downgrade.
+
+## 2. Xóa orphan packages
 
 ```bash
 # Kiểm tra orphan
@@ -45,55 +58,45 @@ pacman -Rns $(pacman -Qtdq)
 
 Giải thích:
 - `-Qtd`: Query packages không cần thiết (orphan) + không có gói nào phụ thuộc.
-- `-Qtdq`: Chỉ xuất tên gói.
-- `$(...)`: Command substitution — kết quả làm input cho pacman -Rns.
+- `-Qtdq`: Chỉ xuất tên gói (quiet).
+- `$(...)`: Dùng output làm input cho pacman.
 
-### Bước 3: Xóa cache yay
+### Orphan AUR
+
+```bash
+yay -Yc
+```
+
+## 3. Dọn cache yay
 
 ```bash
 # Xóa các PKGBUILD đã clone
 yay -Sc
 ```
 
-### Bước 4: Xóa journal cũ
+## 4. Dọn journal (cần sudo)
 
 ```bash
 # Xem dung lượng journal
 journalctl --disk-usage
 
-# Giữ journal 100MB
-journalctl --vacuum-size=100M
+# Giới hạn dung lượng (cần sudo)
+sudo journalctl --vacuum-size=100M
 
-# Giữ journal 2 tuần
-journalctl --vacuum-time=2weeks
+# Giới hạn thời gian (cần sudo)
+sudo journalctl --vacuum-time=2weeks
 ```
 
-### Bước 5: Xóa log cũ
+**Lưu ý**: `journalctl --vacuum-*` cần `sudo` để thực thi.
 
-```bash
-# Xem dung lượng log
-du -sh /var/log/
+## 5. Script dọn dẹp tự động
 
-# Xóa log journal
-sudo journalctl --vacuum-time=1month
-
-# Xóa log cũ trong /var/log (cẩn thận)
-find /var/log -name "*.log.*" -mtime +30 -delete
-```
-
-## Tự động dọn dẹp
-
-### Tạo script dọn dẹp
-
-```bash
-vim /usr/local/bin/cleanup-arch
-```
-
-Nội dung:
+Tạo script `/usr/local/bin/cleanup-arch`:
 
 ```bash
 #!/bin/bash
 # System cleanup script
+# Ngày: 25/06/2026
 
 echo "=== Cleaning pacman cache ==="
 paccache -rk1
@@ -109,7 +112,7 @@ echo "=== Cleaning yay cache ==="
 yay -Sc --noconfirm 2>/dev/null || true
 
 echo "=== Cleaning journal ==="
-journalctl --vacuum-size=100M 2>/dev/null
+sudo journalctl --vacuum-size=100M 2>/dev/null
 
 echo "=== Done ==="
 ```
@@ -126,15 +129,9 @@ Chạy:
 sudo cleanup-arch
 ```
 
-### Cron job (nếu có cron)
+### Systemd timer (chạy hàng tuần)
 
-Hoặc dùng systemd timer:
-
-```bash
-vim /etc/systemd/system/cleanup.timer
-```
-
-Nội dung:
+`/etc/systemd/system/cleanup.timer`:
 
 ```ini
 [Unit]
@@ -148,11 +145,7 @@ Persistent=true
 WantedBy=timers.target
 ```
 
-```bash
-vim /etc/systemd/system/cleanup.service
-```
-
-Nội dung:
+`/etc/systemd/system/cleanup.service`:
 
 ```ini
 [Unit]
@@ -169,57 +162,71 @@ Enable:
 systemctl enable --now cleanup.timer
 ```
 
-## Xem dung lượng hệ thống
+## 6. Phân tích dung lượng ổ đĩa
 
 ```bash
 # Tổng quan
-du -sh / 2>/dev/null | sort -rh
+df -h /
 
-# Thư mục lớn
+# Thư mục lớn nhất
 du -sh /* 2>/dev/null | sort -rh | head -10
 
-# Xem cụ thể thư mục nào lớn
+# Cụ thể từng thư mục
 du -sh /var/* 2>/dev/null | sort -rh | head -10
 du -sh /home/* 2>/dev/null | sort -rh | head -10
+
+# Dùng ncdu (giao diện TUI)
+pacman -S ncdu
+ncdu /
 ```
 
-## Kiểm tra định kỳ
+## Lịch dọn dẹp
 
-| Task | Tần suất |
-|---|---|
-| `paccache -r` | Hàng tháng |
-| Xóa orphan | Hàng tháng |
-| `journalctl --vacuum-size=100M` | Hàng tháng |
-| `yay -Sc` | Hàng tháng |
-| Kiểm tra dung lượng ổ | Hàng tháng |
+| Task | Lệnh | Tần suất |
+|---|---|---|
+| Cache pacman | `paccache -rk1` | Hàng tháng |
+| Orphan packages | `pacman -Rns $(pacman -Qtdq)` | Hàng tháng |
+| Cache yay | `yay -Sc` | Hàng tháng |
+| Journal | `sudo journalctl --vacuum-size=100M` | Hàng tháng |
+| Phân tích ổ đĩa | `ncdu /` | Hàng quý |
 
 ## Troubleshooting
 
 ### "failed to prepare transaction (could not satisfy dependencies)"
 
 ```bash
-# Kiểm tra xung đột
+# Kiểm tra orphan còn sót
 pacman -Qtd
 
-# Xóa thủ công từng cái
-pacman -Rns gói
+# Xóa thủ công
+pacman -Rns tên-gói
 ```
 
-### "error: target not found"
-
-Gói không tồn tại trong database → kiểm tra tên.
-
-### Cache quá lớn (paccache không xóa được)
+### Cache quá lớn, paccache không xóa được
 
 ```bash
 # Xóa trực tiếp
 rm -rf /var/cache/pacman/pkg/*.pkg.tar.zst
 ```
 
+### "paccache: command not found"
+
+```bash
+# Cài pacman-contrib
+pacman -S pacman-contrib
+```
+
+### journalctl không có tác dụng
+
+```bash
+# Nhớ thêm sudo
+sudo journalctl --vacuum-size=100M
+```
+
 ## Tổng kết
 
-- Xóa cache pacman định kỳ.
-- Xóa orphan packages.
-- Xóa journal cũ.
-- Script tự động cleanup.
-- Kiểm tra dung lượng định kỳ để phát hiện sớm.
+- `paccache` cần gói `pacman-contrib`.
+- Xóa orphan packages bằng `pacman -Rns $(pacman -Qtdq)`.
+- `journalctl --vacuum-*` cần sudo.
+- Tự động hóa với script + systemd timer.
+- Kiểm tra dung lượng định kỳ bằng `ncdu` hoặc `du`.

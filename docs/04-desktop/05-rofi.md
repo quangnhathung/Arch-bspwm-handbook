@@ -1,5 +1,7 @@
 # Rofi — Launcher
 
+Ngày cập nhật: 25/06/2026
+
 ## Mục tiêu
 
 Cài đặt và cấu hình Rofi — application launcher, window switcher, và nhiều
@@ -28,7 +30,13 @@ Phím tắt `Super + d` (cấu hình trong sxhkdrc) để mở.
 pacman -S rofi
 ```
 
-### Bước 2: Tạo thư mục config
+### Bước 2: Cài icon theme (nếu muốn hiển thị icon)
+
+```bash
+pacman -S papirus-icon-theme
+```
+
+### Bước 3: Tạo thư mục config
 
 ```bash
 su - archuser
@@ -36,7 +44,7 @@ mkdir -p ~/.config/rofi
 exit
 ```
 
-### Bước 3: Tạo file cấu hình
+### Bước 4: Tạo file cấu hình
 
 Rofi có hai loại config: Xresources (cũ) và config.rasi (mới, dùng chung).
 
@@ -53,7 +61,7 @@ configuration {
     show-icons: true;
     terminal: "alacritty";
     drun-display-format: "{name}";
-    font: "FiraCode Nerd Font 12";
+    font: "JetBrains Mono 12";
     location: 0;
     x-offset: 0;
     y-offset: 0;
@@ -77,30 +85,34 @@ configuration {
 @theme "/usr/share/rofi/themes/nord.rasi"
 ```
 
-### Bước 4: Theme
-
-Rofi có sẵn nhiều theme:
-
-```bash
-ls /usr/share/rofi/themes/
-```
-
-Các theme phổ biến: `nord.rasi`, `gruvbox-dark.rasi`, `solarized.rasi`.
-
-Để dùng theme khác, sửa dòng `@theme` trong config.rasi.
-
-Nếu muốn tự tạo theme:
-
-```bash
-vim /home/archuser/.config/rofi/theme.rasi
-```
-
 ### Bước 5: Power menu (tùy chọn)
 
-Cài rofi-power-menu:
+`rofi-power-menu` là script cho phép Rofi hiển thị menu tắt/mở máy.
+Nó **không có sẵn** trong gói `rofi` — cần cài riêng.
+
+Trên Arch, `rofi-power-menu` có trong AUR:
 
 ```bash
-pacman -S rofi-power-menu
+# Nếu dùng yay (AUR helper)
+yay -S rofi-power-menu
+
+# Hoặc cài thủ công từ GitHub
+# https://github.com/jluttine/rofi-power-menu
+```
+
+Nếu không muốn dùng AUR, bạn có thể tự viết script power menu đơn giản:
+
+```bash
+#!/bin/bash
+OPTIONS="Lock\nLogout\nReboot\nShutdown"
+CHOICE=$(echo -e "$OPTIONS" | rofi -dmenu -p "Power Menu")
+
+case "$CHOICE" in
+    Lock) betterlockscreen -l ;;
+    Logout) bspc quit ;;
+    Reboot) systemctl reboot ;;
+    Shutdown) systemctl poweroff ;;
+esac
 ```
 
 Cấu hình trong sxhkdrc:
@@ -108,6 +120,20 @@ Cấu hình trong sxhkdrc:
 ```
 super + shift + x
     rofi -show power-menu -modi power-menu:rofi-power-menu
+```
+
+### Bước 6: Rofi Calc (tùy chọn)
+
+Máy tính trong Rofi:
+
+```bash
+pacman -S rofi-calc
+```
+
+Sau đó thêm `calc` vào `modi` trong config:
+
+```
+modi: "drun,run,window,power-menu,calc";
 ```
 
 ## Các mode của Rofi
@@ -118,6 +144,66 @@ super + shift + x
 | `run` | Chạy lệnh tùy ý | `Super + Shift + d` |
 | `window` | Chuyển đổi cửa sổ | `Super + Shift + r` |
 | `power-menu` | Tắt máy, reboot, logout | `Super + Shift + x` |
+
+## Custom theme
+
+Tạo file `~/.config/rofi/nord-custom.rasi`:
+
+```
+* {
+    background:     #282A36;
+    background-alt: #44475A;
+    foreground:     #F8F8F2;
+    selected:       #44475A;
+    active:         #50FA7B;
+    urgent:         #FF5552;
+}
+
+window {
+    location: center;
+    width: 600;
+    border: 2px;
+    border-color: #44475A;
+}
+
+inputbar {
+    background: @background-alt;
+    text-color: @foreground;
+    padding: 4px;
+}
+
+listview {
+    lines: 12;
+    columns: 1;
+}
+
+element {
+    padding: 4px;
+    text-color: @foreground;
+}
+
+element selected {
+    background: @selected;
+    text-color: @foreground;
+}
+
+element-icon {
+    size: 1em;
+}
+
+element-text {
+    vertical-align: 0.5;
+    horizontal-align: 0.5;
+}
+```
+
+Sau đó sửa `config.rasi` để dùng theme này:
+
+```
+@theme "~/.config/rofi/nord-custom.rasi"
+```
+
+Hoặc dùng đường dẫn tuyệt đối.
 
 ## Tùy chỉnh
 
@@ -139,12 +225,6 @@ matching: "fuzzy";   # Tìm kiếm mờ (tolerant với lỗi chính tả)
 ```ini
 icon-theme: "Papirus";
 show-icons: true;
-```
-
-Cần cài icon theme:
-
-```bash
-pacman -S papirus-icon-theme
 ```
 
 ## Troubleshooting
@@ -176,3 +256,4 @@ Nếu chưa, thêm vào.
 - Rofi đã được cài với cấu hình cơ bản.
 - Hỗ trợ tìm kiếm ứng dụng, chạy lệnh, chuyển cửa sổ, power menu.
 - Giao diện Nord theme, hỗ trợ icon và fuzzy matching.
+- `rofi-power-menu` cần cài riêng từ AUR.

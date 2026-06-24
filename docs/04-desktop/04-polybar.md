@@ -1,5 +1,7 @@
 # Polybar — Thanh trạng thái
 
+Ngày cập nhật: 25/06/2026
+
 ## Mục tiêu
 
 Cài đặt và cấu hình Polybar — thanh trạng thái hiển thị thông tin hệ thống.
@@ -32,12 +34,11 @@ Nó hiển thị thông tin như:
 pacman -S polybar
 ```
 
-### Bước 2: Tạo thư mục và copy config mẫu
+### Bước 2: Tạo thư mục và config
 
 ```bash
 su - archuser
 mkdir -p ~/.config/polybar
-cp /usr/share/doc/polybar/config ~/.config/polybar/config.ini
 exit
 ```
 
@@ -47,7 +48,7 @@ exit
 vim /home/archuser/.config/polybar/config.ini
 ```
 
-Nội dung:
+Nội dung (theme Dracula):
 
 ```ini
 [colors]
@@ -79,8 +80,9 @@ padding-right = 2
 module-margin-left = 1
 module-margin-right = 1
 
-font-0 = "FiraCode Nerd Font:size=11;3"
+font-0 = "JetBrains Mono:size=11;3"
 font-1 = "Noto Sans:size=10;3"
+font-2 = "Symbols Nerd Font:size=11;3"
 
 modules-left = bspwm
 modules-center = date
@@ -174,7 +176,7 @@ label-disconnected =
 type = internal/battery
 battery = BAT0
 adapter = AC0
-format-charging = <animation-charging> <label-charging>
+format-charging = <label-charging>
 format-discharging = <label-discharging>
 format-full = <label-full>
 label-charging = %percentage%%
@@ -183,8 +185,6 @@ label-full = %percentage%%
 label-discharging-foreground = ${colors.foreground}
 label-charging-foreground = ${colors.primary}
 label-full-foreground = ${colors.primary}
-animation-charging-0 = 🔌
-animation-charging-framerate = 600
 
 [module/pulseaudio]
 type = internal/pulseaudio
@@ -220,12 +220,7 @@ polybar main &
 
 Nếu bạn đặt tên bar khác, sửa tương ứng.
 
-### Bước 5: Module bspwm trong Polybar
-
-Để Polybar hiển thị workspace bspwm, module `bspwm` giao tiếp với bspwm qua IPC
-(Inter-Process Communication). Đảm bảo `bspc` có trong PATH (mặc định có).
-
-### Bước 6: Kiểm tra
+### Bước 5: Kiểm tra
 
 ```bash
 # Khởi động Polybar thử
@@ -234,6 +229,19 @@ polybar main
 # Nếu lỗi, xem log
 polybar main 2>&1 | head -20
 ```
+
+## Multi-monitor support
+
+Nếu bạn có nhiều màn hình, dùng script này thay vì `polybar main &`:
+
+```bash
+#!/bin/bash
+for m in $(polybar --list-monitors | cut -d: -f1); do
+    MONITOR=$m polybar main &
+done
+```
+
+Lưu thành `~/.config/polybar/launch.sh`, cấp executable, và gọi trong bspwmrc.
 
 ## Các module phổ biến
 
@@ -256,7 +264,7 @@ polybar main 2>&1 | head -20
 Polybar cần Nerd Fonts để hiển thị icon. Cài:
 
 ```bash
-pacman -S ttf-firacode-nerd ttf-noto-nerd
+pacman -S ttf-jetbrains-mono ttf-nerd-fonts-symbols noto-fonts
 ```
 
 ### Click events
@@ -276,6 +284,11 @@ Ví dụ: click volume → mở pavucontrol.
 
 - Module `bspwm` cần `bspc` trong PATH.
 - Polybar phải chạy sau bspwm.
+
+### Font hiển thị sai hoặc icon bị ô vuông
+
+- Cài `ttf-nerd-fonts-symbols` và `noto-fonts-emoji`.
+- Kiểm tra tên font trong config (dùng `fc-list | grep -i nerd` để xem tên chính xác).
 
 ## Tổng kết
 

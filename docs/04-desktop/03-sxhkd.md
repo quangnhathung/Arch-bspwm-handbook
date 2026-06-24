@@ -1,5 +1,7 @@
 # Sxhkd — Keybinding
 
+Ngày cập nhật: 25/06/2026
+
 ## Mục tiêu
 
 Cấu hình sxhkd (Simple X Hotkey Daemon) để điều khiển bspwm và ứng dụng
@@ -21,17 +23,32 @@ Nhấn phím → sxhkd nhận sự kiện → tra cứu trong sxhkdrc → thực
 ```
 # Comment
 modifier + key
-    command
+	command
 
 # Ví dụ:
 super + Return
-    alacritty
+	alacritty
 ```
 
 - `super`: Windows key (còn gọi là Mod4).
 - Các modifier: `super`, `alt`, `control`, `shift`.
 - Có thể kết hợp nhiều modifier: `super + shift + Return`.
-- Lệnh thụt vào đầu dòng bằng tab (không phải space).
+- **Lệnh phải thụt vào đầu dòng bằng TAB, không phải space.**
+  Đây là lỗi cú pháp thường gặp nhất.
+
+### Batch syntax
+
+sxhkd hỗ trợ batch syntax để viết nhiều binding trên một dòng:
+
+```
+# {a,b,c} syntax
+super + {h,j,k,l}
+	bspc node -f {west,south,north,east}
+
+# {1-9} range syntax
+super + {1-9}
+	bspc desktop -f '{1-9}'
+```
 
 ## Các bước thực hiện
 
@@ -50,140 +67,137 @@ vim /home/archuser/.config/sxhkd/sxhkdrc
 
 # ---- Terminal ----
 super + Return
-    alacritty
+	alacritty
 
 # ---- Launcher ----
 super + d
-    rofi -show drun
+	rofi -show drun
 super + shift + d
-    rofi -show run
+	rofi -show run
 
 # ---- Close window ----
 super + q
-    bspc node -c
+	bspc node -c
 
 # ---- Kill application ----
 super + shift + q
-    bspc node -k
+	bspc node -k
 
 # ---- Focus ----
 super + {h,j,k,l}
-    bspc node -f {west,south,north,east}
+	bspc node -f {west,south,north,east}
 
 super + Tab
-    bspc node -f last
+	bspc node -f last
 
 # ---- Move window ----
 super + shift + {h,j,k,l}
-    bspc node -s {west,south,north,east}
+	bspc node -s {west,south,north,east}
 
 # ---- Swap with other monitor ----
 super + shift + m
-    bspc node -m next
+	bspc node -m next
 
-# ---- Split mode ----
+# ---- Window states ----
 super + {t,o}
-    bspc node -t {tiled,floating}
+	bspc node -t {tiled,floating}
 super + shift + {t,o}
-    bspc node -t {pseudo_tiled,fullscreen}
+	bspc node -t {pseudo_tiled,fullscreen}
 
-# ---- Split ratio ----
+# ---- Preselect split ----
+super + ctrl + {h,j,k,l}
+	bspc node -p {west,south,north,east}
+
+# ---- Split ratio (expand/shrink) ----
 super + {1,2}
-    bspc node -i # expand window
-    bspc node -o # shrink window
+	bspc node -i
+	bspc node -o
 
 # ---- Workspace ----
 super + {1-9}
-    bspc desktop -f '{1-9}'
+	bspc desktop -f '{1-9}'
 
 # ---- Move to workspace ----
 super + shift + {1-9}
-    bspc node -d '{1-9}'
+	bspc node -d '{1-9}'
 
 # ---- Resize window ----
 super + alt + {h,j,k,l}
-    bspc node -z {left -20 0,bottom 0 20,top 0 -20,right 20 0}
+	bspc node -z {left -20 0,bottom 0 20,top 0 -20,right 20 0}
 
 # ---- Reload configs ----
 super + Escape
-    pkill -USR1 -x sxhkd && bspc wm -r
+	pkill -USR1 -x sxhkd && bspc wm -r
 
 # ---- Screenshot ----
 Print
-    maim -u ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
+	maim -u ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
 
 super + Print
-    maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
+	maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
 
 # ---- Lock screen ----
 super + shift + Escape
-    betterlockscreen -l
+	betterlockscreen -l
 
 # ---- Power menu ----
 super + shift + x
-    rofi -show power-menu -modi power-menu:rofi-power-menu
+	rofi -show power-menu -modi power-menu:rofi-power-menu
 
 # ---- Volume ----
 XF86AudioRaiseVolume
-    pamixer -i 5
+	pamixer -i 5
 XF86AudioLowerVolume
-    pamixer -d 5
+	pamixer -d 5
 XF86AudioMute
-    pamixer -t
+	pamixer -t
 
 # ---- Brightness ----
 XF86MonBrightnessUp
-    brightnessctl set +5%
+	brightnessctl set +5%
 XF86MonBrightnessDown
-    brightnessctl set 5%-
+	brightnessctl set 5%-
 
 # ---- Media ----
 XF86AudioPlay
-    playerctl play-pause
+	playerctl play-pause
 XF86AudioNext
-    playerctl next
+	playerctl next
 XF86AudioPrev
-    playerctl previous
+	playerctl previous
 
 # ---- Program shortcuts ----
 super + b
-    firefox
+	firefox
 super + e
-    pcmanfm
+	pcmanfm
 super + r
-    rofi -show run
+	rofi -show run
 super + shift + r
-    rofi -show window
+	rofi -show window
 
 # ---- Float / Unfloat ----
 super + space
-    bspc node -t floating; bspc node -g sticky
-
-# ---- Stack / Unstack ----
-super + s
-    bspc node --presel-dir east; bspc node --presel-ratio 0.5
+	bspc node -t floating; bspc node -g sticky
 
 # ---- Toggle monocle ----
 super + m
-    bspc desktop -l next
+	bspc desktop -l next
 ```
 
-### Bước 3: Thêm sxhkd vào bspwmrc
-
-Kiểm tra file `bspwmrc` đã có dòng:
-
-```bash
-sxhkd &
-```
-
-Nếu chưa, thêm vào trước `exec` (hoặc đơn giản là chạy nền).
-
-### Bước 4: Kiểm tra và reload
+### Bước 3: Kiểm tra và reload
 
 Sau khi chỉnh sửa sxhkdrc, reload:
 
 ```bash
 pkill -USR1 -x sxhkd
+```
+
+Nếu không có hiệu lực, chạy sxhkd foreground để kiểm tra lỗi:
+
+```bash
+killall sxhkd
+sxhkd -t 10   # Chạy foreground với timeout 10s, log lỗi ra terminal
 ```
 
 ## Giải thích các phím tắt quan trọng
@@ -219,11 +233,17 @@ pkill -USR1 -x sxhkd
 |---|---|
 | `Super + Alt + h/j/k/l` | Resize window |
 
+### Preselect split
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Ctrl + h/j/k/l` | Preselect split direction |
+
 ## Ký hiệu trong sxhkdrc
 
 - `super`: Mod4 (Windows key).
 - `{h,j,k,l}`: Batch syntax — sinh ra 4 binding riêng biệt.
-  ```super + {h,j,k,l}``` tương đương 4 dòng riêng lẻ.
+  `super + {h,j,k,l}` tương đương 4 dòng riêng lẻ.
 - `{1-9}`: Range syntax — sinh ra 9 binding.
 
 ## Troubleshooting
@@ -244,9 +264,10 @@ sxhkd -t 10   # Chạy foreground với timeout 10s, log lỗi ra terminal
 
 ### Phím tắt không hoạt động
 
-- Kiểm tra syntax trong sxhkdrc (dùng tab, không space cho lệnh).
+- Kiểm tra syntax trong sxhkdrc (dùng **tab**, không space cho lệnh).
 - Reload: `pkill -USR1 -x sxhkd`.
 - Kiểm tra xem phím tắt có bị conflict với ứng dụng khác không.
+- Một số phím (như Print, XF86*) có thể bị chiếm bởi DE component khác.
 
 ## Tổng kết
 

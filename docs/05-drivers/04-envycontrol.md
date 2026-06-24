@@ -2,50 +2,52 @@
 
 ## Mục tiêu
 
-Cài đặt EnvyControl để dễ dàng chuyển đổi giữa Intel và NVIDIA.
+Cài đặt EnvyControl để dễ dàng chuyển đổi giữa Intel và NVIDIA mà không cần cấu hình thủ công.
 
 ## Kiến thức nền
 
 ### EnvyControl là gì?
 
-EnvyControl là công cụ CLI cho phép chuyển đổi chế độ đồ họa trên laptop
-NVIDIA Optimus. Nó hỗ trợ:
+EnvyControl là công cụ CLI cho phép chuyển đổi chế độ đồ họa trên laptop NVIDIA Optimus. Nó tự động:
 
-- **Intel mode**: Chỉ dùng Intel iGPU, NVIDIA tắt hoàn toàn.
-- **NVIDIA mode**: Chỉ dùng NVIDIA dGPU, Intel tắt.
-- **Hybrid mode**: Cả hai đều hoạt động, NVIDIA render offload.
+1. Tạo/sửa file Xorg config phù hợp
+2. Cập nhật GRUB kernel parameters
+3. Rebuild initramfs
+4. Yêu cầu reboot để áp dụng
 
-### Tại sao dùng EnvyControl?
+### Ba chế độ
 
-Thay vì cấu hình thủ công Xorg, kernel params, EnvyControl tự động hóa
-việc chuyển đổi. Một lệnh duy nhất chuyển chế độ, EnvyControl:
-
-1. Sửa file Xorg config.
-2. Cập nhật GRUB.
-3. Rebuild initramfs.
-4. Reboot (bắt buộc sau khi chuyển).
+| Chế độ | Mô tả |
+|---|---|
+| `intel` | Chỉ Intel iGPU — NVIDIA tắt hoàn toàn, pin tốt nhất |
+| `nvidia` | Chỉ NVIDIA dGPU — Intel tắt, hiệu năng cao nhất |
+| `hybrid` | Cả hai — Intel display, NVIDIA render offload |
 
 ### Rủi ro
 
-- **Phải reboot sau mỗi lần chuyển** (không thể chuyển nóng).
-- Nếu chọn sai chế độ → màn hình đen → cần recovery.
-- EnvyControl ghi đè Xorg config → nếu đã cấu hình thủ công, có thể bị mất.
+- **Phải reboot** sau mỗi lần chuyển
+- EnvyControl ghi đè Xorg config → mất cấu hình thủ công trước đó
+- Chọn sai chế độ → màn hình đen → cần recovery
+- Build từ AUR source mỗi lần cài/gỡ (không có prebuilt binary)
+
+### Lưu ý về envycontrol từ AUR
+
+EnvyControl được cài từ AUR. Khi dùng `git clone + makepkg`, nó sẽ **build từ source** mỗi lần. Dùng `yay` cũng tương tự (tự động clone + build).
 
 ## Các bước thực hiện
 
-### Bước 1: Cài EnvyControl từ AUR
+### Bước 1: Cài EnvyControl
+
+Có hai cách:
 
 ```bash
-pacman -S --needed base-devel git
+# Cách 1 — yay (khuyến nghị)
+yay -S envycontrol
+
+# Cách 2 — thủ công
 git clone https://aur.archlinux.org/envycontrol.git
 cd envycontrol
 makepkg -si
-```
-
-Hoặc nếu đã có yay:
-
-```bash
-yay -S envycontrol
 ```
 
 ### Bước 2: Kiểm tra trạng thái hiện tại
@@ -64,18 +66,14 @@ Current graphics mode: hybrid
 
 ```bash
 sudo envycontrol -s intel
-```
-
-Sau đó reboot:
-
-```bash
 sudo reboot
 ```
 
 **Kết quả**:
-- NVIDIA tắt hoàn toàn → pin tốt nhất.
-- Hiệu năng đồ họa 3D kém hơn (dùng Intel).
-- Nhiệt độ thấp hơn.
+
+- NVIDIA tắt hoàn toàn → pin tốt nhất
+- Hiệu năng 3D kém (dùng Intel)
+- Nhiệt độ thấp
 
 ### Bước 4: Chuyển sang NVIDIA mode
 
@@ -85,12 +83,12 @@ sudo reboot
 ```
 
 **Kết quả**:
-- Intel tắt.
-- NVIDIA làm mọi thứ.
-- Hiệu năng cao nhất.
-- Pin nhanh hết hơn.
 
-### Bước 5: Chuyển sang Hybrid mode (khuyên dùng)
+- Intel tắt, NVIDIA làm mọi thứ
+- Hiệu năng cao nhất
+- Pin nhanh hết
+
+### Bước 5: Chuyển sang Hybrid mode (khuyến nghị)
 
 ```bash
 sudo envycontrol -s hybrid
@@ -98,20 +96,16 @@ sudo reboot
 ```
 
 **Kết quả**:
-- Cả hai GPU hoạt động.
-- Intel làm display, NVIDIA render offload.
-- Cân bằng giữa hiệu năng và pin.
+
+- Cả hai GPU hoạt động
+- Intel display + NVIDIA render offload
+- Cân bằng hiệu năng và pin
 
 ### Bước 6: Kiểm tra sau khi chuyển
 
 ```bash
-# Kiểm tra GPU active
 envycontrol --query
-
-# Kiểm tra OpenGL renderer
 glxinfo | grep "OpenGL renderer"
-
-# Kiểm tra NVIDIA có active không
 nvidia-smi
 ```
 
@@ -120,34 +114,34 @@ nvidia-smi
 ### Intel mode
 
 ```
-GPU: Chỉ Intel
-Pin: ++++ (5/5)
-Nhiệt: Thấp
-Hiệu năng 3D: Thấp
-Dùng khi: Lướt web, xem phim, văn phòng, lúc di chuyển
+GPU:      Chỉ Intel
+Pin:      ★★★★★ (5/5)
+Nhiệt:    Thấp
+Hiệu năng: Thấp
+Dùng khi: Lướt web, xem phim, văn phòng, di chuyển
 ```
 
 ### NVIDIA mode
 
 ```
-GPU: Chỉ NVIDIA
-Pin: + (1/5)
-Nhiệt: Cao
-Hiệu năng 3D: Cao nhất
-Dùng khi: Cần GPU mạnh (render, game — sau này)
+GPU:      Chỉ NVIDIA
+Pin:      ★☆☆☆☆ (1/5)
+Nhiệt:    Cao
+Hiệu năng: Cao nhất
+Dùng khi: Render nặng, game
 ```
 
-### Hybrid mode
+### Hybrid mode (khuyến nghị)
 
 ```
-GPU: Intel (display) + NVIDIA (render offload)
-Pin: ++ (2/5)
-Nhiệt: Trung bình
-Hiệu năng 3D: Theo nhu cầu
+GPU:      Intel display + NVIDIA render offload
+Pin:      ★★☆☆☆ (2/5)
+Nhiệt:    Trung bình
+Hiệu năng: Theo nhu cầu (prime-run)
 Dùng khi: Sử dụng hàng ngày, thi thoảng cần GPU
 ```
 
-## Log của EnvyControl
+## Log
 
 ```bash
 cat /var/log/envycontrol.log
@@ -155,39 +149,35 @@ cat /var/log/envycontrol.log
 
 ## Gỡ EnvyControl
 
-Nếu muốn quay lại cấu hình thủ công:
-
 ```bash
-# Kiểm tra các file đã backup
-ls /etc/envycontrol/
-
 # Restore Xorg config gốc
 sudo envycontrol --restore-xorg
 
-# Hoặc gỡ hoàn toàn
+# Gỡ package
 sudo pacman -R envycontrol
 ```
 
 ## Troubleshooting
 
-### Màn hình đen sau khi chuyển chế độ
+### Màn hình đen sau khi chuyển
 
-**Symptoms**: Sau reboot, màn hình đen, không vào được X.
+**Nguyên nhân**: EnvyControl cấu hình sai Xorg hoặc kernel params.
 
-**Cause**: EnvyControl đã cấu hình sai Xorg hoặc kernel params.
+**Cách xử lý**:
 
-**Fix**:
-1. Boot vào single-user mode (thêm `systemd.unit=multi-user.target` vào GRUB).
-2. Chuyển về hybrid:
+1. Khi boot GRUB, nhấn `E` để sửa dòng kernel
+2. Thêm `nomodeset` hoặc `systemd.unit=multi-user.target`
+3. Boot vào hệ thống (single-user mode)
+4. Chuyển về hybrid:
 
 ```bash
 sudo envycontrol -s hybrid
 sudo reboot
 ```
 
-3. Nếu vẫn đen, gỡ envycontrol và cấu hình thủ công.
+5. Nếu vẫn đen, gỡ envycontrol và cấu hình thủ công theo bài 03-hybrid-graphics.md
 
-### EnvyControl báo lỗi "NVIDIA module not loaded"
+### EnvyControl báo lỗi module
 
 ```bash
 # Load module thủ công
@@ -197,21 +187,20 @@ modprobe nvidia_uvm
 modprobe nvidia_drm
 ```
 
-## Khuyên dùng
+## Khuyến nghị cho Lenovo LOQ 15IAX9
 
-Với máy Lenovo LOQ 15IAX9:
+| Tình huống | Chế độ |
+|---|---|
+| Hàng ngày (desktop, browsing, code) | `hybrid` |
+| Di chuyển (tiết kiệm pin) | `intel` |
+| Render nặng, CUDA, game | `nvidia` |
 
-- **Mặc định**: Hybrid mode (dùng hàng ngày).
-- **Khi di chuyển**: Intel mode (tiết kiệm pin).
-- **Khi cần hiệu năng**: NVIDIA mode (render nặng, game).
-
-Tuy nhiên, hybrid mode thường là lựa chọn tốt nhất vì không cần reboot
-khi muốn chạy ứng dụng trên NVIDIA (dùng `prime-run`).
+Hybrid là chế độ linh hoạt nhất — không cần reboot để chạy ứng dụng trên NVIDIA (dùng `prime-run`).
 
 ## Tổng kết
 
-- EnvyControl đã được cài từ AUR.
-- Ba chế độ: intel, nvidia, hybrid.
-- Chuyển đổi bằng một lệnh + reboot.
-- Hybrid mode khuyên dùng cho sử dụng hàng ngày.
-- Có rủi ro màn hình đen nếu chuyển sai chế độ.
+- EnvyControl cài từ AUR — build source mỗi lần
+- Ba chế độ: intel, nvidia, hybrid
+- Một lệnh duy nhất `envycontrol -s <mode>` + reboot
+- Hybrid mode khuyến nghị cho sử dụng hàng ngày
+- Recovery: boot với `nomodeset`, chuyển về hybrid

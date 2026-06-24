@@ -2,45 +2,46 @@
 
 ## Mục tiêu
 
-Cài đặt và cấu hình âm thanh với PipeWire trên Intel SST.
+Cài đặt và cấu hình âm thanh với PipeWire trên Intel SST cho Lenovo LOQ 15IAX9.
 
 ## Kiến thức nền
 
 ### Intel Smart Sound Technology (SST)
 
-Intel SST là công nghệ âm thanh kỹ thuật số tích hợp trên chipset Intel.
-Nó sử dụng DSP (Digital Signal Processor) để xử lý âm thanh.
+Intel SST là công nghệ âm thanh kỹ thuật số tích hợp trên chipset Intel, sử dụng DSP (Digital Signal Processor). Trên Linux, Intel SST hoạt động qua Sound Open Firmware (SOF).
 
-Để Intel SST hoạt động trên Linux, cần:
+Các thành phần cần thiết:
 
-- `sof-firmware`: Firmware cho Sound Open Firmware (SOF) — đã cài trong pacstrap.
-- Kernel mới (6.x+) — đã cài linux.
-- ALSA + PipeWire.
+- `sof-firmware`: Firmware SOF — đã cài trong pacstrap
+- Kernel 6.x+ (hiện tại kernel 7.x — hỗ trợ tốt)
+- ALSA + PipeWire + WirePlumber
 
-### ALSA vs PulseAudio vs PipeWire
+### ALSA vs PipeWire vs PulseAudio
 
-| | ALSA | PulseAudio | PipeWire |
+| Tính năng | ALSA | PulseAudio | PipeWire |
 |---|---|---|---|
 | Cấp | Low-level | High-level | High-level |
 | Mixer | Có | Có | Có |
 | Network audio | Không | Có | Có |
 | Bluetooth | Không | Có | Có (tốt hơn) |
 | Latency | Thấp | Trung bình | Thấp |
-| Modern | Cũ | Đang bị thay thế | Mới, đang phát triển |
+| Security (sandbox) | Không | Không | Có |
 
-Chúng ta dùng **PipeWire** — chuẩn âm thanh mới của Linux, thay thế PulseAudio.
+Chúng ta dùng **PipeWire** — chuẩn âm thanh hiện đại của Linux.
 
 ### PipeWire stack
 
 ```
 Application → PipeWire → ALSA (kernel) → Hardware
                   ↕
-            WirePlumber (session manager)
+            WirePlumber (session & policy manager)
                   ↕
             pipewire-pulse (PulseAudio compat)
                   ↕
             Ứng dụng PulseAudio cũ
 ```
+
+**WirePlumber** là session manager được khuyến nghị (thay thế `pipewire-media-session` cũ).
 
 ## Các bước thực hiện
 
@@ -55,20 +56,26 @@ pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber
 | `pipewire` | Core audio server |
 | `pipewire-alsa` | ALSA compatibility layer |
 | `pipewire-pulse` | PulseAudio compatibility (cho ứng dụng cũ) |
-| `wireplumber` | Session & policy manager (quản lý thiết bị) |
+| `wireplumber` | Session & policy manager (quản lý thiết bị, Bluetooth, profile) |
 
-### Bước 2: Enable PipeWire service
+### Bước 2: Enable user service
+
+PipeWire chạy ở **user level** (không cần root):
 
 ```bash
 systemctl --user enable pipewire pipewire-pulse wireplumber
 ```
 
-PipeWire chạy ở user level (không cần root).
+Khởi động ngay:
+
+```bash
+systemctl --user start pipewire pipewire-pulse wireplumber
+```
 
 ### Bước 3: Kiểm tra card âm thanh
 
 ```bash
-# Liệt kê card âm thanh
+# Liệt kê card
 cat /proc/asound/cards
 
 # Dùng aplay
@@ -96,7 +103,7 @@ card 1: HDMI [HDA NVidia], device 3: HDMI 0 [HDMI 0]
 # Phát thử âm thanh
 speaker-test -l1 -c2
 
-# Hoặc dùng aplay
+# Hoặc phát file WAV
 speaker-test -t wav -c 2
 ```
 
@@ -111,34 +118,34 @@ pacman -S pavucontrol pamixer
 | Gói | Vai trò |
 |---|---|
 | `pavucontrol` | GUI mixer (điều chỉnh volume từng ứng dụng) |
-| `pamixer` | CLI mixer (dùng trong keybinding) |
+| `pamixer` | CLI mixer (dùng trong keybinding sxhkd) |
 
 ### Bước 6: Kiểm tra PipeWire
 
 ```bash
-# Kiểm tra trạng thái
 pactl info
+```
 
-# Output:
-# Server Name: PulseAudio (on PipeWire)
-# ...
+Output:
+
+```
+Server Name: PulseAudio (on PipeWire)
+...
 ```
 
 ```bash
 # Liệt kê sinks (thiết bị output)
 pactl list sinks short
-```
 
-```bash
 # Liệt kê sources (thiết bị input)
 pactl list sources short
 ```
 
 ### Bước 7: Cấu hình volume trong sxhkd
 
-Đã cấu hình trong sxhkdrc:
+Trong `~/.config/sxhkd/sxhkdrc`:
 
-```
+```bash
 XF86AudioRaiseVolume
     pamixer -i 5
 XF86AudioLowerVolume
@@ -155,15 +162,15 @@ XF86AudioMute
 # Liệt kê sinks
 pactl list sinks short
 
-# Set sink mặc định (dùng tên hoặc index)
+# Set sink mặc định (dùng tên)
 pactl set-default-sink alsa_output.pci-0000_00_1f.3.analog-stereo
 ```
 
-### Điều chỉnh phần trăm volume mỗi lần nhấn
+### Điều chỉnh phần trăm volume
 
 Sửa trong sxhkdrc:
 
-```
+```bash
 XF86AudioRaiseVolume
     pamixer -i 3
 XF86AudioLowerVolume
@@ -173,7 +180,6 @@ XF86AudioLowerVolume
 ## Xác minh SOF firmware
 
 ```bash
-# Kiểm tra SOF đã được load
 dmesg | grep -i sof
 ```
 
@@ -183,13 +189,13 @@ Output mong đợi:
 sof-audio-pci-intel-tgl 0000:00:1f.3: sof firmware version 2.x.x
 ```
 
+## Bluetooth audio
+
+PipeWire + WirePlumber tự động hỗ trợ Bluetooth A2DP (âm thanh chất lượng cao). Chi tiết xem bài `06-bluetooth.md`.
+
 ## Troubleshooting
 
 ### Không có âm thanh
-
-**Symptoms**: speaker-test không ra tiếng.
-
-**Cause**: Card âm thanh sai mặc định, hoặc thiếu firmware, hoặc PipeWire chưa chạy.
 
 **Diagnosis**:
 
@@ -200,9 +206,8 @@ systemctl --user status wireplumber
 
 # Kiểm tra ALSA
 aplay -l
-cat /proc/asound/cards
 
-# Kiểm tra module
+# Kiểm tra module SOF
 lsmod | grep snd_sof
 ```
 
@@ -212,67 +217,61 @@ lsmod | grep snd_sof
 # Restart PipeWire
 systemctl --user restart pipewire pipewire-pulse wireplumber
 
-# Nếu vẫn không được, kiểm tra alsamixer
+# Kiểm tra alsamixer
 alsamixer
-# Nhấn F6 để chọn card, đảm bảo Master và PCM không bị muted (MM → nhấn m để unmute)
+# F6 → chọn card, đảm bảo Master và PCM không bị muted (MM → nhấn m)
 ```
 
 ### "sof-audio-pci-intel-tgl: error: failed to load firmware"
 
 ```bash
-# SOF firmware thiếu → cài lại
+# SOF firmware thiếu hoặc lỗi
 pacman -S sof-firmware
+reboot
 ```
 
 ### Không có HDMI audio
 
 ```bash
-# Kiểm tra NVIDIA HDMI
 aplay -l | grep HDMI
 
-# Nếu có card NVIDIA HDMI, set làm default
+# Set default sink cho HDMI
 pactl set-default-sink alsa_output.pci-0000_01_00.1.hdmi-stereo
 ```
 
-### Độ trễ âm thanh (audio lag)
-
-PipeWire mặc định có latency thấp. Nếu bị lag:
+### Độ trễ âm thanh
 
 ```bash
 # Cấu hình PipeWire
 vim /etc/pipewire/pipewire.conf
 
-# Tìm và sửa:
+# Sửa:
 default.clock.rate = 48000
 default.clock.allowed-rates = [ 44100 48000 ]
 ```
 
-### Loa trong không hoạt động nhưng tai nghe có
-
-**Cause**: Auto-mute của codec âm thanh.
-
-**Fix**:
+### Loa trong không hoạt động, tai nghe có
 
 ```bash
-# Vào alsamixer
+# Auto-mute của codec âm thanh
 alsamixer
-# Chọn card HDA Intel PCH
-# Nhấn F6 → chọn HDA Intel PCH
-# Tìm "Auto-Mute Mode" → Disable
+# F6 → chọn HDA Intel PCH
+# Tìm "Auto-Mute Mode" → Disable (mũi tên xuống)
 ```
 
 ### Âm thanh quá nhỏ
 
 ```bash
-# Tăng gain
+# Tăng giới hạn gain
 pamixer --set-limit 150
 pamixer -i 20
 ```
 
 ## Tổng kết
 
-- PipeWire + WirePlumber đã được cài và enable.
-- SOF firmware cho Intel SST hoạt động.
-- Công cụ pavucontrol và pamixer đã được cài.
-- Volume control qua phím chức năng hoạt động.
-- Troubleshooting: kiểm tra firmware, alsamixer, PipeWire status.
+- PipeWire + WirePlumber đã cài và enable (user service)
+- SOF firmware cho Intel SST hoạt động
+- pavucontrol (GUI) + pamixer (CLI) quản lý âm lượng
+- Volume keys hoạt động qua sxhkd
+- Bluetooth audio qua PipeWire A2DP
+- Troubleshooting: alsamixer, firmware, PipeWire status

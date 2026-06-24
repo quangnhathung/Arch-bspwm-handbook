@@ -1,127 +1,127 @@
-# Màn hình đen
+# Màn hình đen sau khi boot
 
-## Symptoms
+*Áp dụng cho Lenovo LOQ 15IAX9 — NVIDIA RTX 30/40 series — Kernel 7.x — 25/06/2026*
 
-- Sau khi boot, màn hình đen, không thấy gì.
-- Có thể thấy cursor nhấp nháy hoặc không.
-- Máy vẫn hoạt động (đèn nguồn sáng, quạt chạy).
+## Triệu chứng (Symptoms)
 
-## Cause
+- Màn hình đen ngay sau khi chọn GRUB, không có logo POST hoặc splash Arch.
+- Con trỏ nhấp nháy ở góc trên bên trái hoặc không có gì cả.
+- Đèn nguồn sáng, quạt chạy nhưng màn hình không hiển thị.
+- Máy vẫn hoạt động (nghe được âm thanh boot) nhưng không thấy gì.
 
-### Nguyên nhân thường gặp
+## Nguyên nhân (Causes)
 
-1. **GRUB không tìm thấy kernel** — boot dừng ở GRUB shell.
-2. **NVIDIA driver lỗi** — Xorg crash do NVIDIA.
-3. **Xorg không khởi động** — lỗi cấu hình Xorg.
-4. **Kernel panic** — lỗi nghiêm trọng, không boot được.
-5. **Màn hình được chuyển sang output sai** — xrandr sai.
-6. **EnvyControl sai chế độ** — chuyển sang chế độ không tương thích.
+1. **GRUB không tìm thấy kernel** — boot dừng ở GRUB shell hoặc "No such partition".
+2. **NVIDIA driver lỗi** — Xorg crash do module NVIDIA không tương thích với kernel 7.x.
+3. **Cấu hình Xorg sai** — file 10-nvidia.conf cũ hoặc sai Driver (dùng `nvidia-open` thay vì `nvidia`).
+4. **Kernel panic** — lỗi module nghiêm trọng, không boot được, không vào TTY.
+5. **EnvyControl sai chế độ** — chuyển sang chế độ hybrid/nvidia không tương thích với output hiện tại.
+6. **xrandr sai output** — Xorg render ra output không tồn tại (eDP-1, HDMI-A-1, DP-1).
 
-## Diagnosis
+## Chẩn đoán (Diagnosis)
 
-### Kiểm tra boot process
+### Bước 1: Xem boot log
 
-Khi boot, bỏ `quiet` trong GRUB để xem log:
+Từ GRUB menu, nhấn `e` trên boot entry, **xóa chữ `quiet`**, thêm `systemd.log_level=debug`:
 
-1. Ở GRUB menu, nhấn `e` để sửa boot entry.
-2. Xóa `quiet` và thêm `systemd.log_level=debug`.
-3. Nhấn `Ctrl+X` hoặc `F10` để boot.
-4. Quan sát log — dòng cuối cùng trước khi đen cho biết nguyên nhân.
-
-### Nếu vào được TTY
-
-Nhấn `Ctrl+Alt+F2` (hoặc F3-F6) để chuyển sang TTY text.
-Nếu thấy TTY login → Xorg lỗi, hệ thống vẫn chạy.
-
-```bash
-# Login vào TTY
-# Kiểm tra Xorg log
-cat /var/log/Xorg.0.log | grep -i error
-
-# Kiểm tra journal
-journalctl -p 3 -xb | tail -30
+```
+linux /vmlinuz-linux ... systemd.log_level=debug
 ```
 
-### Nếu không vào được TTY → kernel panic
+Nhấn `Ctrl+X` để boot. Dòng cuối cùng trước khi đen cho biết nguyên nhân.
 
-- Cần boot từ USB để sửa.
-- Nếu có snapshot BTRFS → restore (xem bài restore.md).
+### Bước 2: Vào TTY
 
-## Fix
-
-### Fix 1: NVIDIA driver lỗi
-
-Nếu nghi ngờ NVIDIA:
+Nhấn `Ctrl+Alt+F2` (hoặc F3–F6) — nếu vào được TTY login, hệ thống vẫn ổn, chỉ Xorg lỗi.
 
 ```bash
-# Từ GRUB, nhấn e, thêm vào cuối dòng linux:
+# Xem Xorg log
+cat /var/log/Xorg.0.log | grep -iE "error|fail|fatal"
+
+# Xem journal mức error
+journalctl -p 3 -xb | tail -40
+```
+
+### Bước 3: Nếu không vào TTY
+
+→ Kernel panic. Cần boot từ USB Arch để chẩn đoán (xem bài 07-emergency-recovery).
+
+## Khắc phục (Fix)
+
+### Fix 1: NVIDIA modeset=0 (boot tạm)
+
+Từ GRUB, nhấn `e`, thêm vào cuối dòng `linux`:
+
+```
 nvidia-drm.modeset=0
-
-# Hoặc xóa hoàn toàn NVIDIA params
 ```
 
-Nếu boot được → vô hiệu hóa NVIDIA tạm thời:
+Boot được → vào TTY, kiểm tra và sửa NVIDIA:
 
 ```bash
-# Blacklist NVIDIA module
-sudo vim /etc/modprobe.d/blacklist-nvidia.conf
+# Kiểm tra driver hiện tại
+lsmod | grep nvidia
 
-# Thêm:
-blacklist nvidia
-blacklist nvidia_modeset
-blacklist nvidia_uvm
-blacklist nvidia_drm
+# Nếu dùng nvidia thay vì nvidia-open → cài lại
+sudo pacman -S nvidia-open-dkms nvidia-utils
+sudo sed -i 's/nvidia/nvidia_open/g' /etc/mkinitcpio.conf
+mkinitcpio -P
 ```
 
-Reboot. Nếu OK → cần cấu hình lại NVIDIA.
-
-### Fix 2: Xorg lỗi
+### Fix 2: Blacklist NVIDIA (tạm thời để loại trừ)
 
 ```bash
-# Xóa file cấu hình Xorg lỗi
+echo -e "blacklist nvidia\nblacklist nvidia_modeset\nblacklist nvidia_uvm\nblacklist nvidia_drm" | sudo tee /etc/modprobe.d/blacklist-nvidia.conf
+mkinitcpio -P
+```
+
+Nếu boot OK → nguyên nhân là NVIDIA.
+
+### Fix 3: Xóa cấu hình Xorg lỗi
+
+```bash
 sudo rm /etc/X11/xorg.conf.d/10-nvidia.conf
-
-# Hoặc rename để backup
-sudo mv /etc/X11/xorg.conf.d/10-nvidia.conf /etc/X11/xorg.conf.d/10-nvidia.conf.bak
+# Hoặc backup
+sudo mv /etc/X11/xorg.conf.d/10-nvidia.conf{,.bak}
 ```
 
-### Fix 3: Kernel panic
-
-Boot từ USB, mount hệ thống, kiểm tra log:
+### Fix 4: Kernel panic — khôi phục từ USB
 
 ```bash
-# Mount
+# Boot USB → mount BTRFS
 mount /dev/nvme0n1p2 /mnt
 mount -o subvol=@ /dev/nvme0n1p2 /mnt
 mount /dev/nvme0n1p1 /mnt/efi
-
-# Xem log
-cat /mnt/var/log/journal/*/system.journal
-
-# Sửa kernel params
-vim /mnt/etc/default/grub
-```
-
-### Fix 4: Restore snapshot
-
-```bash
-# Boot USB → mount → restore snapshot
-# Xem docs/07-btrfs/restore.md
-```
-
-### Fix 5: Reinstall GRUB
-
-```bash
-# Boot USB
 arch-chroot /mnt
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck
+
+# Kiểm tra log
+journalctl -p 3 -xb | tail -30
+
+# Sửa kernel params hoặc reinstall kernel
+sudo pacman -S linux
+mkinitcpio -P
 grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
-## Prevention
+### Fix 5: Restore snapshot
 
-1. **Luôn tạo snapshot trước khi thay đổi lớn** (update, cấu hình NVIDIA).
-2. **Kiểm tra cấu hình Xorg** trước khi reboot.
-3. **Giữ kernel parameter `nvidia-drm.modeset=1`** thay vì modeset=0.
-4. **Dùng Timeshift** snapshot tự động hàng ngày.
-5. **Kiểm tra log** sau mỗi lần cấu hình GPU.
+```bash
+# Trong chroot
+timeshift --list
+timeshift --restore --snapshot 'TÊN-SNAPSHOT'
+# Sau đó rebuild GRUB
+grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+## Phòng ngừa (Prevention)
+
+1. **Luôn tạo snapshot trước khi cập nhật NVIDIA/Grub/kernel.**
+2. **Kiểm tra cấu hình Xorg trước khi reboot:**
+
+```bash
+bash -n /etc/X11/xorg.conf.d/*.conf 2>/dev/null || echo "Lỗi cú pháp Xorg"
+```
+
+3. **Giữ `nvidia-drm.modeset=1` cho bản cài đặt ổn định** — chỉ dùng `modeset=0` để debug.
+4. **Dùng `nvidia-open-dkms` thay vì `nvidia` trên RTX 30/40 series** — tương thích tốt hơn với kernel 7.x.
+5. **Luôn có USB Arch recovery trong túi.**

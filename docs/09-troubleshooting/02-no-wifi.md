@@ -1,90 +1,104 @@
 # Không có Wi-Fi
 
-## Symptoms
+*Áp dụng cho Lenovo LOQ 15IAX9 — Realtek RTL8852BE — Kernel 7.x — 25/06/2026*
 
-- NetworkManager không thấy thiết bị Wi-Fi.
-- `nmcli device status` không hiện `wlan0`.
-- `iwctl` không thấy adapter.
-- Biểu tượng Wi-Fi trên Polybar báo "No Wi-Fi".
+## Triệu chứng (Symptoms)
 
-## Cause
+- NetworkManager (NM) không thấy thiết bị Wi-Fi — `nmcli device status` chỉ hiện `lo` và `p2p`.
+- `iwctl` không liệt kê adapter.
+- Polybar/tray icon báo "No Wi-Fi" hoặc "device not ready".
+- `ip link` không hiện `wlan0` hoặc `wlp*`.
 
-1. **Driver Realtek chưa được cài hoặc load**.
-2. **RF kill switch đang block**.
-3. **Firmware thiếu hoặc lỗi**.
-4. **NetworkManager backend sai**.
-5. **Thiết bị Wi-Fi bị disable trong BIOS**.
+## Nguyên nhân (Causes)
 
-## Diagnosis
+1. **Driver Realtek RTL8852BE chưa được cài** — kernel 7.x không có driver mặc định cho chip này.
+2. **Module `8852be` không được load** — cần `modprobe` hoặc thêm vào `mkinitcpio.conf`.
+3. **RF kill switch đang block** — `rfkill list` hiện `Soft blocked: yes`.
+4. **Firmware rtl8852be thiếu** — driver cần firmware để hoạt động.
+5. **NetworkManager dùng sai backend** — cần `wpa_supplicant` hoặc `iwd`.
+
+## Chẩn đoán (Diagnosis)
 
 ```bash
-# Kiểm tra PCI device
+# 1. Kiểm tra PCI device
 lspci | grep -i network
 
-# Kiểm tra kernel module
-lsmod | grep 8852
-lsmod | grep rtw
+# 2. Kiểm tra module Realtek
+lsmod | grep -iE "8852|rtw"
 
-# Kiểm tra RF kill
+# 3. Kiểm tra RF kill
 rfkill list
 
-# Kiểm tra firmware
-dmesg | grep -i firmware
+# 4. Kiểm tra firmware
+dmesg | grep -iE "firmware|8852"
 
-# Kiểm tra NetworkManager
-systemctl status NetworkManager
-journalctl -u NetworkManager -n 20 --no-pager
+# 5. Kiểm tra NM log
+journalctl -u NetworkManager -n 30 --no-pager
+
+# 6. Kiểm tra kernel version
+uname -r
 ```
 
-## Fix
+## Khắc phục (Fix)
 
-### Fix 1: Cài driver Realtek
+### Fix 1: Cài driver Realtek RTL8852BE
 
 ```bash
-# Từ AUR
+# Từ AUR (cần yay hoặc paru)
 yay -S rtl8852be-dkms
 
-# Load module
+# Load module ngay lập tức
 sudo modprobe 8852be
 
 # Kiểm tra
 lsmod | grep 8852
+dmesg | tail
 ```
 
 ### Fix 2: Unblock RF kill
 
 ```bash
-# Xem trạng thái
 rfkill list
 
-# Unblock
+# Unblock tất cả
 sudo rfkill unblock wifi
 sudo rfkill unblock all
 
 # Kiểm tra lại
 rfkill list
+ip link
 ```
 
-### Fix 3: Cài firmware
+Nếu Wi-Fi vẫn "blocked" → có thể do BIOS:
+
+```
+Vào BIOS (F2 khi boot) → Configuration → Wireless → Enabled
+```
+
+### Fix 3: Cài firmware Realtek
 
 ```bash
+yay -S rtl8852be-firmware
+
+# Cài linux-firmware tổng quát
 sudo pacman -S linux-firmware
 
-# Firmware Realtek riêng
-yay -S rtl8852be-firmware
+# Reboot
+sudo reboot
 ```
 
 ### Fix 4: Kiểm tra NetworkManager backend
 
 ```bash
-# Xem backend hiện tại
-cat /etc/NetworkManager/conf.d/wifi-backend.conf
+# Mặc định Arch dùng wpa_supplicant
+sudo pacman -S wpa_supplicant --needed
 
-# Nếu dùng iwd:
+# Nếu muốn dùng iwd
 sudo systemctl enable --now iwd
-
-# Nếu dùng wpa_supplicant (mặc định):
-sudo pacman -S wpa_supplicant
+# Sửa /etc/NetworkManager/conf.d/wifi-backend.conf:
+# [device]
+# wifi.backend=iwd
+sudo systemctl restart NetworkManager
 ```
 
 ### Fix 5: Reset NetworkManager
@@ -92,26 +106,27 @@ sudo pacman -S wpa_supplicant
 ```bash
 sudo systemctl restart NetworkManager
 
-# Xóa các kết nối cũ (nếu cần)
+# Xóa cache kết nối nếu cần
 nmcli connection show
-nmcli connection delete "Tên Kết Nối"
+nmcli connection delete "ten-ket-noi"
+
+# Restart module
+sudo modprobe -r 8852be && sudo modprobe 8852be
 ```
 
-### Fix 6: Kiểm tra BIOS
+## Phòng ngừa (Prevention)
 
-Vào BIOS → Configuration → Wireless → Enabled.
-
-## Prevention
-
-1. **Cài `rtl8852be-dkms` ngay sau khi cài hệ thống**.
-2. **Thêm module vào mkinitcpio** để load sớm
+1. **Cài `rtl8852be-dkms` ngay sau khi cài Arch, trước khi reboot lần đầu.**
+2. **Thêm module vào `mkinitcpio.conf` để load sớm:**
 
 ```bash
-vim /etc/mkinitcpio.conf
-# Thêm 8852be vào MODULES
-MODULES=(8852be)
-mkinitcpio -P
+echo 'MODULES=(8852be)' | sudo tee /etc/mkinitcpio.conf.d/wifi.conf
+sudo mkinitcpio -P
 ```
 
-3. **Enable và start iwd** nếu dùng backend iwd.
-4. **Luôn kiểm tra firmware** sau kernel update.
+3. **Kiểm tra firmware sau mỗi lần cập nhật kernel:**
+```bash
+dmesg | grep -i firmware | grep -i 8852
+```
+
+4. **Luôn giữ `linux-firmware` và `rtl8852be-dkms` trong danh sách gói cần update.**

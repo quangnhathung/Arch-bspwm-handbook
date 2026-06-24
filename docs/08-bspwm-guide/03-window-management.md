@@ -1,22 +1,18 @@
 # Window Management — Quản lý cửa sổ
 
-## Mục tiêu
-
-Hiểu và làm chủ các thao tác quản lý cửa sổ trong bspwm.
+Ngày: 25/06/2026
 
 ## Các khái niệm cơ bản
 
 ### Node
 
-Node là đơn vị cơ bản trong cấu trúc cây của bspwm. Mỗi node chứa một cửa sổ.
-Node có thể được chia thành hai node con (split).
+Node là đơn vị cơ bản trong cấu trúc cây (tree) của bspwm. Mỗi node chứa một cửa sổ. Node có thể được chia thành hai node con (split).
 
 ### Container
 
-Container là node chứa node khác (không phải cửa sổ). Khi chia một node,
-nó trở thành container.
+Container là node không chứa cửa sổ, chỉ chứa node khác. Khi một node bị chia, nó trở thành container.
 
-### Tree (Cấu trúc cây)
+### Tree (cấu trúc cây)
 
 ```
 Root (màn hình)
@@ -26,63 +22,90 @@ Root (màn hình)
     └── Node C (cửa sổ 3)
 ```
 
-## Các thao tác cơ bản
+bspwm dùng BSP (Binary Space Partition) — mỗi container chia không gian làm hai phần, liên tục đệ quy.
 
-### Focus (chọn cửa sổ)
+---
 
-```
-Super + h   → focus sang trái
-Super + j   → focus xuống dưới
-Super + k   → focus lên trên
-Super + l   → focus sang phải
-```
+## Focus
 
-Focus di chuyển con trỏ chủ động đến cửa sổ lân cận theo hướng chỉ định.
+Di chuyển con trỏ chủ động đến cửa sổ lân cận:
 
-### Move (di chuyển cửa sổ)
+| Phím | Hướng | bspc |
+|------|-------|------|
+| `Super + h` | Sang trái (west) | `bspc node -f west` |
+| `Super + j` | Xuống dưới (south) | `bspc node -f south` |
+| `Super + k` | Lên trên (north) | `bspc node -f north` |
+| `Super + l` | Sang phải (east) | `bspc node -f east` |
 
-```
-Super + Shift + h → đẩy cửa sổ sang trái
-Super + Shift + j → đẩy cửa sổ xuống dưới
-Super + Shift + k → đẩy cửa sổ lên trên
-Super + Shift + l → đẩy cửa sổ sang phải
-```
+```bash
+# Focus cửa sổ cuối cùng
+bspc node -f last
 
-Di chuyển swap vị trí của cửa sổ hiện tại với cửa sổ lân cận.
+# Focus cửa sổ trước đó (quay lại)
+bspc node -f prev.local
 
-### Close (đóng cửa sổ)
-
-```
-Super + q   → đóng cửa sổ (gửi tín hiệu đóng)
-Super + Shift + q → kill ứng dụng (buộc dừng)
+# Focus theo chiều kim đồng hồ
+bspc node -f next.local
 ```
 
-- `Super + q` gửi yêu cầu đóng → ứng dụng có thể hỏi "Save?".
-- `Super + Shift + q` dùng SIGKILL → ứng dụng tắt ngay, mất dữ liệu chưa save.
+---
 
-### Fullscreen
+## Move / Swap
 
+Đẩy cửa sổ hiện tại đến vị trí của cửa sổ lân cận (swap):
+
+| Phím | Hướng | bspc |
+|------|-------|------|
+| `Super + Shift + h` | Sang trái | `bspc node -s west` |
+| `Super + Shift + j` | Xuống dưới | `bspc node -s south` |
+| `Super + Shift + k` | Lên trên | `bspc node -s north` |
+| `Super + Shift + l` | Sang phải | `bspc node -s east` |
+
+```bash
+# Di chuyển sang monitor khác
+bspc node -m next
+
+# Di chuyển đến workspace khác
+bspc node -d 5
 ```
-Super + Shift + o → toggle fullscreen
-```
 
-Khi fullscreen, cửa sổ chiếm toàn màn hình, không thấy border, không thấy bar.
+---
+
+## Close vs Kill
+
+| Phím | Lệnh | Cơ chế |
+|------|------|--------|
+| `Super + q` | `bspc node -c` | Gửi tín hiệu đóng (SIGTERM). Ứng dụng có thể hỏi "Save?" |
+| `Super + Shift + q` | `bspc node -k` | Kill force (SIGKILL). Mất dữ liệu chưa save. |
+
+Dùng `Super + q` cho hầu hết trường hợp. Chỉ dùng `Super + Shift + q` khi ứng dụng bị treo.
+
+---
 
 ## Node states
 
 Mỗi cửa sổ có thể ở một trong các state sau:
 
-| State | Mô tả | Phím tắt |
-|---|---|---|
-| **tiled** | Mặc định, cửa sổ tự động sắp xếp | `Super + t` |
-| **floating** | Cửa sổ tự do, có thể kéo thả | `Super + t` (toggle) |
-| **fullscreen** | Chiếm toàn màn hình | `Super + Shift + o` |
-| **pseudo_tiled** | Tiled nhưng giữ kích thước gốc | `Super + Shift + t` |
+| State | Mô tả | Phím |
+|-------|-------|------|
+| **tiled** | Mặc định. Tự động sắp xếp trong lưới BSP. | `Super + t` (toggle) |
+| **floating** | Tự do, có thể kéo thả bằng chuột. | `Super + t` (toggle) |
+| **fullscreen** | Chiếm toàn màn hình. Ẩn bar + border. | `Super + f` (toggle) |
+| **pseudo_tiled** | Giống tiled nhưng giữ kích thước gốc của cửa sổ. | `Super + Shift + t` |
 
-### Tiled
+```bash
+# Toggle tiled/floating
+bspc node -t tiled  # hoặc
+bspc node -t floating
 
-Mặc định. Cửa sổ tự động chia màn hình thành các ô.
-Khi mở thêm cửa sổ, node hiện tại bị chia làm hai.
+# Set fullscreen
+bspc node -t fullscreen
+
+# Set pseudo_tiled
+bspc node -t pseudo_tiled
+```
+
+### Tiled (mặc định)
 
 ```
 ┌──────────┬──────────┐
@@ -98,166 +121,157 @@ Khi mở thêm cửa sổ, node hiện tại bị chia làm hai.
 
 ### Floating
 
-Cửa sổ không bị tile, có thể di chuyển và resize tự do.
-Dùng cho: dialogs, popups, Rofi, Polybar.
-
-Chuyển một cửa sổ từ tiled sang floating:
+Cửa sổ floating nằm trên layer riêng, có thể di chuyển và resize tự do (chuột hoặc bspc). Dùng cho dialog, popup, Rofi, Polybar.
 
 ```bash
-# Toggle tiled/floating
-Super + t
-
-# Set floating
-bspc node -t floating
+# Kéo thả bằng chuột: giữ Super và drag
 ```
-
-Để kéo thả cửa sổ floating:
-
-```bash
-# Giữ Super và kéo chuột
-# (cần cấu hình thêm nếu muốn)
-```
-
-### Pseudo_tiled
-
-Cửa sổ nằm trong lưới tile nhưng giữ kích thước ưa thích (như floating
-nhưng vẫn ở trong layout).
 
 ### Fullscreen
 
-Cửa sổ chiếm toàn bộ màn hình. Không thấy bar, không thấy border.
+Chiếm toàn bộ màn hình, ẩn border và bar. Dùng cho video, game, trình chiếu.
 
-## Split (chia cửa sổ)
+---
 
-### Preselect
+## Preselect (split direction)
 
-Preselect cho phép bạn chọn hướng chia trước khi mở cửa sổ mới.
+Preselect cho phép chọn hướng chia **trước khi** mở cửa sổ mới.
 
-```
-Super + Ctrl + h → preselect split trái
-Super + Ctrl + j → preselect split dưới
-Super + Ctrl + k → preselect split trên
-Super + Ctrl + l → preselect split phải
-```
+| Phím | Hướng |
+|------|-------|
+| `Super + Ctrl + h` | Chia trái |
+| `Super + Ctrl + j` | Chia dưới |
+| `Super + Ctrl + k` | Chia trên |
+| `Super + Ctrl + l` | Chia phải |
+| `Super + Ctrl + space` | Cancel preselect |
 
-Sau khi preselect, một đường màu đỏ xuất hiện ở cạnh được chọn.
-Khi mở cửa sổ mới, nó sẽ xuất hiện ở phía đó.
+Sau khi preselect, một đường màu xuất hiện ở cạnh được chọn. Khi mở cửa sổ mới, nó sẽ xuất hiện ở phía đó.
 
-### Split ratio
+---
 
-Tỉ lệ chia mặc định là 0.5 (50/50). Có thể thay đổi:
+## Split ratio
 
-```bash
-# Thay đổi ratio cho lần chia tiếp theo
-bspc node -i  # tăng kích thước node hiện tại (mở rộng)
-bspc node -o  # giảm kích thước node hiện tại (thu hẹp)
-```
-
-Cấu hình mặc định trong bspwmrc:
+Tỉ lệ chia mặc định: 50/50 (`split_ratio = 0.50`).
 
 ```bash
+# Cấu hình mặc định
 bspc config split_ratio 0.50
+
+# Điều chỉnh trong lúc chạy
+bspc node -i  # tăng kích thước node hiện tại
+bspc node -o  # giảm kích thước node hiện tại
 ```
 
-### Cancel preselect
+---
 
-```
-Super + Ctrl + Space → cancel preselect
-```
+## Resize
 
-## Resize (thay đổi kích thước)
+| Phím | Tác dụng |
+|------|----------|
+| `Super + Alt + h` | Thu hẹp sang trái |
+| `Super + Alt + j` | Mở rộng xuống dưới |
+| `Super + Alt + k` | Mở rộng lên trên |
+| `Super + Alt + l` | Mở rộng sang phải |
 
-```
-Super + Alt + h → thu hẹp sang trái (-20px)
-Super + Alt + j → mở rộng xuống dưới (+20px)
-Super + Alt + k → mở rộng lên trên (-20px)
-Super + Alt + l → mở rộng sang phải (+20px)
-```
+Resize thay đổi split ratio giữa node hiện tại và node lân cận.
 
-Resize thay đổi tỉ lệ giữa node hiện tại và node lân cận.
+---
 
-## Sticky
+## Flags
 
-Sticky là trạng thái cửa sổ luôn hiện trên tất cả workspace.
+### Sticky
+
+Cửa sổ luôn hiện trên tất cả workspace.
 
 ```bash
 bspc node -g sticky
+# Kết hợp với floating:
+bspc node -t floating; bspc node -g sticky
 ```
 
 Dùng cho: đồng hồ, nhạc, chat nhỏ.
 
-## Locked
+### Locked
 
-Locked ngăn không cho thao tác với cửa sổ (focus, close, move).
+Ngăn thao tác với cửa sổ (focus, close, move).
 
 ```bash
 bspc node -g locked
 ```
 
-## Private
+### Private
 
-Private ẩn cửa sổ khỏi danh sách window switcher (Rofi window).
+Ẩn cửa sổ khỏi window switcher (Rofi window).
 
 ```bash
 bspc node -g private
 ```
 
-## Các lệnh hữu ích
+### Above
+
+Cửa sổ luôn ở trên cùng (always on top).
 
 ```bash
-# Đóng cửa sổ
-bspc node -c
-
-# Kill ứng dụng
-bspc node -k
-
-# Fullscreen toggle
-bspc node -t fullscreen
-
-# Toggle tiled/floating
-bspc node -t tiled
-bspc node -t floating
-
-# Di chuyển cửa sổ đến hướng
-bspc node -s east
-
-# Di chuyển cửa sổ đến monitor khác
-bspc node -m next
-
-# Gán cửa sổ luôn ở trên (above)
 bspc node -g above
-
-# Toggle sticky
-bspc node -g sticky
 ```
+
+---
+
+## Các lệnh CLI hữu ích
+
+```bash
+# Đóng / Kill
+bspc node -c                    # close
+bspc node -k                    # kill
+
+# State
+bspc node -t floating           # set floating
+bspc node -t fullscreen         # set fullscreen
+bspc node -t tiled              # set tiled
+
+# Di chuyển
+bspc node -s east               # swap với cửa sổ bên phải
+bspc node -m next               # chuyển sang monitor kế
+bspc node -d 5                  # gửi đến workspace 5
+bspc node -d 5 --follow         # gửi và follow
+
+# Flag
+bspc node -g sticky             # toggle sticky
+bspc node -g locked             # toggle locked
+bspc node -g private            # toggle private
+bspc node -g above              # toggle above
+
+# Resize
+bspc node -i                    # expand
+bspc node -o                    # shrink
+```
+
+---
 
 ## Best practices
 
-1. **Giữ số lượng cửa sổ mỗi workspace vừa phải** (2-4 cửa sổ).
-2. **Dùng floating cho dialog và popup** (đã có rule trong bspwmrc).
-3. **Dùng fullscreen cho ứng dụng toàn màn hình** (video, game).
-4. **Preselect trước khi mở cửa sổ mới** để kiểm soát layout.
+1. **Giữ 2-4 cửa sổ mỗi workspace.** Quá nhiều → dùng monocle hoặc chia workspace.
+2. **Dùng floating cho dialog và popup.** bspwm tự động làm điều này với rule.
+3. **Dùng fullscreen cho video, game, trình chiếu.**
+4. **Preselect trước khi mở cửa sổ mới** để kiểm soát layout chính xác.
+5. **Dùng sticky cho ứng dụng cần theo dõi liên tục** (đồng hồ, nhạc).
+
+---
 
 ## Troubleshooting
 
 ### Cửa sổ không tile được
 
 - Kiểm tra state: `Super + t` để chuyển về tiled.
-- Rule trong bspwmrc có thể set floating.
+- Rule trong `bspwmrc` có thể set floating cho ứng dụng đó.
 
 ### Không di chuyển được cửa sổ floating
 
-- Dùng Super + Shift + h/j/k/l chỉ hoạt động với tiled.
-- Với floating, cần cấu hình mouse binding hoặc dùng bspc resize.
+- `Super + Shift + h/j/k/l` chỉ hoạt động với tiled. Với floating, dùng chuột kéo hoặc `bspc node -m`.
 
-### Cửa sổ bị mất sau khi chuyển workspace
+### Cửa sổ bị "kẹt" sau khi chuyển workspace
 
-- Nếu cửa sổ bị "kẹt", dùng `bspc node -d <workspace>` để đẩy đi.
-
-## Tổng kết
-
-- bspwm quản lý cửa sổ qua cấu trúc cây (tree).
-- Mỗi cửa sổ có state: tiled, floating, fullscreen, pseudo_tiled.
-- Focus, move, resize, split, close đều qua phím tắt.
-- Sticky, locked, private là các flag đặc biệt.
-- Preselect cho phép kiểm soát layout trước khi mở cửa sổ.
+```bash
+bspc node -d <workspace>   # đẩy đi
+bspc node -f any           # tìm và focus
+```

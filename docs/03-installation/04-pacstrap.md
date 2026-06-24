@@ -1,4 +1,4 @@
-# Cài đặt Base System
+# Cài đặt Base System (Pacstrap)
 
 ## Mục tiêu
 
@@ -6,135 +6,234 @@ Cài đặt hệ thống nền tảng Arch Linux vào `/mnt` bằng pacstrap.
 
 ## Điều kiện tiên quyết
 
-- Các partition đã mount đúng vào `/mnt`.
+- Các partition đã mount đúng vào `/mnt` (xem bài 03-mounting).
 - Có kết nối Internet trong live environment.
-- Đồng hồ đã đồng bộ.
+- Đồng hồ đã đồng bộ (`timedatectl set-ntp true`).
 
 ## Kiến thức nền
 
 ### pacstrap là gì?
 
-`pacstrap` là script đi kèm arch-install-scripts, dùng để cài gói vào một thư mục
-thay vì vào hệ thống đang chạy. Nó tương đương với `pacman -r /mnt -S gói`.
+`pacstrap` là script đi kèm gói `arch-install-scripts`, dùng để cài gói vào một
+thư mục thay vì vào hệ thống đang chạy. Nó tương đương với:
+```bash
+pacman -r /mnt -S gói1 gói2 ...
+```
 
-### Các gói base
+### -K flag (keyring initialization)
+
+`pacstrap -K` tự động:
+1. Cài đặt `archlinux-keyring` vào hệ thống mới.
+2. Khởi tạo pacman keyring.
+3. Đảm bảo chữ ký GPG của gói được xác thực ngay trong lần đầu cài.
+
+## Danh sách gói
 
 Chúng ta cài các gói sau:
 
-| Gói | Vai trò |
-|---|---|
-| `base` | Hệ thống cơ bản (glibc, coreutils, bash, v.v.) |
-| `linux` | Linux kernel |
-| `linux-firmware` | Firmware cho phần cứng (Wi-Fi, GPU, v.v.) |
-| `intel-ucode` | Microcode cho CPU Intel (sửa lỗi CPU, bảo mật) |
-| `sof-firmware` | Firmware cho Intel Smart Sound Technology |
-| `vim` | Trình soạn thảo văn bản |
-| `sudo` | Cấp quyền root cho user thường |
-| `networkmanager` | Quản lý kết nối mạng (Wi-Fi, LAN) |
-| `git` | Công cụ phiên bản, cần cho AUR helper sau này |
-| `base-devel` | Công cụ biên dịch (make, gcc, v.v.) — cần cho AUR |
+| Gói | Dung lượng | Vai trò |
+|---|---|---|
+| `base` | ~150MB | Hệ thống cơ bản: glibc, bash, coreutils, pacman, systemd, linux-api-headers |
+| `linux` | ~120MB | Linux kernel 7.x (bản mới nhất, rolling release) |
+| `linux-firmware` | ~500MB | Firmware cho phần cứng: Wi-Fi, Bluetooth, GPU, NVMe, âm thanh |
+| `intel-ucode` | ~2MB | Microcode cho CPU Intel i5-12450HX (sửa lỗi CPU, bảo mật) |
+| `sof-firmware` | ~2MB | Sound Open Firmware cho Intel SST (cần cho âm thanh Lenovo LOQ) |
+| `vim` | ~5MB | Trình soạn thảo văn bản |
+| `sudo` | ~1MB | Cấp quyền root cho user thường |
+| `networkmanager` | ~10MB | Quản lý kết nối mạng (Wi-Fi, LAN, USB tethering) |
+| `git` | ~40MB | Công cụ phiên bản, cần cho AUR helper (yay) |
+| `base-devel` | ~100MB | Công cụ biên dịch: gcc, make, autoconf, pkg-config (cần cho AUR) |
+| `btrfs-progs` | ~2MB | Công cụ quản lý BTRFS (btrfs subvolume, snapshot, scrub) |
 
-### Tại sao cần từng gói?
+### Giải thích chi tiết từng gói
 
 #### base
 
-Nhóm gói nền tảng: `glibc` (thư viện C), `bash` (shell), `coreutils` (lệnh cơ bản
-như cp, mv, ls), `pacman` (quản lý gói), `systemd` (init system), `linux-api-headers`.
-
-Không thể thiếu. Nếu thiếu base, hệ thống không chạy được.
+Gói nền tảng không thể thiếu:
+- `glibc`: Thư viện C chuẩn — mọi chương trình đều cần.
+- `bash`: Bourne Again SHell — shell mặc định.
+- `coreutils`: Lệnh cơ bản như `cp`, `mv`, `ls`, `rm`, `cat`.
+- `pacman`: Trình quản lý gói.
+- `systemd`: Init system và service manager.
+- `linux-api-headers`: Header file cho kernel API.
 
 #### linux
 
-Kernel. Nếu cài linux-lts thì kernel sẽ ổn định hơn nhưng cũ hơn.
-Với máy mới (Alder Lake, RTX 4050), cần kernel mới nhất → dùng `linux`.
+Kernel Linux. Arch dùng rolling release → kernel luôn là phiên bản mới nhất.
+Tại thời điểm 25/06/2026, kernel 7.x.
+
+**Tại sao không dùng `linux-lts`?**
+- LTS kernel ổn định nhưng cũ hơn.
+- Lenovo LOQ 15IAX9 có phần cứng mới (RTX 4050, Intel Alder Lake HX, Realtek
+  RTL8852BE) → cần kernel mới nhất để hỗ trợ driver tốt nhất.
+- `nvidia-open` DKMS cũng cần kernel headers tương ứng → kernel mới = driver mới.
 
 #### linux-firmware
 
-Chứa firmware blob cho phần cứng: Wi-Fi, Bluetooth, GPU, NVMe, v.v.
-Thiếu gói này, Wi-Fi và nhiều thiết bị khác không hoạt động.
+Chứa firmware blob cho phần cứng. Thiếu gói này:
+- Wi-Fi không hoạt động (cần firmware cho RTL8852BE và Intel AX).
+- GPU NVIDIA có thể không khởi tạo được.
+- NVMe có thể chạy ở chế độ tương thích chậm.
 
 #### intel-ucode
 
-Microcode là các bản vá lỗi cho CPU được Intel phát hành qua update.
-GRUB sẽ tự động load microcode nếu có gói này. Cực kỳ quan trọng cho bảo mật
-và ổn định.
+CPU Intel i5-12450HX là Alder Lake-HX. Intel phát hành microcode update để sửa
+lỗi CPU (security vulnerabilities, errata).
+- GRUB tự động load microcode vào initramfs nếu có gói này.
+- Có thể kiểm tra microcode đã load: `dmesg | grep microcode`.
 
 #### sof-firmware
 
-Sound Open Firmware — firmware cho Intel DSP (Digital Signal Processor).
-Cần cho âm thanh trên máy Intel Alder Lake. Nếu thiếu, loa trong không hoạt động.
+Sound Open Firmware — firmware cho Intel DSP trên Alder Lake.
+- Lenovo LOQ 15IAX9 dùng Intel SST (Smart Sound Technology) cho âm thanh.
+- Thiếu gói này → không có âm thanh (loa trong, tai nghe 3.5mm).
+- Đã bao gồm trong linux-firmware? Không — cần cài riêng.
 
 #### vim
 
-Cần một text editor trong hệ thống mới. `vi` có sẵn nhưng `vim` tốt hơn nhiều.
-Nếu bạn thích `nano`, có thể thay thế — nhưng vim là chuẩn thực tế.
+Text editor. Có thể thay bằng `nano` nếu quen nano hơn.
+- Lưu ý: `vi` có sẵn trong base (gói `vi`), nhưng `vim` tốt hơn nhiều (syntax
+  highlight, multiple windows, plugins).
 
 #### sudo
 
-Cho phép user thường chạy lệnh với quyền root. Cần để không phải login
-trực tiếp bằng root.
+Cho phép user thường chạy lệnh với quyền root qua `sudo`.
+- Cần cấu hình `/etc/sudoers` (visudo) sau khi tạo user.
 
 #### networkmanager
 
-Công cụ quản lý mạng của systemd. Hỗ trợ Wi-Fi, LAN, USB tethering,
-VPN. Cung cấp `nmtui` (giao diện terminal) và `nmcli` (dòng lệnh).
+Dịch vụ quản lý mạng mặc định của Arch.
+- Cung cấp `nmcli` (command line), `nmtui` (terminal UI).
+- Hỗ trợ Wi-Fi, Ethernet, VPN, USB tethering.
 
 #### git
 
-Cần để clone AUR packages. Cũng cần cho yay (AUR helper).
+Cần thiết cho:
+- Clone AUR packages.
+- Cài đặt yay (AUR helper).
+- Quản lý dotfiles (sau này).
 
 #### base-devel
 
 Nhóm gói phát triển: `gcc`, `make`, `autoconf`, `automake`, `pkg-config`.
-Cần để biên dịch gói từ AUR.
+- Cần để biên dịch gói từ AUR.
+- Không cần nếu bạn không dùng AUR, nhưng rất khuyến khích.
 
-## Các bước thực hiện
+#### btrfs-progs
 
-### Bước 1: Cập nhật keyring (quan trọng)
+Công cụ quản lý BTRFS: `btrfs` (subvolume, snapshot, scrub, balance, device).
+
+---
+
+## Cách A: Cài thủ công
+
+### Bước 1: Cập nhật archlinux-keyring (quan trọng)
 
 ```bash
 pacman -Sy archlinux-keyring
 ```
 
-Giải thích: Keyring chứa các GPG keys dùng để xác thực gói. Nếu ISO cũ,
-keyring có thể lỗi thời → cập nhật trước.
+**Tại sao cần bước này?**
+- ISO có thể cũ (dù mới tải, keyring trong ISO có thể đã lỗi thời).
+- Nếu keyring cũ → GPG signature không hợp lệ → pacstrap thất bại.
+- `pacman -Sy` đồng bộ repository database và cập nhật keyring.
 
-### Bước 2: Cài base system
+### Bước 2: Chạy pacstrap
 
 ```bash
-pacstrap -K /mnt base linux linux-firmware intel-ucode sof-firmware vim sudo networkmanager git base-devel
+pacstrap -K /mnt base linux linux-firmware intel-ucode sof-firmware \
+  vim sudo networkmanager git base-devel btrfs-progs
 ```
 
-Giải thích option:
+Giải thích:
 - `-K`: Initialize keyring trong hệ thống mới.
-- `/mnt`: Thư mục đích.
+- `/mnt`: Thư mục đích (nơi các partition đã mount).
+- Các gói: danh sách như trên, cách nhau bởi space.
 
 ### Bước 3: Chờ quá trình cài đặt
 
-Quá trình này tải khoảng 500MB-1GB gói. Thời gian tùy tốc độ mạng.
+Pacstrap sẽ:
+1. Tải gói từ mirror (khoảng 500MB-1GB).
+2. Giải nén vào `/mnt`.
+3. Chạy post-install scripts.
 
-Nếu mạng chậm hoặc cài lại, có thể dùng:
-
-```bash
-pacstrap -K /mnt base base-devel linux linux-firmware intel-ucode sof-firmware vim sudo networkmanager git
-```
+Thời gian: 2-10 phút tùy tốc độ mạng.
 
 ### Bước 4: Kiểm tra cài đặt
 
 ```bash
 ls /mnt/bin/bash
 ls /mnt/usr/bin/pacman
+ls /mnt/usr/bin/btrfs
 ```
 
-Nếu có file → cài đặt thành công.
+Kiểm tra dung lượng:
+```bash
+df -h /mnt
+```
 
-## Nếu có lỗi
+Kiểm tra kernel:
+```bash
+ls /mnt/boot/vmlinuz-linux
+```
+
+Nếu tất cả đều tồn tại → cài đặt thành công.
+
+### Bước 5: Sau pacstrap — các bước tiếp theo
+
+Sau khi pacstrap hoàn tất, chúng ta cần:
+1. Sinh fstab (`genfstab -U /mnt >> /mnt/etc/fstab`).
+2. Chroot vào hệ thống mới (`arch-chroot /mnt`).
+3. Cấu hình locale, timezone, hostname.
+4. Cấu hình network (enable NetworkManager).
+5. Tạo user.
+6. Cài GRUB bootloader.
+
+---
+
+## Cách B: Dùng Archinstall
+
+### Bước 1: Chạy archinstall
+
+```bash
+archinstall
+```
+
+### Bước 2: Cấu hình packages trong archinstall
+
+Khi đến mục `Packages`:
+- Mặc định archinstall cài: `base`, `linux`, `linux-firmware`, ... (tương tự).
+- **Thêm gói**: gõ tên gói cách nhau bằng space hoặc dấu phẩy.
+- Danh sách gợi ý thêm cho Lenovo LOQ:
+  ```
+  intel-ucode sof-firmware vim sudo networkmanager git base-devel btrfs-progs
+  ```
+
+### Bước 3: Lưu ý
+
+Archinstall không cài `base-devel` và `btrfs-progs` theo mặc định. Bạn phải thêm
+thủ công trong menu `Packages`.
+
+### Bước 4: Nếu dùng archinstall command line
+
+```bash
+archinstall --packages "base linux linux-firmware intel-ucode sof-firmware vim sudo networkmanager git base-devel btrfs-progs"
+```
+
+---
+
+## Xử lý lỗi
 
 ### "Failed to install packages to /mnt"
 
-- Kiểm tra mount: `lsblk` → /mnt phải có filesystem.
-- Thiếu Internet: `ping -c 3 archlinux.org`.
-- Keyring cũ: `pacman -Sy archlinux-keyring`.
+Nguyên nhân thường gặp:
+1. **Thiếu mount**: `lsblk` kiểm tra `/mnt` đã có filesystem chưa.
+2. **Mất mạng**: `ping -c 3 archlinux.org` — nếu không ping được, dùng tethering.
+3. **Keyring cũ**: `pacman -Sy archlinux-keyring` rồi thử lại.
+4. **Mirror lỗi**: Kiểm tra `/etc/pacman.d/mirrorlist` — có thể mirror bị chết.
+   ```bash
+   reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+   ```
 
 ### "Signature from X is unknown trust"
 
@@ -143,13 +242,35 @@ pacman -Sy archlinux-keyring
 # Sau đó chạy lại pacstrap
 ```
 
-### Hết dung lượng
+### "error: failed to commit transaction (conflicting files)"
 
-- Cache trong live environment đầy → `pacman -Scc` để xóa cache.
-- Kiểm tra `df -h /mnt` — nếu thiếu dung lượng, subvolume chưa mount đúng.
+Xung đột file:
+```bash
+pacstrap -K /mnt base linux linux-firmware --overwrite "*"
+# --overwrite "*" ghi đè tất cả file xung đột
+# Chỉ dùng khi thực sự cần
+```
+
+### Hết dung lượng trong live environment
+
+```bash
+# Xóa cache pacman
+pacman -Scc
+
+# Kiểm tra dung lượng
+df -h /mnt
+df -h /
+```
+
+Nếu `/mnt` đầy:
+- Subvolume chưa mount đúng (kiểm tra `mount | grep /mnt`).
+- Dung lượng partition BTRFS không đủ (kiểm tra partition table).
+
+---
 
 ## Tổng kết
 
 - Base system đã được cài vào `/mnt`.
-- Các gói cần thiết cho laptop Lenovo LOQ đã được thêm.
-- Sẵn sàng cấu hình fstab, locale, network, và chroot.
+- Các gói quan trọng cho Lenovo LOQ đã được thêm: `sof-firmware`, `intel-ucode`,
+  `btrfs-progs`, `base-devel`.
+- Sẵn sàng cấu hình fstab, locale, network, user, và bootloader.

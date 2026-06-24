@@ -1,23 +1,26 @@
-# Post-Install Checklist
+# Post-Install Checklist — Lenovo LOQ 15IAX9
 
-## Mục tiêu
+**Ngày: 25/06/2026 — Kernel 7.x**
 
-Danh sách kiểm tra sau khi cài đặt để đảm bảo hệ thống hoạt động đúng.
+Danh sách kiểm tra sau khi cài Arch Linux. Làm theo thứ tự.
 
-## Sau khi reboot
+---
 
-### 1. Kiểm tra kết nối mạng
+### 1. Kết nối mạng
 
 ```bash
 ping -c 3 archlinux.org
 ip addr show
 ```
 
-Nếu chưa có Wi-Fi → cắm LAN hoặc USB tethering.
-Sau đó cài driver Wi-Fi Realtek:
+Nếu chưa có Wi-Fi (card Realtek RTL8852BE):
 
 ```bash
-yay -S rtl8852be-dkms
+# Cài driver từ USB / LAN tạm thời
+sudo pacman -S --needed git base-devel dkms
+git clone https://aur.archlinux.org/rtl8852be-dkms.git
+cd rtl8852be-dkms
+makepkg -si
 sudo modprobe 8852be
 nmcli device wifi list
 nmcli device wifi connect "SSID" password "password"
@@ -31,24 +34,39 @@ sudo pacman -Syu
 
 ### 3. Cài yay (AUR helper)
 
+`yay` biên dịch từ mã nguồn (chậm hơn). Nếu muốn nhẹ hơn, dùng `yay-bin` (pre-compiled).
+
 ```bash
+# Bản build từ nguồn (chậm):
+sudo pacman -S --needed git base-devel
 git clone https://aur.archlinux.org/yay.git
-cd yay
-makepkg -si
+cd yay && makepkg -si
+
+# HOẶC bản pre-compiled (nhanh hơn):
+# git clone https://aur.archlinux.org/yay-bin.git
+# cd yay-bin && makepkg -si
 ```
 
-### 4. Cài Xorg và bspwm
+### 4. Cài Xorg + bspwm stack
 
 ```bash
-sudo pacman -S xorg xorg-server xorg-init xorg-xrandr
+sudo pacman -S xorg xorg-server xorg-xinit xorg-xrandr
 sudo pacman -S bspwm sxhkd picom polybar rofi alacritty nitrogen
 ```
 
 ### 5. Cấu hình desktop
 
-- Copy file cấu hình từ docs/04-desktop/.
-- `chmod +x ~/.config/bspwm/bspwmrc`.
-- Tạo `~/.xinitrc` với nội dung `exec bspwm`.
+```bash
+mkdir -p ~/.config/{bspwm,sxhkd,picom,polybar,rofi,alacritty}
+# Copy config từ repo hoặc tự viết
+chmod +x ~/.config/bspwm/bspwmrc
+```
+
+Tạo `~/.xinitrc`:
+
+```bash
+echo "exec bspwm" > ~/.xinitrc
+```
 
 ### 6. Kiểm tra desktop
 
@@ -56,93 +74,116 @@ sudo pacman -S bspwm sxhkd picom polybar rofi alacritty nitrogen
 startx
 ```
 
-Nếu thành công → thấy bspwm với Polybar.
+Thành công → bspwm hiện ra với Polybar.
 
-### 7. Cài driver đồ họa
+### 7. Cài driver đồ hoạ
+
+RTX 4050 dùng **nvidia-open** (không phải `nvidia`).
 
 ```bash
-# Intel
+# Intel (Arc tích hợp)
 sudo pacman -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel intel-media-driver
 
-# NVIDIA
-sudo pacman -S nvidia nvidia-utils nvidia-settings
+# NVIDIA (dùng nvidia-open)
+sudo pacman -S nvidia-open nvidia-utils nvidia-settings opencl-nvidia
 ```
 
-### 8. Kiểm tra GPU
+Kiểm tra:
 
 ```bash
 glxinfo | grep "OpenGL renderer"
 nvidia-smi
 ```
 
-### 9. Cài PipeWire (audio)
+### 8. Cài PipeWire (âm thanh)
 
 ```bash
 sudo pacman -S pipewire pipewire-alsa pipewire-pulse wireplumber pavucontrol
 systemctl --user enable --now pipewire pipewire-pulse wireplumber
 ```
 
-### 10. Cài Bluetooth
+Kiểm tra:
+
+```bash
+speaker-test -l1 -c2
+pactl info
+```
+
+### 9. Cài Bluetooth
 
 ```bash
 sudo pacman -S bluez bluez-utils blueman
 sudo systemctl enable --now bluetooth
 ```
 
-### 11. Cài font
+Kiểm tra:
+
+```bash
+bluetoothctl show
+```
+
+### 10. Cài font
 
 ```bash
 sudo pacman -S ttf-firacode-nerd noto-fonts noto-fonts-emoji ttf-font-awesome
 ```
 
-### 12. Cài Timeshift
+### 11. Cài Timeshift + snapshot đầu tiên
 
 ```bash
 sudo pacman -S timeshift
 sudo timeshift --first-run
+sudo timeshift --create --comments "sau-cai-dat-$(date +%Y%m%d)"
 ```
 
-### 13. Tạo snapshot đầu tiên
+### 12. Cài thêm tiện ích
 
 ```bash
-sudo timeshift --create --comments "sau-cai-dat"
+# paccache (đã cài qua pacman-contrib nếu dùng install script)
+# Nếu chưa có:
+sudo pacman -S pacman-contrib
+
+# Công cụ hữu ích
+sudo pacman -S htop btop nvtop lm_sensors ntfs-3g exfat-utils
 ```
 
-### 14. Kiểm tra và cấu hình GRUB
-
-```bash
-cat /proc/cmdline
-# Phải có nvidia-drm.modeset=1
-```
-
-### 15. Đổi password mặc định
+### 13. Đổi mật khẩu mặc định
 
 ```bash
 passwd            # root
 passwd archuser   # user
 ```
 
-## Các kiểm tra cuối
+### 14. Kiểm tra GRUB
 
-| Check | Lệnh | Kết quả mong đợi |
+```bash
+cat /proc/cmdline
+# Phải có: nvidia-drm.modeset=1
+efibootmgr -v
+```
+
+---
+
+## Bảng kiểm tra tổng hợp
+
+| Hạng mục | Lệnh kiểm tra | Kết quả mong đợi |
 |---|---|---|
-| Network | `ip addr` | wlan0 hoặc eth0 có IP |
-| Wi-Fi | `nmcli device status` | wlan0 connected |
-| Audio | `speaker-test -l1 -c2` | Có tiếng |
+| Mạng | `ip addr` | `wlan0` hoặc `eth0` có IP |
+| Wi-Fi | `nmcli device status` | `wlan0` connected |
+| Âm thanh | `speaker-test -l1 -c2` | Có tiếng |
 | GPU Intel | `glxinfo \| grep renderer` | Mesa Intel |
-| GPU NVIDIA | `nvidia-smi` | Thấy GPU |
+| GPU NVIDIA | `nvidia-smi` | Thấy RTX 4050 |
 | Bluetooth | `bluetoothctl show` | Controller available |
-| BTRFS | `btrfs filesystem usage /` | Filesystem OK |
-| Timeshift | `timeshift --list` | Có snapshot |
+| BTRFS | `sudo btrfs filesystem usage /` | Filesystem OK |
+| Timeshift | `sudo timeshift --list` | Có snapshot |
 | GRUB | `efibootmgr -v` | GRUB boot entry |
 | bspwm | `pgrep -x bspwm` | bspwm running |
+| PipeWire | `pactl info` | Server Name: PulseAudio (on PipeWire) |
 
-## Chưa hoàn thành?
+## Nếu gặp vấn đề
 
-Quay lại tài liệu tương ứng:
-
-- **Network**: docs/05-drivers/wifi.md
-- **Desktop**: docs/04-desktop/
-- **Audio**: docs/05-drivers/audio.md
-- **NVIDIA**: docs/05-drivers/nvidia.md
-- **Snapshot**: docs/07-btrfs/
+- **Wi-Fi**: Kiểm tra `rfkill list`, `sudo modprobe 8852be`
+- **Desktop**: `cat ~/.xinitrc`, kiểm tra `chmod +x bspwmrc`
+- **Âm thanh**: `pactl info`, `systemctl --user status pipewire`
+- **NVIDIA**: `dmesg | grep nvidia`, kiểm tra `nvidia-open` đã cài
+- **Snapshot**: `sudo timeshift --list`, kiểm tra subvolume @

@@ -9,34 +9,39 @@ Khôi phục hệ thống từ snapshot BTRFS khi gặp sự cố.
 ### Restore là gì?
 
 Restore là quá trình đưa subvolume về trạng thái của một snapshot.
-Điều này sẽ undo tất cả thay đổi kể từ khi snapshot được tạo.
+Điều này undo tất cả thay đổi kể từ khi snapshot được tạo.
 
 ### Cách restore hoạt động
 
 BTRFS không cho phép sửa read-only snapshot.
-Thay vào đó, chúng ta:
+Thay vào đó, chúng ta đổi tên — không copy dữ liệu (tức thì):
 
-1. Tạo snapshot từ snapshot cũ thành subvolume mới (hoặc ghi đè).
-2. Hoặc đổi tên subvolume hiện tại thành backup, và rename snapshot thành subvolume mới.
+1. Đổi tên subvolume hiện tại thành `@_broken`.
+2. Đổi tên snapshot thành `@`.
+3. Rebuild initramfs và GRUB.
 
-### Có 2 cách restore
+**Không mất thêm dung lượng** vì chỉ rename.
 
-| Cách | Mô tả | Khi nào dùng |
-|---|---|---|
-| **Rollback** | Đổi tên subvolume + snapshot | Khi cần restore nhanh từ live system |
-| **Boot từ snapshot** | Boot kernel từ snapshot | Khi hệ thống không boot được |
+### Khi nào cần restore?
 
-Chúng ta focus vào rollback từ live environment (khi boot từ USB).
+- Hệ thống không boot được sau update.
+- Cấu hình sai làm hỏng màn hình đăng nhập.
+- Xóa nhầm file hệ thống quan trọng.
+- Driver đồ họa lỗi.
 
-## Các bước thực hiện
+## Các bước restore thủ công
 
-### Bước 1: Boot vào Arch live USB
+### Bước 1: Boot từ Arch Live USB
 
-Boot từ USB Arch, mount filesystem.
+Boot từ USB cài Arch. Chọn "Arch Linux install medium".
 
-### Bước 2: Mount BTRFS partition
+### Bước 2: Mount partition BTRFS
 
 ```bash
+# Xác định partition BTRFS
+lsblk -f
+
+# Mount (không dùng subvol= option)
 mount /dev/nvme0n1p2 /mnt
 ```
 
@@ -51,25 +56,22 @@ Output:
 ```
 ID 256 gen 123 top level 5 path @
 ID 257 gen 124 top level 5 path @home
-ID 258 gen 125 top level 5 path @log
-ID 259 gen 126 top level 5 path @pkg
-ID 260 gen 127 top level 5 path @swap
-ID 261 gen 128 top level 5 path .snapshots/@_20250601_120000
-ID 262 gen 129 top level 5 path .snapshots/@_20250615_120000
+ID 258 gen 125 top level 5 path .snapshots/@_20250625_143000
+ID 259 gen 126 top level 5 path .snapshots/@_20250618_080000
 ```
 
 ### Bước 4: Chọn snapshot để restore
 
-Giả sử cần restore về snapshot `@_20250615_120000`.
+Ví dụ restore về `@_20250625_143000`.
 
-### Bước 5: Đổi tên subvolume hiện tại
+### Bước 5: Rename subvolume hiện tại
 
 ```bash
-# Backup subvolume hiện tại
+# Backup subvolume cũ
 mv /mnt/@ /mnt/@_broken
 
-# Đổi tên snapshot thành @
-mv /mnt/.snapshots/@_20250615_120000 /mnt/@
+# Rename snapshot thành @
+mv /mnt/.snapshots/@_20250625_143000 /mnt/@
 ```
 
 ### Bước 6: Mount và chroot
@@ -83,6 +85,8 @@ mount -o subvol=@home /dev/nvme0n1p2 /mnt/home
 mount -o subvol=@log /dev/nvme0n1p2 /mnt/var/log
 mount -o subvol=@pkg /dev/nvme0n1p2 /mnt/var/cache/pacman/pkg
 mount -o subvol=@swap /dev/nvme0n1p2 /mnt/swap
+
+# Mount EFI
 mount /dev/nvme0n1p1 /mnt/efi
 
 # Chroot
@@ -107,29 +111,35 @@ umount -R /mnt
 reboot
 ```
 
-## Restore bằng Timeshift
+## Restore bằng Timeshift từ Live USB
 
-Nếu Timeshift hoạt động, có thể restore từ boot menu:
-
-1. Boot vào GRUB → Advanced Options.
-2. Chọn kernel với `timeshift` trong tên.
-3. Timeshift sẽ hiện menu chọn snapshot.
-4. Chọn snapshot → Enter.
-
-Hoặc từ live system với Timeshift CLI:
+### Cài Timeshift trên live USB
 
 ```bash
-# Boot live USB
-# Cài Timeshift nếu chưa có
-pacman -S timeshift
-
-# Restore snapshot
-sudo timeshift --restore --snapshot '2025-06-15_12-00-00'
+pacman -Sy timeshift
 ```
 
-## Restore @home (dữ liệu cá nhân)
+### Restore
 
-Nếu chỉ cần restore home:
+```bash
+# Liệt kê snapshot
+sudo timeshift --list
+
+# Restore
+sudo timeshift --restore --snapshot '2026-06-25_14-30-01'
+```
+
+Timeshift tự động rename và rebuild. Sau đó reboot.
+
+### Restore từ GRUB (nếu Timeshift tích hợp)
+
+1. Boot → Advanced Options for Arch Linux.
+2. Chọn kernel với "timeshift" trong tên.
+3. Menu Timeshift hiện ra → chọn snapshot → Enter.
+
+## Restore @home riêng
+
+Nếu chỉ cần restore dữ liệu cá nhân:
 
 ```bash
 # Từ live USB
@@ -139,35 +149,38 @@ mount /dev/nvme0n1p2 /mnt
 mv /mnt/@home /mnt/@home_broken
 
 # Restore từ snapshot
-mv /mnt/.snapshots/@home_20250601_120000 /mnt/@home
+mv /mnt/.snapshots/@home_20250625_143000 /mnt/@home
+
+# Không cần rebuild GRUB — @home không ảnh hưởng boot
+reboot
 ```
 
-## Xóa snapshot cũ
-
-Sau khi restore thành công:
+## Dọn dẹp sau restore
 
 ```bash
-# Xóa subvolume hỏng
-btrfs subvolume delete /mnt/@_broken
+# Xóa subvolume hỏng (sau khi chắc chắn hệ thống ổn)
+sudo btrfs subvolume delete /mnt/@_broken
 
-# Xóa snapshot cũ không cần
-btrfs subvolume delete /mnt/.snapshots/@_20250601_120000
+# Trong hệ thống đang chạy
+sudo btrfs subvolume delete /.snapshots/@_broken
+# hoặc
+mv /.snapshots/@_broken /tmp/
 ```
+
+## WARNING: Data loss
+
+**Restore snapshot sẽ xóa tất cả thay đổi kể từ khi snapshot được tạo.**
+
+- File mới tạo sau snapshot → **biến mất**.
+- Cấu hình thay đổi sau snapshot → **mất**.
+- Gói cài sau snapshot → **mất** (phải cài lại).
+
+Cách giảm thiểu:
+- Snapshot @home riêng → không bị ảnh hưởng khi restore @.
+- Backup dữ liệu quan trọng trước khi restore.
+- Giữ `@_broken` vài ngày trước khi xóa.
 
 ## Troubleshooting
-
-### Snapshot không tìm thấy
-
-```bash
-btrfs subvolume list -s /mnt
-```
-
-Nếu không thấy, lưu ý snapshot có đuôi `-r` (read-only) hoặc nằm ở đường dẫn khác.
-
-### Không mount được sau khi restore
-
-- Kiểm tra fstab (UUID có thay đổi không? → không, vì trên cùng partition).
-- Kiểm tra subvol= option trong fstab.
 
 ### "Device or resource busy"
 
@@ -178,18 +191,46 @@ sleep 1
 mount /dev/nvme0n1p2 /mnt
 ```
 
+### Không boot được sau restore
+
+```bash
+# Kiểm tra trong chroot
+mount -o subvol=@ /dev/nvme0n1p2 /mnt
+arch-chroot /mnt
+
+# Kiểm tra fstab
+cat /etc/fstab
+
+# Rebuild lại
+mkinitcpio -P
+grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+### Snapshot không tìm thấy
+
+```bash
+btrfs subvolume list -s /mnt
+```
+
+Kiểm tra snapshot có ở đường dẫn khác (vd `/timeshift/`).
+
+### UUID thay đổi?
+
+Không — vì snapshot trên cùng partition, UUID không đổi.
+
 ## Lưu ý quan trọng
 
-- Restore snapshot sẽ xóa tất cả thay đổi kể từ khi snapshot được tạo.
-- File mới tạo sau snapshot sẽ biến mất.
-- Dữ liệu trong @home không bị ảnh hưởng nếu bạn chỉ restore @.
-- Luôn backup @home riêng nếu cần.
-- Sau restore, cần rebuild initramfs và GRUB.
+1. **Snapshot không phải backup**: Nếu ổ cứng hỏng, snapshot cũng mất.
+2. **Restore @ không ảnh hưởng @home**: Nếu mount riêng.
+3. **Luôn rebuild initramfs và GRUB** sau khi restore @.
+4. **Giữ @_broken** trước khi xóa — đề phòng restore sai.
+5. **Snapshot càng cũ, càng mất nhiều dữ liệu**.
 
 ## Tổng kết
 
-- Restore bằng rename subvolume (nhanh và an toàn).
-- Có thể restore từ Timeshift (GUI hoặc CLI).
-- Luôn backup subvolume cũ trước khi restore (đề phòng).
-- Rebuild initramfs và GRUB sau khi restore @.
+- Restore BTRFS = rename subvolume (nhanh, không copy).
+- Boot live USB → mount → rename → rebuild → reboot.
+- Timeshift có thể restore từ CLI hoặc GRUB.
 - Restore @home riêng nếu cần.
+- Luôn giữ @_broken trước khi xóa.
+- Cảnh báo: mất dữ liệu từ sau snapshot.

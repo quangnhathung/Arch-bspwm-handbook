@@ -2,19 +2,22 @@
 
 ## Mục tiêu
 
-Biết cách tìm kiếm gói trong repository chính thức và AUR.
+Biết cách tìm kiếm gói trong repository chính thức và AUR hiệu quả.
 
-## Tìm trong pacman (chính thức)
+## Tìm trong pacman (repository chính thức)
 
-### Tìm gói chưa cài
+### Tìm gói chưa cài (`-Ss`)
 
 ```bash
-# Tìm theo tên hoặc mô tả
 pacman -Ss "từ khóa"
+```
 
-# Ví dụ
+Ví dụ:
+
+```bash
 pacman -Ss "file manager"
 pacman -Ss "terminal emulator"
+pacman -Ss firefox
 ```
 
 Output:
@@ -22,128 +25,55 @@ Output:
 ```
 extra/pcmanfm 1.3.2-2
     Extremely fast and lightweight file manager
-community/ranger 1.9.3-7
-    Simple, vim-like file manager
+extra/firefox 130.0-1
+    Fast, Private & Safe Web Browser
 ```
 
-### Tìm gói đã cài
+Repository được hiển thị: `core/`, `extra/`, `community/`.
+
+### Tìm gói đã cài (`-Qs`)
 
 ```bash
-# Tìm trong gói đã cài
 pacman -Qs "từ khóa"
+```
 
-# Liệt kê tất cả gói đã cài
+### Liệt kê gói đã cài
+
+```bash
+# Đầy đủ thông tin
 pacman -Q
 
-# Liệt kê gói đã cài (dạng danh sách)
+# Chỉ tên gói
 pacman -Qq
+
+# Đếm số lượng
+pacman -Qq | wc -l
 ```
 
-### Tìm gói sở hữu file
+## Tìm gói sở hữu file
+
+### pacman -Qo (gói đã cài)
 
 ```bash
-# File nào thuộc gói nào
+# File nào thuộc gói nào?
 pacman -Qo /usr/bin/firefox
 
-# Tìm gói sở hữu file (từ database)
-pacman -F /path/to/file
+# Output: /usr/bin/firefox is owned by firefox 130.0-1
 ```
 
-### Xem thông tin chi tiết
+### pacman -F (gói chưa cài)
 
 ```bash
-# Gói chưa cài
-pacman -Si firefox
+# Cập nhật database -F
+pacman -Fy
 
-# Gói đã cài
-pacman -Qi firefox
+# Tìm gói nào sở hữu file (dù chưa cài)
+pacman -F /usr/include/stdio.h
 ```
 
-## Tìm trong AUR
+## pkgfile — Tìm lệnh "command not found"
 
-### Dùng yay
-
-```bash
-# Tìm trong AUR + chính thức
-yay -Ss "từ khóa"
-
-# Chỉ tìm trong AUR
-yay -Ssa "từ khóa"
-```
-
-Output:
-
-```
-aur/rtl8852be-dkms 1.1.0-1 (+120 3.20)
-    Driver for Realtek RTL8852BE wireless chip
-```
-
-### Xem thông tin AUR
-
-```bash
-# Thông tin chi tiết
-yay -Si rtl8852be-dkms
-
-# Hoặc mở trang AUR trên browser
-yay -Sii rtl8852be-dkms
-```
-
-## Tìm trên web
-
-### Trang AUR
-
-https://aur.archlinux.org/
-
-Có thể search trực tiếp trên web, xem số vote, maintainer, comments.
-
-### Arch Package Search
-
-https://archlinux.org/packages/
-
-Tìm gói trong repository chính thức với filter.
-
-## Cách tìm gói hiệu quả
-
-### 1. Biết tên đúng
-
-- `firefox` → tìm "firefox" hoặc "web browser".
-- `alacritty` → tìm "terminal".
-- `pcmanfm` → tìm "file manager".
-
-### 2. Dùng grep
-
-```bash
-# Tìm gói có từ khóa trong mô tả
-pacman -Ss "" | grep -i "image viewer"
-
-# Hoặc tìm chính xác
-pacman -Ss "^alacritty$"
-```
-
-### 3. Tìm theo category
-
-Arch không có category chính thức. Dùng từ khóa mô tả:
-
-```bash
-pacman -Ss "audio"
-pacman -Ss "video"
-pacman -Ss "editor"
-pacman -Ss "browser"
-```
-
-### 4. Xem gói trong group
-
-```bash
-# Các group có sẵn
-pacman -Sg
-
-# Gói trong group
-pacman -Sg base-devel
-```
-
-## Tìm file thiếu
-
-Khi chạy lệnh báo "command not found":
+Khi gõ lệnh và nhận "command not found", `pkgfile` cho biết gói nào chứa lệnh đó.
 
 ```bash
 # Cài pkgfile
@@ -154,51 +84,145 @@ pkgfile -u
 
 # Tìm gói chứa lệnh
 pkgfile alacritty
+
+# Output: extra/alacritty
+```
+
+### Tích hợp pkgfile với shell
+
+Thêm vào `~/.bashrc` hoặc `~/.zshrc`:
+
+```bash
+source /usr/share/doc/pkgfile/command-not-found.bash
+```
+
+Khi gõ lệnh không tìm thấy, shell sẽ tự gợi ý gói cần cài.
+
+## Tìm trong AUR
+
+### yay -Ss (AUR + chính thức)
+
+```bash
+yay -Ss "từ khóa"
+```
+
+Tìm cả trong pacman và AUR, kết quả hiển thị chung.
+
+### yay -Ssa (chỉ AUR)
+
+```bash
+yay -Ssa "từ khóa"
+```
+
+Chỉ tìm trong AUR, bỏ qua official.
+
+Output:
+
+```
+aur/visual-studio-code-bin 1.96.0-1 (+2450 3.45)
+    Visual Studio Code (binary release)
+```
+
+Dấu hiệu nhận biết: `aur/` ở đầu tên gói.
+
+### Xem thông tin gói AUR
+
+```bash
+# Thông tin chi tiết
+yay -Si tên-gói-aur
+
+# Mở trang AUR trên trình duyệt
+yay -Sii tên-gói-aur
+```
+
+## Tìm trên web
+
+### Arch Package Search
+
+https://archlinux.org/packages/
+
+Tìm gói chính thức với filter theo repository, kiến trúc.
+
+### AUR Website
+
+https://aur.archlinux.org/
+
+Tìm gói AUR, xem số vote, maintainer, comments.
+Comments rất hữu ích — người dùng thường báo lỗi hoặc cách fix.
+
+## Mẹo tìm kiếm hiệu quả
+
+### 1. Dùng từ khóa mô tả
+
+Arch đặt tên gói theo chức năng, không theo tên thương hiệu:
+
+| Bạn muốn | Tìm |
+|---|---|
+| Terminal | "terminal emulator" |
+| File manager | "file manager" |
+| Image viewer | "image viewer" |
+| Text editor | "text editor" |
+| PDF reader | "pdf viewer" |
+
+### 2. Kết hợp grep
+
+```bash
+# Lọc kết quả
+pacman -Ss "" | grep -i "image viewer"
+
+# Chỉ lấy tên gói
+pacman -Ss "" | grep -i "^extra/" | head -20
+```
+
+### 3. Dùng regex
+
+```bash
+# Tìm chính xác
+pacman -Ss "^alacritty$"
+
+# Tìm theo pattern
+pacman -Ss "^kde-"
+```
+
+### 4. Xem group packages
+
+```bash
+# Danh sách group
+pacman -Sg
+
+# Gói trong group
+pacman -Sg base-devel
+pacman -Sg xfce4
+```
+
+### 5. Tìm gói tương tự
+
+```bash
+# Sau khi tìm được một gói, xem "Required By"
+pacman -Qi firefox | grep "Required By"
 ```
 
 ## Tìm phiên bản cũ
 
-Nếu cần phiên bản cũ của gói (do bug ở bản mới):
+### Trong cache
 
 ```bash
-# Xem cache
 ls /var/cache/pacman/pkg/ | grep firefox
 
 # Cài từ cache
 pacman -U /var/cache/pacman/pkg/firefox-xxx.pkg.tar.zst
 ```
 
-## Ví dụ thực tế
+### Trên Arch Archive
 
-### Tìm terminal emulator
-
-```bash
-pacman -Ss "terminal emulator" | head -20
-```
-
-Kết quả: alacritty, kitty, xterm, urxvt, st, termite, ...
-
-### Tìm image viewer
-
-```bash
-pacman -Ss "image viewer" | head -10
-```
-
-Kết quả: feh, sxiv, viewnior, gimp, ...
-
-### Tìm trash bin s menu
-
-```bash
-# Tìm ứng dụng quản lý thùng rác có GUI
-yay -Ss "trash"
-
-# Kết quả: trash-cli, trash-d, ...
-```
+https://archive.archlinux.org/
 
 ## Tổng kết
 
-- `pacman -Ss` tìm trong repo chính thức.
-- `yay -Ss` tìm cả AUR.
-- `pacman -Qo` tìm gói sở hữu file.
-- `pkgfile` tìm lệnh trong gói chưa cài.
-- Tìm trên AUR web để xem vote và comments.
+- `pacman -Ss` → tìm trong repository chính thức.
+- `yay -Ss` → tìm cả official lẫn AUR.
+- `yay -Ssa` → chỉ tìm trong AUR.
+- `pacman -Qo` → gói nào sở hữu file (đã cài).
+- `pacman -F` → gói nào sở hữu file (chưa cài).
+- `pkgfile` → tìm lệnh "command not found".
+- Web: https://archlinux.org/packages/ và https://aur.archlinux.org/.

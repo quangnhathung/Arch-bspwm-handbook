@@ -1,5 +1,7 @@
 # Bspwm — Window Manager
 
+Ngày cập nhật: 25/06/2026
+
 ## Mục tiêu
 
 Cài đặt và cấu hình bspwm (Binary Space Partitioning Window Manager).
@@ -52,7 +54,32 @@ mkdir -p ~/.config/sxhkd
 exit
 ```
 
-### Bước 3: Tạo file cấu hình bspwmrc
+### Bước 3: Cài các chương trình autostart (quan trọng)
+
+Các chương trình trong bspwmrc cần được cài trước, nếu không chúng sẽ báo lỗi
+hoặc không khởi động được:
+
+```bash
+pacman -S picom nitrogen network-manager-applet blueman xfce4-power-manager polkit-gnome
+```
+
+Chi tiết:
+
+| Gói | Mục đích | Bắt buộc? |
+|---|---|---|
+| `picom` | Compositor (đổ bóng, chống tearing) | Khuyên dùng |
+| `nitrogen` | Quản lý wallpaper | Nên có |
+| `network-manager-applet` | Tray icon NetworkManager (`nm-applet`) | Nếu dùng NetworkManager |
+| `blueman` | Tray icon Bluetooth (`blueman-applet`) | Nếu cần Bluetooth |
+| `xfce4-power-manager` | Quản lý năng lượng | Khuyên dùng với laptop |
+| `polkit-gnome` | Xác thực quyền cho GUI | Nên có |
+
+> **Lưu ý về `volumeicon`:** Một số hướng dẫn cũ thêm `volumeicon &` vào
+> bspwmrc. Gói `volumeicon` không được cài mặc định. Bạn có thể cài nó
+> (`pacman -S volumeicon`) hoặc xóa dòng đó khỏi bspwmrc (dùng `pulseaudio`
+> module trong Polybar để thay thế).
+
+### Bước 4: Tạo file cấu hình bspwmrc
 
 ```bash
 vim /home/archuser/.config/bspwm/bspwmrc
@@ -104,7 +131,6 @@ nitrogen --restore &
 # ---- System tray ----
 nm-applet &
 blueman-applet &
-volumeicon &
 
 # ---- Power management ----
 xfce4-power-manager &
@@ -147,11 +173,10 @@ Rules để xử lý cửa sổ cụ thể:
 - `nitrogen`: Quản lý wallpaper.
 - `nm-applet`: NetworkManager tray icon.
 - `blueman-applet`: Bluetooth tray icon.
-- `volumeicon`: Âm lượng tray icon.
 - `xfce4-power-manager`: Quản lý năng lượng (pin, brightness).
-- `polkit-gnome`: Xác thực quyền (cho GUI).
+- `polkit-gnome`: Xác thực quyền (cho GUI). Kiểm tra đường dẫn bằng `which polkit-gnome-authentication-agent-1` nếu cần.
 
-### Bước 4: Phân quyền executable
+### Bước 5: Phân quyền executable
 
 ```bash
 chmod +x /home/archuser/.config/bspwm/bspwmrc
@@ -159,13 +184,13 @@ chmod +x /home/archuser/.config/bspwm/bspwmrc
 
 bspwmrc phải có quyền execute (là một script bash).
 
-### Bước 5: Cập nhật .xinitrc
+### Bước 6: Cập nhật .xinitrc
 
 ```bash
 echo "exec bspwm" > /home/archuser/.xinitrc
 ```
 
-### Bước 6: Kiểm tra cấu hình (sau reboot)
+### Bước 7: Kiểm tra cấu hình (sau reboot)
 
 ```bash
 # Khởi động X + bspwm
@@ -195,6 +220,17 @@ Kiểm tra:
 - `~/.config/bspwm/bspwmrc` có execute permission không?
 - `~/.config/bspwm/bspwmrc` không có lỗi syntax?
 - sxhkd đã được cài chưa?
+
+### polkit-gnome-authentication-agent-1: No such file or directory
+
+```bash
+# Cài polkit-gnome
+pacman -S polkit-gnome
+
+# Tìm đường dẫn đúng
+which polkit-gnome-authentication-agent-1
+# Kết quả: /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 (hoặc /usr/libexec/...)
+```
 
 ## Tổng kết
 

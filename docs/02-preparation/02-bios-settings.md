@@ -1,128 +1,115 @@
-# Cấu hình BIOS
+# Cấu hình BIOS cho Lenovo LOQ 15IAX9
 
-## Các khái niệm nền tảng
+## UEFI vs Legacy
 
-### UEFI là gì?
+### UEFI (Unified Extensible Firmware Interface)
 
-UEFI (Unified Extensible Firmware Interface) là chuẩn firmware hiện đại thay thế
-Legacy BIOS. UEFI hỗ trợ:
+Chuẩn firmware hiện đại, thay thế Legacy BIOS từ khoảng 2012. Đặc điểm:
 
-- Ổ cứng GPT (thay vì MBR)
-- Boot nhanh hơn
-- Giao diện đồ họa
-- Secure Boot
-- Boot manager tích hợp
+- Hỗ trợ ổ cứng **GPT** (dung lượng >2TB)
+- Boot nhanh hơn nhờ tối ưu firmware
+- Hỗ trợ Secure Boot, boot manager
+- Giao diện đồ họa, hỗ trợ chuột
+- **Bắt buộc dùng UEFI** để cài Arch Linux theo tài liệu này
 
-Hầu hết máy tính từ 2012+ đều dùng UEFI. Lenovo LOQ 15IAX9 mặc định dùng UEFI.
+### Legacy BIOS (CSM — Compatibility Support Module)
 
-### Legacy Boot là gì?
+Chế độ tương thích ngược với BIOS cũ. Đặc điểm:
 
-Legacy Boot (CSM — Compatibility Support Module) là chế độ tương thích với BIOS cũ.
-Dùng MBR (Master Boot Record). Hạn chế: không boot được ổ >2TB, chậm, cũ.
+- Dùng bảng phân vùng **MBR** (giới hạn 2TB, tối đa 4 primary partition)
+- Boot chậm hơn
+- Không hỗ trợ Secure Boot
+- **Không dùng** cho cài đặt này
 
-**Không dùng Legacy.** Chúng ta cài UEFI.
+## Vào BIOS và Boot Menu
 
-### Secure Boot là gì?
+| Thao tác | Phím | Thời điểm |
+|---|---|---|
+| Vào BIOS | **F2** (hoặc Fn+F2) | Nhấn liên tục ngay khi nhấn nút nguồn |
+| Boot Menu | **F12** (hoặc Fn+F12) | Nhấn liên tục ngay khi nhấn nút nguồn |
 
-Secure Boot là cơ chế của UEFI chỉ cho phép chạy bootloader đã được ký số.
-Mặc định, Windows Boot Manager được ký, GRUB (Arch) thì không.
+**Lưu ý**: Trên Lenovo LOQ 15IAX9, nếu đã bật **Hotkey Mode** thì chỉ cần nhấn F2/F12 (không cần Fn). Nếu tắt Hotkey Mode, cần nhấn Fn+F2 hoặc Fn+F12.
 
-**Phải tắt Secure Boot** để Arch boot được. Có thể bật lại sau khi cài shim
-nhưng phức tạp, không cần thiết cho máy cá nhân.
-
-### Fast Boot là gì?
-
-Fast Boot là tính năng rút ngắn thời gian khởi động bằng cách bỏ qua kiểm tra
-một số thiết bị USB và boot option. Gây khó khăn khi boot USB live.
-
-**Nên tắt Fast Boot** để USB boot hoạt động đáng tin cậy.
-
-## Vào BIOS Lenovo LOQ 15IAX9
-
-### Cách vào BIOS
-
-1. Tắt máy hoàn toàn (Shut down, không Restart).
-2. Nhấn nút **Nguồn**.
-3. Ngay khi màn hình sáng, nhấn liên tục phím **F2** (hoặc **Fn + F2**) cho đến khi vào BIOS.
-4. Nếu F2 không vào được, thử **F1** (một số đời Lenovo).
-
-### Cách vào Boot Menu (chọn USB boot)
-
-- Nhấn **F12** khi khởi động → hiện danh sách thiết bị boot.
-
-## Các cài đặt cần thay đổi
+## Các cài đặt bắt buộc
 
 ### 1. Tắt Secure Boot
 
 ```
-Vào tab Security → Secure Boot → Set thành Disabled
+BIOS → Security → Secure Boot → Disabled
 ```
 
-### 2. Chỉnh Boot Mode về UEFI
+GRUB (bootloader của Arch) không được ký số mặc định, nên Secure Boot sẽ chặn không cho boot. Phải tắt trước khi cài.
+
+### 2. Boot Mode = UEFI
 
 ```
-Vào tab Boot → Boot Mode:
-  - Chọn UEFI (có thể là "UEFI Only")
-  - KHÔNG chọn Legacy Support
-  - KHÔNG chọn Both
+BIOS → Boot → Boot Mode → UEFI
 ```
+
+Không chọn Legacy, Legacy First, hay Both. Chỉ chọn **UEFI** hoặc **UEFI Only**.
 
 ### 3. Tắt Fast Boot
 
 ```
-Vào tab Boot → Fast Boot → Set thành Disabled
+BIOS → Boot → Fast Boot → Disabled
 ```
 
-**Trên Lenovo LOQ**, Fast Boot có thể nằm trong:
+Fast Boot bỏ qua kiểm tra thiết bị USB khi khởi động, gây lỗi không boot được từ USB.
+
+Trên một số phiên bản BIOS Lenovo LOQ, Fast Boot có thể nằm trong:
 - `Boot → Fast Boot`
 - hoặc `Configuration → Flip to Boot`
 
-Nếu không thấy, giữ nguyên. Kiểm tra boot USB sau đó.
+Nếu không tìm thấy, kiểm tra trực tiếp bằng cách boot USB sau đó.
 
-### 4. Chỉnh SATA mode thành AHCI (nếu có RAID)
-
-```
-Vào tab Configuration → SATA Controller Mode → Chọn AHCI
-```
-
-RAID mode thường chỉ dùng cho Windows + Intel Optane.
-Chúng ta không cần RAID.
-
-### 5. Tắt Intel Optane Memory (nếu có)
+### 4. SATA Mode = AHCI
 
 ```
-Vào tab Configuration → Intel Optane Memory → Disable
+BIOS → Configuration → SATA Controller Mode → AHCI
 ```
 
-Lenovo LOQ 15IAX9 có thể không có Optane, nhưng kiểm tra cho chắc.
+RAID mode mặc định trên Lenovo LOQ dành cho Windows + Intel Optane / Intel RST. Linux không hỗ trợ driver RAID của Intel RST mặc định — chuyển sang AHCI để Linux nhận diện ổ NVMe.
 
-### 6. Kiểm tra tab Boot Order
+**Nếu đã cài Windows với RAID**: Sau khi chuyển sang AHCI, Windows sẽ không boot được (màn hình xanh). Đây là lý do cần backup trước — vì chúng ta sẽ xóa Windows anyway.
 
-Đảm bảo USB được ưu tiên hoặc dùng F12 để chọn tạm thời.
-Không cần thay đổi boot order nếu dùng F12.
-
-### 7. Lưu và thoát
+### 5. Hotkey Mode (tùy chọn)
 
 ```
-Nhấn F10 → Yes → Enter
+BIOS → Configuration → Hotkey Mode → Enabled / Disabled
 ```
 
-Máy sẽ reboot.
+| Trạng thái | Tác dụng |
+|---|---|
+| **Enabled** (mặc định) | Phím F1–F12 hoạt động như phím chức năng đặc biệt (volume, brightness). Muốn dùng F2/F12 cần nhấn Fn+F2 |
+| **Disabled** | Phím F1–F12 hoạt động như phím chức năng chuẩn. Nhấn F2 trực tiếp vào BIOS |
 
-## Ảnh hưởng của các thay đổi
+Khuyến nghị: Để **Enabled** (mặc định) và dùng Fn+F2 / Fn+F12. Hoặc tắt nếu muốn thao tác nhanh.
 
-| Cài đặt | Tác dụng | Tác hại nếu không chỉnh |
-|---|---|---|
-| Tắt Secure Boot | Cho phép GRUB boot | Không boot được Arch |
-| UEFI mode | Dùng GPT, boot nhanh | Legacy không boot được ổ lớn |
-| Tắt Fast Boot | USB được nhận diện đúng | USB boot bị lỗi |
-| AHCI | Tương thích Linux | Linux không thấy ổ NVMe |
+## Lưu và thoát
+
+```
+BIOS → Nhấn F10 → Yes → Enter
+```
+
+Máy sẽ reboot. Nếu không reboot tự động, nhấn nút nguồn để khởi động lại.
+
+## Bảng tác động của từng cài đặt
+
+| Cài đặt | Giá trị | Tác dụng | Hậu quả nếu không chỉnh |
+|---|---|---|---|
+| Secure Boot | Disabled | Cho phép GRUB (Arch) boot | Arch không boot được — "Security Violation" |
+| Boot Mode | UEFI | Dùng GPT, hỗ trợ ổ >2TB | Legacy không boot được ổ NVMe >2TB |
+| Fast Boot | Disabled | USB được nhận diện đúng lúc boot | USB boot bị skip — không vào được live env |
+| SATA Mode | AHCI | Linux driver chuẩn NVMe hoạt động | Linux không thấy ổ cứng — không có ổ để cài |
+| Hotkey Mode | Enabled/Disabled | Tùy chọn thao tác phím Fn | Không ảnh hưởng đến cài đặt |
 
 ## Tổng kết
 
-Sau khi cấu hình BIOS xong:
-- Tắt Secure Boot
-- Boot Mode = UEFI
-- Fast Boot = Disabled
-- SATA = AHCI
-- Lưu và reboot
+Sau khi hoàn tất cấu hình BIOS:
+
+- [x] Secure Boot = **Disabled**
+- [x] Boot Mode = **UEFI**
+- [x] Fast Boot = **Disabled**
+- [x] SATA Mode = **AHCI**
+- [x] Hotkey Mode = **tùy chọn**
+- [x] Đã lưu và reboot
