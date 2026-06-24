@@ -72,9 +72,10 @@ Tài liệu cung cấp **2 cách tiếp cận**:
 
 ### 04-desktop — Thiết lập desktop
 
-| Bài                                              | Nội dung                                                     |
-| ------------------------------------------------ | ------------------------------------------------------------ |
-| [01-xorg.md](docs/04-desktop/01-xorg.md)         | Xorg display server, `~/.xinitrc` (dùng `xorg-xinit`)        |
+| Bài                                                      | Nội dung                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------ |
+| [00-overview.md](docs/04-desktop/00-overview.md)         | Tổng quan các thành phần giao diện modern bspwm              |
+| [01-xorg.md](docs/04-desktop/01-xorg.md)                 | Xorg display server, `~/.xinitrc` (dùng `xorg-xinit`)        |
 | [02-bspwm.md](docs/04-desktop/02-bspwm.md)       | Bspwm, bspwmrc, rules                                        |
 | [03-sxhkd.md](docs/04-desktop/03-sxhkd.md)       | Sxhkd keybinding (lưu ý xung đột phím)                       |
 | [04-polybar.md](docs/04-desktop/04-polybar.md)   | Polybar status bar                                           |
