@@ -143,16 +143,18 @@ pactl list sources short
 
 ### Bước 7: Cấu hình volume trong sxhkd
 
-Trong `~/.config/sxhkd/sxhkdrc`:
+Trong `~/.config/sxhkd/sxhkdrc` (dùng wrapper script `volume.sh`):
 
 ```bash
 XF86AudioRaiseVolume
-    pamixer -i 5
+    ~/.local/bin/volume.sh up
 XF86AudioLowerVolume
-    pamixer -d 5
+    ~/.local/bin/volume.sh down
 XF86AudioMute
-    pamixer -t
+    ~/.local/bin/volume.sh mute
 ```
+
+> Script wrapper có thể sử dụng `pamixer` hoặc `wpctl` bên trong. Xem nội dung script để biết chi tiết.
 
 ## Cấu hình nâng cao
 

@@ -140,10 +140,10 @@ modi: "drun,run,window,power-menu,calc";
 
 | Mode | Chức năng | Phím tắt (trong sxhkdrc) |
 |---|---|---|
-| `drun` | Tìm kiếm và chạy ứng dụng (desktop files) | `Super + d` |
-| `run` | Chạy lệnh tùy ý | `Super + Shift + d` |
-| `window` | Chuyển đổi cửa sổ | `Super + Shift + r` |
-| `power-menu` | Tắt máy, reboot, logout | `Super + Shift + x` |
+| `drun` | Tìm kiếm và chạy ứng dụng (desktop files) | `Super + space` |
+| `run` | Chạy lệnh tùy ý | — |
+| `window` | Chuyển đổi cửa sổ | `alt + Tab` |
+| `power-menu` | Tắt máy, reboot, logout | — |
 
 ## Custom theme
 

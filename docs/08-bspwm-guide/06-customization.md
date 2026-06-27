@@ -330,7 +330,25 @@ Tạo thư mục chứa ảnh chụp:
 mkdir -p ~/Pictures/screenshots
 ```
 
-Keybinding trong sxhkdrc:
+Keybinding trong sxhkdrc (với Flameshot AppImage):
+
+```
+# GUI chọn vùng + copy vào clipboard
+Print
+	~/flameshot-13.3.AppImage gui --accept-on-select -p ~/images/Screenshots -c
+
+# Mở Flameshot GUI
+super + Print
+	~/flameshot-13.3.AppImage gui
+```
+
+### maim (thay thế nhẹ hơn, official repo)
+
+```bash
+sudo pacman -S maim
+```
+
+Keybinding với maim:
 
 ```
 # Toàn màn hình
@@ -340,16 +358,6 @@ Print
 # Chụp vùng chọn (select area)
 super + Print
 	maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-
-# Chụp cửa sổ hiện tại
-super + Ctrl + Print
-	maim -i $(xdotool getactivewindow) ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-```
-
-### flameshot (thay thế, nhiều tính năng edit)
-
-```bash
-sudo pacman -S flameshot
 ```
 
 ---

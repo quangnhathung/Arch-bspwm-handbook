@@ -144,14 +144,16 @@ brightnessctl set +5%
 brightnessctl set 5%-
 ```
 
-Phím tắt trong `~/.config/sxhkd/sxhkdrc`:
+Phím tắt trong `~/.config/sxhkd/sxhkdrc` (dùng wrapper script `brightness.sh`):
 
 ```bash
 XF86MonBrightnessUp
-    brightnessctl set +5%
+    ~/.local/bin/brightness.sh up
 XF86MonBrightnessDown
-    brightnessctl set 5%-
+    ~/.local/bin/brightness.sh down
 ```
+
+> Script wrapper có thể sử dụng `brightnessctl` hoặc `light` bên trong. Xem nội dung script để biết chi tiết.
 
 ### Backlight
 

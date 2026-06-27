@@ -116,9 +116,9 @@ opacity-rule = [
 | rofi | Launcher, window switcher, power menu, calculator | ✅ 05-rofi.md |
 
 **Modes phổ biến:**
-- `rofi -show drun` — tìm app (Super + d)
-- `rofi -show run` — chạy lệnh (Super + Shift + d)
-- `rofi -show window` — chuyển cửa sổ (Super + Shift + r)
+- `rofi -show drun` — tìm app (Super + space)
+- `rofi -show run` — chạy lệnh
+- `rofi -show window` — chuyển cửa sổ (alt + Tab)
 - `rofi-power-menu` (AUR) — shutdown/reboot/logout
 
 ### 2.5 Wallpaper — feh / Nitrogen

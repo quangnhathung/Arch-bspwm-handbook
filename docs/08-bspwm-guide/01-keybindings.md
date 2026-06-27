@@ -1,6 +1,6 @@
 # Keybindings — Danh sách phím tắt
 
-Ngày: 25/06/2026
+Ngày: 27/06/2026
 
 ## Ký hiệu
 
@@ -12,143 +12,195 @@ Ngày: 25/06/2026
 | `Ctrl` | Control |
 | `Return` | Enter |
 | `Space` | Spacebar |
-| `{1-9}` | Phím số 1-9 |
-| `{h,j,k,l}` | h = trái, j = xuống, k = lên, l = phải |
+| `{1-9,0}` | Phím số 1-9 và 0 (= 10) |
+| `{Left,Down,Up,Right}` | Phím mũi tên |
+| `KP_Left,KP_Down,KP_Up,KP_Right` | Phím mũi tên (keypad tương thích) |
+| `Prior` / `Next` | Page Up / Page Down |
 | `XF86...` | Phím đặc biệt (volume, brightness, media) |
 
 ---
 
-## Terminal & Launcher
+## WM Independent (Hệ thống)
 
 | Phím | Chức năng | Ghi chú |
 |------|-----------|---------|
-| `Super + Return` | Mở terminal | Alacritty. **Không** dùng Super + t (đã dùng cho toggle tiled/floating) |
-| `Super + d` | Mở launcher ứng dụng | Rofi drun |
-| `Super + Shift + d` | Mở launcher lệnh | Rofi run |
+| `Super + Return` | Mở terminal | Alacritty |
+| `Super + space` | Mở launcher ứng dụng | Rofi drun |
+| `Super + Escape` | Reload sxhkd | `pkill -USR1 -x sxhkd` |
+| `alt + Tab` | Chuyển cửa sổ | Rofi window switcher |
 
-## Đóng cửa sổ
-
-| Phím | Chức năng |
-|------|-----------|
-| `Super + q` | Đóng cửa sổ hiện tại (gửi tín hiệu đóng — graceful) |
-| `Super + Shift + q` | Kill ứng dụng (SIGKILL — force) |
-
-## Focus (di chuyển con trỏ giữa các cửa sổ)
+## BSPWM — Quit / Restart
 
 | Phím | Chức năng |
 |------|-----------|
-| `Super + h` | Focus sang trái (west) |
-| `Super + j` | Focus xuống dưới (south) |
-| `Super + k` | Focus lên trên (north) |
-| `Super + l` | Focus sang phải (east) |
+| `Super + Alt + q` | Thoát bspwm |
+| `Super + Alt + r` | Restart bspwm |
 
-## Di chuyển cửa sổ
+## BSPWM — Đóng / Kill cửa sổ
 
 | Phím | Chức năng |
 |------|-----------|
-| `Super + Shift + h` | Đẩy cửa sổ sang trái |
-| `Super + Shift + j` | Đẩy cửa sổ xuống dưới |
-| `Super + Shift + k` | Đẩy cửa sổ lên trên |
-| `Super + Shift + l` | Đẩy cửa sổ sang phải |
+| `Super + w` | Đóng cửa sổ (graceful — `bspc node -c`) |
+| `Super + Shift + w` | Kill ứng dụng (force — `bspc node -k`) |
 
-## Workspace
+## BSPWM — Window State
+
+| Phím | Chức năng |
+|------|-----------|
+| `Super + t` | Chuyển sang chế độ **tiled** |
+| `Super + s` | Chuyển sang chế độ **floating** |
+| `Super + f` | Chuyển sang chế độ **fullscreen** |
+
+## BSPWM — Node Flags
+
+| Phím | Chức năng |
+|------|-----------|
+| `Super + Ctrl + l` | Khóa vị trí (locked) |
+| `Super + Ctrl + x` | Ghim cửa sổ (sticky — hiện trên mọi desktop) |
+| `Super + Ctrl + p` | Riêng tư (private — ẩn khỏi bộ nhớ tạm) |
+
+## BSPWM — Focus
+
+| Phím | Chức năng |
+|------|-----------|
+| `Super + Left` | Focus sang trái (west) |
+| `Super + Down` | Focus xuống dưới (south) |
+| `Super + Up` | Focus lên trên (north) |
+| `Super + Right` | Focus sang phải (east) |
+| `Super + bracketleft` | Focus desktop trước đó |
+| `Super + bracketright` | Focus desktop kế tiếp |
+| `` Super + grave `` | Focus node cuối (last node) |
+| `Super + Tab` | Focus desktop cuối (last desktop) |
+
+## BSPWM — Swap cửa sổ
+
+| Phím | Chức năng |
+|------|-----------|
+| `Super + Shift + Left` | Swap với cửa sổ bên trái |
+| `Super + Shift + Down` | Swap với cửa sổ bên dưới |
+| `Super + Shift + Up` | Swap với cửa sổ bên trên |
+| `Super + Shift + Right` | Swap với cửa sổ bên phải |
+
+## BSPWM — Workspace
 
 | Phím | Chức năng |
 |------|-----------|
 | `Super + {1-9}` | Chuyển đến workspace 1-9 |
+| `Super + 0` | Chuyển đến workspace 10 |
 | `Super + Shift + {1-9}` | Di chuyển cửa sổ đến workspace 1-9 |
+| `Super + Shift + 0` | Di chuyển cửa sổ đến workspace 10 |
 
-## Window State
-
-| Phím | Chức năng |
-|------|-----------|
-| `Super + t` | Toggle tiled ↔ floating |
-| `Super + Shift + t` | Pseudo-tiled |
-| `Super + o` | Toggle floating (alternative) |
-| `Super + f` | Toggle fullscreen |
-| `Super + m` | Toggle monocle layout |
-| `Super + space` | Float + sticky (luôn hiện trên mọi workspace) |
-
-## Preselect (chọn hướng chia trước khi mở cửa sổ)
+## BSPWM — Preselect (chọn hướng chia)
 
 | Phím | Chức năng |
 |------|-----------|
-| `Super + Ctrl + h` | Preselect split trái |
-| `Super + Ctrl + j` | Preselect split dưới |
-| `Super + Ctrl + k` | Preselect split trên |
-| `Super + Ctrl + l` | Preselect split phải |
-| `Super + Ctrl + space` | Cancel preselect |
+| `Super + Shift + Left` | Preselect hướng trái (west) |
+| `Super + Shift + Down` | Preselect hướng dưới (south) |
+| `Super + Shift + Up` | Preselect hướng trên (north) |
+| `Super + Shift + Right` | Preselect hướng phải (east) |
+| `Super + Ctrl + {1-9}` | Đặt tỉ lệ chia 0.1 → 0.9 |
+| `Super + Ctrl + space` | Cancel preselect (node hiện tại) |
+| `Super + Ctrl + Shift + space` | Cancel tất cả preselect trên desktop |
 
-## Resize
+## BSPWM — Resize
 
 | Phím | Chức năng |
 |------|-----------|
-| `Super + Alt + h` | Resize — thu hẹp sang trái |
-| `Super + Alt + j` | Resize — mở rộng xuống dưới |
-| `Super + Alt + k` | Resize — mở rộng lên trên |
-| `Super + Alt + l` | Resize — mở rộng sang phải |
+| `Super + Alt + Left` | Mở rộng — kéo cạnh trái ra ngoài |
+| `Super + Alt + Down` | Mở rộng — kéo cạnh dưới xuống |
+| `Super + Alt + Up` | Mở rộng — kéo cạnh trên lên |
+| `Super + Alt + Right` | Mở rộng — kéo cạnh phải ra ngoài |
+| `Super + Ctrl + Left` | Thu hẹp — kéo cạnh phải vào trong |
+| `Super + Ctrl + Down` | Thu hẹp — kéo cạnh trên xuống |
+| `Super + Ctrl + Up` | Thu hẹp — kéo cạnh dưới lên |
+| `Super + Ctrl + Right` | Thu hẹp — kéo cạnh trái vào trong |
 
-## Hệ thống
+> **Giải thích:** `Super + Alt` mở rộng (ra xa tâm), `Super + Ctrl` thu hẹp (lại gần tâm).
+
+## Âm thanh
+
+| Phím | Chức năng | Script |
+|------|-----------|--------|
+| `XF86AudioRaiseVolume` | Tăng âm lượng | `~/.local/bin/volume.sh up` |
+| `XF86AudioLowerVolume` | Giảm âm lượng | `~/.local/bin/volume.sh down` |
+| `XF86AudioMute` | Tắt/Bật tiếng | `~/.local/bin/volume.sh mute` |
+| `XF86AudioMicMute` | Tắt/Bật micro | `wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle` |
+
+## Độ sáng
+
+| Phím | Chức năng | Script |
+|------|-----------|--------|
+| `XF86MonBrightnessUp` | Tăng sáng màn hình | `~/.local/bin/brightness.sh up` |
+| `XF86MonBrightnessDown` | Giảm sáng màn hình | `~/.local/bin/brightness.sh down` |
+
+## Wallpaper
+
+| Phím | Chức năng |
+|------|-----------|
+| `Super + Prior` (Page Up) | Wallpaper trước |
+| `Super + Next` (Page Down) | Wallpaper kế tiếp |
+| `Super + Shift + Next` | Wallpaper ngẫu nhiên |
+
+## UI / Utility
 
 | Phím | Chức năng | Ghi chú |
 |------|-----------|---------|
-| `Super + Escape` | Reload bspwm + sxhkd | `pkill -USR1 -x sxhkd && bspc wm -r` |
-| `Super + Shift + Escape` | Lock screen | `i3lock-color` hoặc `betterlockscreen` (AUR) |
-| `Super + Shift + x` | Power menu | Rofi script (shutdown, reboot, logout) |
-
-## Âm thanh & Độ sáng
-
-| Phím | Chức năng | Gói cần |
-|------|-----------|---------|
-| `XF86AudioRaiseVolume` | Tăng volume 5% | `pamixer` |
-| `XF86AudioLowerVolume` | Giảm volume 5% | `pamixer` |
-| `XF86AudioMute` | Toggle mute | `pamixer` |
-| `XF86MonBrightnessUp` | Tăng độ sáng 5% | `brightnessctl` |
-| `XF86MonBrightnessDown` | Giảm độ sáng 5% | `brightnessctl` |
-
-## Media
-
-| Phím | Chức năng | Gói cần |
-|------|-----------|---------|
-| `XF86AudioPlay` | Play / Pause | `playerctl` |
-| `XF86AudioNext` | Next track | `playerctl` |
-| `XF86AudioPrev` | Previous track | `playerctl` |
-
-## Screenshot
-
-| Phím | Chức năng | Gói cần |
-|------|-----------|---------|
-| `Print` | Chụp toàn màn hình | `maim` (có sẵn trong official repos) |
-| `Super + Print` | Chụp vùng chọn | `maim -s` |
+| `Super + Shift + b` | Dynamic Island | `~/.config/polybar/peek.sh` |
+| `Print` | Chụp toàn màn hình + copy | Flameshot, lưu vào `~/images/Screenshots` |
+| `Super + Print` | Mở Flameshot GUI (chọn vùng) | Flameshot AppImage |
 
 ---
 
 ## Cheat Sheet nhanh
 
 ```
-# Focus & di chuyển
-  h ←     j ↓     k ↑     l →
-  Super + h/j/k/l             → focus
-  Super + Shift + h/j/k/l     → move window
-  Super + Alt + h/j/k/l       → resize
+# BSPWM
+  Super + ←/↓/↑/→          → focus
+  Super + Shift + ←/↓/↑/→  → swap window / preselect
+  Super + Alt + ←/↓/↑/→    → expand
+  Super + Ctrl + ←/↓/↑/→   → shrink
 
 # Workspace
-  Super + 1-9              → go to workspace
-  Super + Shift + 1-9      → send window to workspace
+  Super + 1-9              → go to workspace 1-9
+  Super + 0                → go to workspace 10
+  Super + Shift + 1-9      → send window to workspace 1-9
+  Super + Shift + 0        → send window to workspace 10
 
 # Cửa sổ
-  Super + q       → close
-  Super + t       → toggle tiled/floating
-  Super + f       → toggle fullscreen
-  Super + m       → monocle mode
-  Super + space   → float + sticky
+  Super + w       → close
+  Super + Shift + w   → kill
+  Super + t       → tiled
+  Super + s       → floating
+  Super + f       → fullscreen
+
+# Preselect
+  Super + Ctrl + 1-9       → split ratio
+  Super + Ctrl + space     → cancel preselection
+  Super + Ctrl + Shift + space → cancel all
 
 # Hệ thống
   Super + Return  → terminal (Alacritty)
-  Super + d       → app launcher (Rofi)
-  Super + Escape  → reload config
-  Print           → screenshot
-  Super + Print   → selection screenshot
+  Super + space   → app launcher (Rofi)
+  Super + Escape  → reload sxhkd
+  alt + Tab       → window switcher
+  Print           → screenshot full
+  Super + Print   → screenshot region
+
+# Hardware
+  XF86AudioRaiseVolume  → volume up
+  XF86AudioLowerVolume  → volume down
+  XF86AudioMute         → mute toggle
+  XF86AudioMicMute      → mic toggle
+  XF86MonBrightnessUp   → brightness up
+  XF86MonBrightnessDown → brightness down
+
+# Wallpaper
+  Super + Prior    → prev
+  Super + Next     → next
+  Super + Shift + Next → random
+
+# Dynamic Island
+  Super + Shift + b  → peek
 ```
 
 ---

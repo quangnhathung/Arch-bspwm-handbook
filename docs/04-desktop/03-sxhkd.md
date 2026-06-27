@@ -1,6 +1,6 @@
 # Sxhkd — Keybinding
 
-Ngày cập nhật: 25/06/2026
+Ngày cập nhật: 27/06/2026
 
 ## Mục tiêu
 
@@ -62,127 +62,120 @@ vim /home/archuser/.config/sxhkd/sxhkdrc
 
 ```bash
 #
-# sxhkdrc — bspwm keybindings
+# wm independent hotkeys
 #
 
-# ---- Terminal ----
+# terminal emulator
 super + Return
 	alacritty
 
-# ---- Launcher ----
-super + d
-	rofi -show drun
-super + shift + d
-	rofi -show run
+# program launcher
+super + space
+    pgrep -x rofi >/dev/null && killall rofi || rofi -show drun -theme ~/.config/rofi/config.rasi
 
-# ---- Close window ----
-super + q
-	bspc node -c
+# make sxhkd reload its configuration file:
+super + Escape
+	pkill -USR1 -x sxhkd
 
-# ---- Kill application ----
-super + shift + q
-	bspc node -k
+#
+# bspwm hotkeys
+#
 
-# ---- Focus ----
-super + {h,j,k,l}
-	bspc node -f {west,south,north,east}
+# quit/restart bspwm
+super + alt + {q,r}
+	bspc {quit,wm -r}
 
-super + Tab
-	bspc node -f last
+# close (w) and kill (shift + w)
+super + {_,shift + }w
+	bspc node -{c,k}
 
-# ---- Move window ----
-super + shift + {h,j,k,l}
-	bspc node -s {west,south,north,east}
+# state/flags
+super + {t,s,f}
+	bspc node -t {tiled,floating,fullscreen}
 
-# ---- Swap with other monitor ----
-super + shift + m
-	bspc node -m next
+super + ctrl + {l,x,p}
+	bspc node -g {locked,sticky,private}
 
-# ---- Window states ----
-super + {t,o}
-	bspc node -t {tiled,floating}
-super + shift + {t,o}
-	bspc node -t {pseudo_tiled,fullscreen}
+# focus/swap
+super + {_,shift + }{Left,Down,Up,Right}
+	bspc node -{f,s} {west,south,north,east}
 
-# ---- Preselect split ----
-super + ctrl + {h,j,k,l}
+# focus the next/previous desktop in the current monitor
+super + bracket{left,right}
+	bspc desktop -f {prev,next}.local
+
+# focus the last node/desktop
+super + {grave,Tab}
+	bspc {node,desktop} -f last
+
+# focus or send to the given desktop
+super + {_,shift + }{1-9,0}
+	bspc {desktop -f,node -d} '^{1-9,10}'
+
+# preselect
+super + shift + {Left,Down,Up,Right}
 	bspc node -p {west,south,north,east}
 
-# ---- Split ratio (expand/shrink) ----
-super + {1,2}
-	bspc node -i
-	bspc node -o
+super + ctrl + {1-9}
+	bspc node -o 0.{1-9}
 
-# ---- Workspace ----
-super + {1-9}
-	bspc desktop -f '{1-9}'
+super + ctrl + space
+	bspc node -p cancel
 
-# ---- Move to workspace ----
-super + shift + {1-9}
-	bspc node -d '{1-9}'
+super + ctrl + shift + space
+	bspc query -N -d | xargs -I id -n 1 bspc node id -p cancel
 
-# ---- Resize window ----
-super + alt + {h,j,k,l}
+# move/resize
+super + alt + {Left,Down,Up,Right}
 	bspc node -z {left -20 0,bottom 0 20,top 0 -20,right 20 0}
 
-# ---- Reload configs ----
-super + Escape
-	pkill -USR1 -x sxhkd && bspc wm -r
+super + ctrl + {Left,Down,Up,Right}
+	bspc node -z {right -20 0,top 0 20,bottom 0 -20,left 20 0}
 
-# ---- Screenshot ----
-Print
-	maim -u ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-
-super + Print
-	maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-
-# ---- Lock screen ----
-super + shift + Escape
-	betterlockscreen -l
-
-# ---- Power menu ----
-super + shift + x
-	rofi -show power-menu -modi power-menu:rofi-power-menu
-
-# ---- Volume ----
-XF86AudioRaiseVolume
-	pamixer -i 5
-XF86AudioLowerVolume
-	pamixer -d 5
-XF86AudioMute
-	pamixer -t
-
-# ---- Brightness ----
+# brightness
 XF86MonBrightnessUp
-	brightnessctl set +5%
+	~/.local/bin/brightness.sh up
+
 XF86MonBrightnessDown
-	brightnessctl set 5%-
+	~/.local/bin/brightness.sh down
 
-# ---- Media ----
-XF86AudioPlay
-	playerctl play-pause
-XF86AudioNext
-	playerctl next
-XF86AudioPrev
-	playerctl previous
+# wallpaper
+super + Prior
+    ~/.local/bin/wallpaper.sh prev
 
-# ---- Program shortcuts ----
-super + b
-	firefox
-super + e
-	pcmanfm
-super + r
-	rofi -show run
-super + shift + r
-	rofi -show window
+super + Next
+    ~/.local/bin/wallpaper.sh next
 
-# ---- Float / Unfloat ----
-super + space
-	bspc node -t floating; bspc node -g sticky
+super + shift + Next
+    ~/.local/bin/wallpaper.sh random
 
-# ---- Toggle monocle ----
-super + m
-	bspc desktop -l next
+# dynamic island
+super + shift + b
+    ~/.config/polybar/peek.sh
+
+# volume
+XF86AudioRaiseVolume
+	~/.local/bin/volume.sh up
+
+XF86AudioLowerVolume
+	~/.local/bin/volume.sh down
+
+XF86AudioMute
+	~/.local/bin/volume.sh mute
+
+XF86AudioMicMute
+	wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+
+# window switcher
+alt + Tab
+    rofi -show window -theme ~/.config/rofi/config.rasi
+
+# screenshot
+super + Print
+	~/flameshot-13.3.AppImage gui
+
+Print
+	~/flameshot-13.3.AppImage gui --accept-on-select -p ~/images/Screenshots -c
 ```
 
 ### Bước 3: Kiểm tra và reload
@@ -207,37 +200,67 @@ sxhkd -t 10   # Chạy foreground với timeout 10s, log lỗi ra terminal
 | Phím | Chức năng |
 |---|---|
 | `Super + Enter` | Mở terminal (Alacritty) |
-| `Super + d` | Mở launcher (Rofi) |
-| `Super + q` | Đóng cửa sổ |
-| `Super + h/j/k/l` | Focus sang trái/xuống/lên/phải |
+| `Super + space` | Mở launcher (Rofi drun) |
+| `alt + Tab` | Chuyển cửa sổ (Rofi window) |
+
+### BSPWM — Đóng / Kill
+
+| Phím | Chức năng |
+|---|---|
+| `Super + w` | Đóng cửa sổ (graceful) |
+| `Super + Shift + w` | Kill ứng dụng (force) |
+
+### BSPWM — Focus
+
+| Phím | Chức năng |
+|---|---|
+| `Super + ←/↓/↑/→` | Focus theo hướng |
+| `Super + bracketleft` | Desktop trước |
+| `Super + bracketright` | Desktop kế tiếp |
+| `Super + grave` | Focus node cuối |
+| `Super + Tab` | Focus desktop cuối |
+
+### BSPWM — Swap
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Shift + ←/↓/↑/→` | Swap cửa sổ theo hướng |
 
 ### Workspace
 
 | Phím | Chức năng |
 |---|---|
 | `Super + 1-9` | Chuyển sang workspace 1-9 |
+| `Super + 0` | Chuyển sang workspace 10 |
 | `Super + Shift + 1-9` | Di chuyển cửa sổ sang workspace 1-9 |
+| `Super + Shift + 0` | Di chuyển cửa sổ sang workspace 10 |
 
-### Window management
-
-| Phím | Chức năng |
-|---|---|
-| `Super + t` | Chuyển tiled/floating |
-| `Super + Shift + t` | Pseudo-tiled / fullscreen |
-| `Super + o` | Toggle floating |
-| `Super + Space` | Float + sticky |
-
-### Resize
+### Window state & flags
 
 | Phím | Chức năng |
 |---|---|
-| `Super + Alt + h/j/k/l` | Resize window |
+| `Super + t` | Tiled |
+| `Super + s` | Floating |
+| `Super + f` | Fullscreen |
+| `Super + Ctrl + l` | Locked flag |
+| `Super + Ctrl + x` | Sticky flag |
+| `Super + Ctrl + p` | Private flag |
 
 ### Preselect split
 
 | Phím | Chức năng |
 |---|---|
-| `Super + Ctrl + h/j/k/l` | Preselect split direction |
+| `Super + Shift + ←/↓/↑/→` | Preselect split direction |
+| `Super + Ctrl + 1-9` | Preselect ratio (0.1 → 0.9) |
+| `Super + Ctrl + space` | Cancel preselect (node) |
+| `Super + Ctrl + Shift + space` | Cancel all preselects |
+
+### Resize
+
+| Phím | Chức năng |
+|---|---|
+| `Super + Alt + ←/↓/↑/→` | Expand window (ra xa tâm) |
+| `Super + Ctrl + ←/↓/↑/→` | Contract window (lại gần tâm) |
 
 ## Ký hiệu trong sxhkdrc
 

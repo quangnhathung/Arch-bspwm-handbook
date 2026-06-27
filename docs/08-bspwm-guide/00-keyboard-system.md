@@ -274,59 +274,48 @@ BROWSER=firefox
 ```bash
 # ~/.config/sxhkd/sxhkdrc
 
-# Terminal
+# Timer — chỉ dùng space, không dùng tab ở đây
 super + Return
-	alacritty
+    alacritty
 
-# Launcher
-super + d
-	rofi -show drun
+super + space
+    pgrep -x rofi >/dev/null && killall rofi || rofi -show drun -theme ~/.config/rofi/config.rasi
 
-# Close window
-super + q
-	bspc node -c
+super + Escape
+    pkill -USR1 -x sxhkd
 
-# Focus direction
-super + {h,j,k,l}
-	bspc node -f {west,south,north,east}
+# bspwm
+super + {t,s,f}
+    bspc node -t {tiled,floating,fullscreen}
 
-# Workspace
-super + {1-9}
-	bspc desktop -f '^{1-9}'
-super + Shift + {1-9}
-	bspc node -d '^{1-9}'
+super + {_,shift + }{Left,Down,Up,Right}
+    bspc node -{f,s} {west,south,north,east}
+
+super + {1-9,0}
+    bspc desktop -f '^{1-9,10}'
+
+super + shift + {1-9,0}
+    bspc node -d '^{1-9,10}'
 
 # Volume
-XF86AudioLowerVolume
-	pamixer --decrease 5
 XF86AudioRaiseVolume
-	pamixer --increase 5
+    ~/.local/bin/volume.sh up
+XF86AudioLowerVolume
+    ~/.local/bin/volume.sh down
 XF86AudioMute
-	pamixer --toggle-mute
+    ~/.local/bin/volume.sh mute
 
 # Brightness
-XF86MonBrightnessDown
-	brightnessctl set 5%-
 XF86MonBrightnessUp
-	brightnessctl set +5%
-
-# Media
-XF86AudioPlay
-	playerctl play-pause
-XF86AudioNext
-	playerctl next
-XF86AudioPrev
-	playerctl previous
+    ~/.local/bin/brightness.sh up
+XF86MonBrightnessDown
+    ~/.local/bin/brightness.sh down
 
 # Screenshot
 Print
-	maim -u ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
+    ~/flameshot-13.3.AppImage gui --accept-on-select -p ~/images/Screenshots -c
 super + Print
-	maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-
-# Reload sxhkd
-super + Escape
-	pkill -USR1 -x sxhkd
+    ~/flameshot-13.3.AppImage gui
 ```
 
 ### 6.2. bspwmrc tối thiểu

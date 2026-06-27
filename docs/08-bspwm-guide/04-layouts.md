@@ -94,11 +94,11 @@ bspc desktop -l tiled
 bspc desktop -l next
 ```
 
-Phím tắt:
+Phím tắt (hiện đang bị **comment** trong sxhkdrc, kích hoạt nếu cần):
 
 ```
-super + m
-	bspc desktop -l next
+#super + m
+#	bspc desktop -l next
 ```
 
 ### Chuyển cửa sổ trong monocle
