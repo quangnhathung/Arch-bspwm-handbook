@@ -384,7 +384,55 @@ go version
 
 ---
 
-## 14. Terminal Multiplexer — tmux
+## 14. Custom Scripts (tự động hóa)
+
+Các script shell tự viết, đặt trong `~/.local/bin/` và `~/.config/polybar/scripts/`.
+
+### wallpaper.sh — Quản lý hình nền
+
+```bash
+~/.local/bin/wallpapers/            # Đặt ảnh từ thư mục ~/images/Wallpapers/
+~/.local/bin/wallpaper.sh prev      # Ảnh trước
+~/.local/bin/wallpaper.sh next      # Ảnh tiếp theo
+~/.local/bin/wallpaper.sh random    # Ảnh ngẫu nhiên
+```
+
+Dùng `feh --bg-fill` để đặt wallpaper. Ghi nhớ ảnh hiện tại qua `~/.cache/wallpaper_index`.
+
+### brightness.sh — Điều chỉnh độ sáng
+
+Thiết bị backlight đặc thù trên NVIDIA laptop: `nvidia_wmi_ec_backlight`.
+
+```bash
+~/.local/bin/brightness.sh up      # +5%
+~/.local/bin/brightness.sh down    # -5%
+```
+
+Kèm Dunst notification với progress bar.
+
+### volume.sh — Điều chỉnh âm lượng
+
+Dùng `wpctl` (PipeWire) thay vì `pamixer`. Gửi notification qua Dunst.
+
+```bash
+~/.local/bin/volume.sh up          # +5%
+~/.local/bin/volume.sh down        # -5%
+~/.local/bin/volume.sh mute        # Toggle mute
+```
+
+Icon thay đổi theo mức: 󰕿 (nhỏ) → 󰖀 (vừa) → 󰕾 (to).
+
+### polybar/scripts/gpu.sh — GPU monitoring
+
+Đọc Intel iGPU frequency (`/sys/class/drm/card*/gt_cur_freq_mhz`) + NVIDIA utilization (`nvidia-smi`).
+
+### polybar/scripts/mic.sh — Mic recording detection
+
+Kiểm tra `pactl list source-outputs` — hiện icon đỏ khi có app đang dùng mic.
+
+---
+
+## 15. Terminal Multiplexer — tmux
 
 ### tmux
 Terminal multiplexer: quản lý nhiều phiên terminal trong một cửa sổ, giữ phiên làm việc sống ngay cả khi đóng terminal.

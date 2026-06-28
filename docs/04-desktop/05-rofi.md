@@ -44,216 +44,247 @@ mkdir -p ~/.config/rofi
 exit
 ```
 
-### Bước 4: Tạo file cấu hình
-
-Rofi có hai loại config: Xresources (cũ) và config.rasi (mới, dùng chung).
+### Bước 4: Tạo file cấu hình — config.rasi
 
 ```bash
 vim /home/archuser/.config/rofi/config.rasi
 ```
 
-Nội dung:
+**Cấu hình thực tế:** Nền ảnh `rofi.jpeg` + lớp kính mờ + thanh tìm kiếm hình viên thuốc (pill).
 
-```
+```css
 configuration {
-    modi: "drun,run,window,power-menu";
-    icon-theme: "Papirus";
+    modi: "drun";
     show-icons: true;
-    terminal: "alacritty";
+    icon-theme: "Papirus";
+    display-drun: "";
     drun-display-format: "{name}";
-    font: "JetBrains Mono 12";
-    location: 0;
-    x-offset: 0;
-    y-offset: 0;
-    width: 40;
-    lines: 12;
-    columns: 1;
+    disable-history: false;
+    hover-select: true;
+    kb-cancel: "Escape,Super+space";
+    drun-match-fields: "name";
     matching: "fuzzy";
     sort: true;
-    sorting-method: "normal";
-    case-sensitive: false;
-    cycle: true;
-    sidebar-mode: false;
-    kb-mode-next: "Alt+Tab";
-    kb-mode-previous: "Alt+Shift+Tab";
-    kb-row-up: "Up,Control+p";
-    kb-row-down: "Down,Control+n";
-    kb-accept-entry: "Return,KP_Enter";
-    kb-cancel: "Escape,Control+c";
+    sorting-method: "fzf";
 }
 
-@theme "/usr/share/rofi/themes/nord.rasi"
+* {
+    bg-overlay:   #11111b96;   /* Lớp kính mờ (đen 85% opacity) */
+    bg-input:     #1e1e2eB3;   /* Nền input mờ */
+    fg-main:      #cdd6f4;     /* Chữ trắng Catppuccin */
+    fg-dim:       #a6adc8;     /* Chữ phụ */
+    primary:      #4b5563;     /* Màu xanh chủ đạo */
+    border-color: #bad2fa;     /* Viền xanh */
+    background-color: transparent;
+    text-color: @fg-main;
+    font: "JetBrainsMono Nerd Font 12";
+}
+
+window {
+    transparency: "real";
+    width: 750px;
+    border: 1px;
+    border-color: @border-color;
+    border-radius: 12px;
+    background-image: url("/home/quangnhathung/images/Theme/rofi.jpeg", width);
+}
+
+mainbox {
+    background-color: @bg-overlay;
+    orientation: vertical;
+    children: [ inputbar, listview ];
+    padding: 25px 25px 60px 25px;
+    spacing: 20px;
+}
+
+inputbar {
+    background-color: @bg-input;
+    border: 2px solid;
+    border-color: @primary;
+    border-radius: 100px;         /* Bo tròn tạo hình viên thuốc */
+    padding: 12px 20px;
+    margin: 0px 0px 15px 0px;
+    children: [ prompt, entry ];
+}
+
+prompt {
+    text-color: @border-color;
+    font: "JetBrainsMono Nerd Font 14";
+    margin: 0px 15px 0px 0px;
+    vertical-align: 0.5;
+}
+
+entry {
+    background-color: transparent;
+    text-color: @fg-main;
+    placeholder: "Search applications...";
+    placeholder-color: @fg-dim;
+    vertical-align: 0.5;
+    blink: true;
+}
+
+listview {
+    columns: 1;
+    lines: 8;
+    spacing: 10px;
+    cycle: true;
+    dynamic: true;
+    scrollbar: false;
+    layout: vertical;
+}
+
+element {
+    orientation: horizontal;
+    border-radius: 8px;
+    padding: 10px 15px;
+    cursor: pointer;
+}
+
+element-icon {
+    size: 32px;
+    margin: 0 15px 0 0;
+}
+
+element selected.normal {
+    background-color: @primary;
+    text-color: #11111B;
+}
 ```
 
-### Bước 5: Power menu (tùy chọn)
-
-`rofi-power-menu` là script cho phép Rofi hiển thị menu tắt/mở máy.
-Nó **không có sẵn** trong gói `rofi` — cần cài riêng.
-
-Trên Arch, `rofi-power-menu` có trong AUR:
+### Bước 5: Power menu — powermenu.rasi
 
 ```bash
-# Nếu dùng yay (AUR helper)
-yay -S rofi-power-menu
-
-# Hoặc cài thủ công từ GitHub
-# https://github.com/jluttine/rofi-power-menu
+vim /home/archuser/.config/rofi/powermenu.rasi
 ```
 
-Nếu không muốn dùng AUR, bạn có thể tự viết script power menu đơn giản:
+Layout grid 5 cột cho các tùy chọn shutdown/reboot/logout:
+
+```css
+configuration {
+    show-icons: false;
+}
+
+* {
+    bg:          #1e1e2e;
+    bg-selected: #89b4fa;
+    fg:          #cdd6f4;
+    fg-selected: #11111b;
+    border-col:  #89b4fa;
+    background-color: transparent;
+    text-color: @fg;
+    font: "JetBrainsMono Nerd Font 12";
+}
+
+window {
+    width: 650px;
+    location: center;
+    background-color: @bg;
+    border: 2px solid;
+    border-color: @border-col;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+mainbox {
+    children: [ listview ];
+}
+
+listview {
+    columns: 5;
+    lines: 1;
+    cycle: true;
+    dynamic: true;
+    scrollbar: false;
+    spacing: 15px;
+}
+
+element {
+    orientation: vertical;
+    padding: 20px 0px;
+    border-radius: 10px;
+}
+
+element selected.normal {
+    background-color: @bg-selected;
+    text-color: @fg-selected;
+}
+```
+
+**Script gọi power menu** (`~/.local/bin/powermenu.sh`):
 
 ```bash
 #!/bin/bash
-OPTIONS="Lock\nLogout\nReboot\nShutdown"
-CHOICE=$(echo -e "$OPTIONS" | rofi -dmenu -p "Power Menu")
+OPTIONS="Shutdown\nReboot\nLock\nLogout"
+CHOICE=$(echo -e "$OPTIONS" | rofi -dmenu -p "Power Menu" \
+    -theme ~/.config/rofi/powermenu.rasi)
 
 case "$CHOICE" in
-    Lock) betterlockscreen -l ;;
-    Logout) bspc quit ;;
-    Reboot) systemctl reboot ;;
     Shutdown) systemctl poweroff ;;
+    Reboot)   systemctl reboot ;;
+    Lock)     betterlockscreen -l ;;
+    Logout)   bspc quit ;;
 esac
 ```
 
-Cấu hình trong sxhkdrc:
+Phím tắt trong sxhkdrc: `click-left = ~/.local/bin/powermenu.sh` (trên module power của Polybar).
 
-```
-super + shift + x
-    rofi -show power-menu -modi power-menu:rofi-power-menu
-```
-
-### Bước 6: Rofi Calc (tùy chọn)
-
-Máy tính trong Rofi:
-
-```bash
-pacman -S rofi-calc
-```
-
-Sau đó thêm `calc` vào `modi` trong config:
-
-```
-modi: "drun,run,window,power-menu,calc";
-```
-
-## Các mode của Rofi
+### Bước 6: Các mode của Rofi
 
 | Mode | Chức năng | Phím tắt (trong sxhkdrc) |
 |---|---|---|
 | `drun` | Tìm kiếm và chạy ứng dụng (desktop files) | `Super + space` |
-| `run` | Chạy lệnh tùy ý | — |
 | `window` | Chuyển đổi cửa sổ | `alt + Tab` |
-| `power-menu` | Tắt máy, reboot, logout | — |
+| `power-menu` | Tắt máy, reboot, logout (custom .rasi) | Polybar click |
 
-## Custom theme
+## Các điểm nổi bật trong config thực tế
 
-Tạo file `~/.config/rofi/nord-custom.rasi`:
-
-```
-* {
-    background:     #282A36;
-    background-alt: #44475A;
-    foreground:     #F8F8F2;
-    selected:       #44475A;
-    active:         #50FA7B;
-    urgent:         #FF5552;
-}
-
-window {
-    location: center;
-    width: 600;
-    border: 2px;
-    border-color: #44475A;
-}
-
-inputbar {
-    background: @background-alt;
-    text-color: @foreground;
-    padding: 4px;
-}
-
-listview {
-    lines: 12;
-    columns: 1;
-}
-
-element {
-    padding: 4px;
-    text-color: @foreground;
-}
-
-element selected {
-    background: @selected;
-    text-color: @foreground;
-}
-
-element-icon {
-    size: 1em;
-}
-
-element-text {
-    vertical-align: 0.5;
-    horizontal-align: 0.5;
-}
-```
-
-Sau đó sửa `config.rasi` để dùng theme này:
-
-```
-@theme "~/.config/rofi/nord-custom.rasi"
-```
-
-Hoặc dùng đường dẫn tuyệt đối.
+| Tính năng | Mô tả |
+|---|---|
+| **Background image** | Ảnh nền `/home/quangnhathung/images/Theme/rofi.jpeg`, scale theo width |
+| **Glassmorphism** | Lớp `bg-overlay` với màu `#11111b96` (đen 85% opacity) tạo hiệu ứng kính mờ |
+| **Pill input bar** | `border-radius: 100px` biến thanh tìm kiếm thành hình viên thuốc |
+| **FZF sorting** | `sorting-method: fzf` — sắp xếp kết quả kiểu fzf (Fuzzy Finder) |
+| **Hover select** | `hover-select: true` — chỉ cần di chuột qua item là chọn |
+| **Power menu grid** | `powermenu.rasi` layout 5 cột 1 hàng, grid-style |
+| **Icon 32px** | Icon ứng dụng hiển thị 32px, theme Papirus |
+| **Catppuccin colors** | Đồng bộ màu `#cdd6f4`, `#89b4fa`, `#1e1e2e` với toàn bộ desktop |
 
 ## Tùy chỉnh
 
 ### Kích thước
 
-```ini
-width: 40;    # % màn hình
-lines: 12;    # số dòng hiển thị
+```css
+window { width: 750px; }    /* px thay vì % — chính xác hơn */
+listview { lines: 8; }      /* số dòng hiển thị */
 ```
 
-### Fuzzy matching
+### Ảnh nền
 
-```ini
-matching: "fuzzy";   # Tìm kiếm mờ (tolerant với lỗi chính tả)
-```
-
-### Icon theme
-
-```ini
-icon-theme: "Papirus";
-show-icons: true;
-```
+Đổi đường dẫn `background-image` trong `window` block.
 
 ## Troubleshooting
 
 ### Rofi không hiển thị icon
 
 ```bash
-# Kiểm tra icon theme
 rofi -show drun -icon-theme Papirus
 ```
 
 ### Rofi không tìm thấy ứng dụng
 
-- Cache desktop files: `sudo update-desktop-database`.
-- Kiểm tra thư mục: `ls /usr/share/applications/`.
+```bash
+sudo update-desktop-database
+ls /usr/share/applications/
+```
 
 ### Rofi bị tile trên bspwm
 
-Trong bspwmrc đã có rule:
-
-```bash
-bspc rule -a Rofi:* state=floating
-```
-
-Nếu chưa, thêm vào.
+Trong bspwmrc đã có rule `state=floating` cho Rofi.
 
 ## Tổng kết
 
-- Rofi đã được cài với cấu hình cơ bản.
-- Hỗ trợ tìm kiếm ứng dụng, chạy lệnh, chuyển cửa sổ, power menu.
-- Giao diện Nord theme, hỗ trợ icon và fuzzy matching.
-- `rofi-power-menu` cần cài riêng từ AUR.
+- Rofi dùng **drun** mode với custom theme Catppuccin.
+- Nền ảnh + glassmorphism + pill input bar.
+- Power menu dùng theme riêng (`powermenu.rasi`), gọi từ Polybar.
+- Fuzzy matching với fzf sorting.
+- Đồng bộ màu sắc với toàn bộ hệ thống.

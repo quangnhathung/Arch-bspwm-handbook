@@ -10,6 +10,10 @@ Cài đặt Nitrogen để quản lý hình nền (wallpaper).
 
 ### Nitrogen là gì?
 
+**Lưu ý:** Trên máy hiện tại, **Nitrogen không được dùng**. Wallpaper được quản lý
+bởi script `~/.local/bin/wallpaper.sh` (dùng `feh`), hỗ trợ prev/next/random.
+Bài này giữ lại để tham khảo cho ai muốn dùng Nitrogen.
+
 Nitrogen là chương trình quản lý wallpaper cho X11. Nó hỗ trợ:
 
 - Đặt hình nền từ thư mục.

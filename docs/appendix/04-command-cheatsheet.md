@@ -199,6 +199,21 @@
 | `pgrep -x sxhkd` | Kiểm tra sxhkd đang chạy |
 | `sxhkd -t 5` | Chạy foreground 5 giây để debug |
 
+## Custom Scripts
+
+| Lệnh | Chức năng |
+|---|---|
+| `~/.local/bin/wallpaper.sh next` | Ảnh nền tiếp theo |
+| `~/.local/bin/wallpaper.sh prev` | Ảnh nền trước đó |
+| `~/.local/bin/wallpaper.sh random` | Ảnh nền ngẫu nhiên |
+| `~/.local/bin/brightness.sh up` | Tăng độ sáng 5% (kèm notify) |
+| `~/.local/bin/brightness.sh down` | Giảm độ sáng 5% (kèm notify) |
+| `~/.local/bin/volume.sh up` | Tăng âm lượng 5% (kèm notify) |
+| `~/.local/bin/volume.sh down` | Giảm âm lượng 5% (kèm notify) |
+| `~/.local/bin/volume.sh mute` | Tắt/bật tiếng (kèm notify) |
+| `~/.config/polybar/peek.sh` | Hiện Polybar Dynamic Island trong 8s |
+| `~/.config/polybar/launch.sh` | Khởi động/kill Polybar |
+
 ## Thông tin hệ thống
 
 | Lệnh | Chức năng |

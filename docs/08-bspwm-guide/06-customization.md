@@ -8,46 +8,49 @@ Ngày: 25/06/2026
 |------------|---------------|---------|
 | Window manager | `~/.config/bspwm/bspwmrc` | `bspc config` |
 | Keybinding | `~/.config/sxhkd/sxhkdrc` | sxhkd |
-| Bar | `~/.config/polybar/config.ini` | Polybar |
-| Launcher | `~/.config/rofi/config.rasi` | Rofi |
-| Compositor | `~/.config/picom/picom.conf` | Picom |
-| Wallpaper | `~/.config/nitrogen/bg-saved.cfg` | Nitrogen / feh |
+| Bar | `~/.config/polybar/config.ini` | Polybar (Dynamic Island) |
+| Launcher | `~/.config/rofi/config.rasi` | Rofi (glassmorphism) |
+| Compositor | `~/.config/picom/picom.conf` | Picom (picom-ftlabs-git) |
+| Wallpaper | `~/.local/bin/wallpaper.sh` | feh (custom script) |
 | Terminal | `~/.config/alacritty/alacritty.toml` | Alacritty |
-| Lock screen | — | `i3lock-color` / `betterlockscreen` (AUR) |
-| GTK Theme | `~/.config/gtk-3.0/settings.ini` | GTK |
+| Notification | `~/.config/dunst/dunstrc` | Dunst |
+| Lock screen | — | `betterlockscreen` (AUR) |
+| GTK Theme | `~/.config/gtk-3.0/settings.ini` | GTK (Arc-Dark + Papirus) |
+| Polybar modules | `~/.config/polybar/modules/*.ini` | 7 module files |
+| Polybar scripts | `~/.config/polybar/scripts/gpu.sh`, `mic.sh` | custom |
+| Brightness script | `~/.local/bin/brightness.sh` | custom (NVIDIA backlight) |
+| Volume script | `~/.local/bin/volume.sh` | custom (wpctl + dunst notify) |
+| Wallpaper script | `~/.local/bin/wallpaper.sh` | custom (prev/next/random) |
+| Power menu script | `~/.local/bin/powermenu.sh` | custom (Rofi grid) |
 
 ---
 
-## bspwm config
+## bspwm config (cấu hình thực tế)
 
 Các thiết lập trong `bspwmrc`:
 
 ### Window gap
 
 ```bash
-# Khoảng cách giữa các cửa sổ (px)
-bspc config window_gap 8      # mặc định
-bspc config window_gap 16     # thoáng hơn
-bspc config window_gap 0      # tiết kiệm diện tích
+bspc config window_gap 3   # Khoảng cách hẹp 3px (tiết kiệm diện tích)
 ```
 
 ### Border
 
 ```bash
-# Độ dày viền
-bspc config border_width 2
+bspc config border_width 1                        # Viền mỏng 1px
 
-# Màu viền (Catppuccin Mocha)
-bspc config focused_border_color   "#cba6f7"   # mauve
-bspc config normal_border_color    "#45475a"   # surface1
-bspc config presel_feedback_color  "#cba6f7"
+# Màu viền Catppuccin Mocha
+bspc config focused_border_color   "#89B4FA"      # Blue (cửa sổ focus)
+bspc config normal_border_color    "#45475A"      # Surface1 (không focus)
+bspc config active_border_color    "#F38BA8"      # Red (urgent)
 ```
 
-### Padding
+### Padding = 0 (Polybar Dynamic Island floating)
 
 ```bash
-# Khoảng cách từ cạnh màn hình đến cửa sổ
-bspc config top_padding    28    # = height của Polybar
+# Tất cả = 0 vì Polybar dùng override-redirect, không chiếm không gian
+bspc config top_padding    0
 bspc config bottom_padding 0
 bspc config left_padding   0
 bspc config right_padding  0
@@ -56,51 +59,65 @@ bspc config right_padding  0
 ### Mouse behavior
 
 ```bash
-# Focus khi di chuột qua cửa sổ
-bspc config focus_follows_pointer true
-
-# Con trỏ chuột nhảy theo focus
-bspc config pointer_follows_focus false
+bspc config focus_follows_pointer true    # Chuột chỉ vào đâu, focus vào đó
+bspc config pointer_modifier     mod4     # Super + chuột trái = kéo cửa sổ float
 ```
 
 ### Split ratio
 
 ```bash
-bspc config split_ratio 0.50
+bspc config split_ratio 0.65   # Node mới 35%, node cũ 65%
+bspc config automatic_scheme alternate
 ```
 
 ---
 
-## Polybar
+## Polybar (Dynamic Island)
 
 File: `~/.config/polybar/config.ini`
 
-### Màu sắc (Catppuccin Mocha)
+### Cấu trúc thư mục
 
-```ini
-[colors]
-background = #1E1E2E
-background-alt = #313244
-foreground = #CDD6F4
-primary = #89B4FA
-secondary = #A6E3A1
-alert = #F38BA8
+```
+~/.config/polybar/
+├── config.ini              # Bar config (floating, 78% width, radius 20)
+├── launch.sh               # Kill cũ → launch → xdotool raise → ẩn
+├── peek.sh                 # Hiện bar trong 8 giây (Super + Shift + b)
+├── modules/
+│   ├── bspwm.ini           # Dot pager (● ẩn empty workspace)
+│   ├── audio.ini           # PulseAudio volume + ramp icon
+│   ├── battery.ini         # Pin BAT1 + sạc
+│   ├── date.ini            # HH:MM | dd/mm
+│   ├── user.ini            # whoami
+│   ├── power.ini           # Icon  → gọi powermenu
+│   ├── wifi.ini            # SSID + ramp signal
+│   └── hw_mic.ini          # CPU + GPU script + mic-status script
+└── scripts/
+    ├── gpu.sh              # Intel iGPU MHz + NVIDIA %
+    └── mic.sh              # Phát hiện app đang ghi âm
 ```
 
-### Module bspwm
+### Tính năng chính
+
+- **Floating hoàn toàn:** `override-redirect = true` → bar không chiếm không gian
+- **Peek mechanism:** Ẩn mặc định → gọi peek.sh → hiện 8 giây → tự ẩn
+- **Dot pager:** Workspace hiển thị dạng chấm tròn, empty workspace ẩn
+- **GPU monitoring:** Script tự dò Intel iGPU + NVIDIA qua nvidia-smi
+- **Mic detection:** Ẩn khi không có app dùng mic, đỏ khi có
+
+### Module bspwm (dot pager)
 
 ```ini
 [module/bspwm]
 type = internal/bspwm
-label-focused = %name%
-label-focused-foreground = #${colors.primary}
-label-focused-background = #${colors.background-alt}
-label-occupied = %name%
-label-occupied-foreground = #${colors.foreground}
-label-urgent = %name%
-label-urgent-foreground = #${colors.alert}
-label-empty = %name%
-label-empty-foreground = #585B70
+ws-icon-default = ●
+label-focused = ●
+label-focused-foreground = #fa89b4
+label-occupied = ●
+label-occupied-foreground = #e1e6f5
+label-urgent = ●
+label-urgent-foreground = #F38BA8
+label-empty =                    # Ẩn workspace trống
 ```
 
 ### Multi-monitor
@@ -113,43 +130,74 @@ Xem bài `05-multi-monitor.md`.
 
 File: `~/.config/rofi/config.rasi`
 
+### Cấu hình thực tế
+
 ```css
+configuration {
+    modi: "drun";
+    show-icons: true;
+    icon-theme: "Papirus";
+    matching: "fuzzy";
+    sort: true;
+    sorting-method: "fzf";
+    hover-select: true;
+    kb-cancel: "Escape,Super+space";
+}
+
 * {
-    background-color: #1E1E2E;
-    text-color: #CDD6F4;
+    bg-overlay:   #11111b96;   /* Lớp kính mờ */
+    bg-input:     #1e1e2eB3;   /* Input trong suốt */
+    fg-main:      #cdd6f4;     /* Catppuccin text */
+    border-color: #bad2fa;     /* Viền xanh */
 }
 
 window {
-    width: 40%;
-    border-color: #89B4FA;
-    border: 2px;
+    width: 750px;
+    border-radius: 12px;
+    background-image: url("/home/quangnhathung/images/Theme/rofi.jpeg", width);
 }
 
-listview {
-    lines: 12;
-}
-
-element selected {
-    background-color: #45475A;
-    text-color: #89B4FA;
-}
-
-entry {
-    background-color: #313244;
-    text-color: #CDD6F4;
+inputbar {
+    border-radius: 100px;      /* Hình viên thuốc */
+    padding: 12px 20px;
+    border: 2px solid #4b5563;
 }
 ```
 
-### Power menu script
+### Power menu
 
-Tạo `~/.config/rofi/powermenu.sh`:
+File: `~/.config/rofi/powermenu.rasi` — layout grid 5 cột:
+
+```css
+window {
+    width: 650px;
+    location: center;
+    background-color: #1e1e2e;
+    border: 2px solid #89b4fa;
+    border-radius: 12px;
+}
+
+listview {
+    columns: 5;
+    lines: 1;
+    spacing: 15px;
+}
+
+element selected.normal {
+    background-color: #89b4fa;
+    text-color: #11111b;
+}
+```
+
+Script: `~/.local/bin/powermenu.sh` (gọi từ Polybar module power, click-left):
 
 ```bash
 #!/bin/bash
-options="Shutdown\nReboot\nLock\nLogout"
-selected=$(echo -e "$options" | rofi -dmenu -p "Power")
+OPTIONS="Shutdown\nReboot\nLock\nLogout"
+CHOICE=$(echo -e "$OPTIONS" | rofi -dmenu -p "Power Menu" \
+    -theme ~/.config/rofi/powermenu.rasi)
 
-case "$selected" in
+case "$CHOICE" in
     Shutdown) systemctl poweroff ;;
     Reboot)   systemctl reboot ;;
     Lock)     betterlockscreen -l ;;
@@ -157,84 +205,56 @@ case "$selected" in
 esac
 ```
 
-Phím tắt:
-
-```
-super + Shift + x
-    ~/.config/rofi/powermenu.sh
-```
-
 ---
 
-## Picom
+## Picom (picom-ftlabs-git — spring physics)
 
 File: `~/.config/picom/picom.conf`
 
-Picom là compositor cho X11, cung cấp shadow, opacity, fading, blur, animation.
+### Fork đang dùng
 
-### ⚠️ Lưu ý quan trọng về Picom
-
-- **Official picom** (gói `picom` trong official repos) chỉ hỗ trợ shadow, opacity, fading cơ bản.
-- **Tính năng animation và blur** (như `animations = true`, `blur-method = "kawase"`) **CHỈ CÓ** ở fork `ibhagwan/picom` (AUR: `picom-ibhagwan-git` hoặc `picom-git`).
-
-Nếu bạn muốn animation và blur, cài fork:
+Cấu hình thực tế dùng **`picom-ftlabs-git`** (AUR) — fork có **spring physics animation**:
 
 ```bash
-# Từ AUR (yay hoặc paru)
-yay -S picom-ibhagwan-git
+yay -S picom-ftlabs-git
 ```
 
-### Cấu hình cơ bản
+Khác biệt với `picom-ibhagwan-git`: dùng hệ thống lò xo vật lý (stiffness, dampening,
+mass) thay vì easing thông thường, tạo hiệu ứng nảy tự nhiên.
+
+### Cấu hình thực tế
 
 ```bash
-# Shadow
+# Backend
+backend = "glx";
+vsync = true;
+unredir-if-possible = false;   # Quan trọng cho NVIDIA
+
+# Shadow (macOS style)
 shadow = true;
-shadow-radius = 8;
-shadow-opacity = 0.3;
-shadow-offset-x = -4;
-shadow-offset-y = -4;
+shadow-radius = 28;
+shadow-opacity = 0.18;
+shadow-offset-y = 8;
+shadow-exclude = [ "class_g = 'Rofi'", "class_g = 'Dunst'" ];
 
-# Shadow exclude (không đổ bóng cho bar, dock)
-shadow-exclude = [
-    "class_g = 'Polybar'",
-    "class_g = 'Rofi'",
-    "class_g = 'dunst'"
-];
-
-# Fading
-fading = true;
-fade-in-step = 0.03;
-fade-out-step = 0.03;
-
-# Opacity
-inactive-opacity = 0.95;
-
-# Opacity exclude
+# Opacity per-app (focused/unfocused)
 opacity-rule = [
-    "80:class_g = 'Alacritty' && focused",
-    "90:class_g = 'Alacritty' && !focused"
+    "80:class_g = 'Alacritty' && !focused",
+    "100:class_g = 'Alacritty' && focused"
 ];
-```
 
-#### Animation & Blur (chỉ với fork ibhagwan/picom)
-
-```bash
-# Blur
-blur-method = "kawase";
-blur-strength = 5;
-
-# Animation
+# Spring physics animation
 animations = true;
+animation-stiffness = 300.0;
+animation-dampening = 22.0;
+animation-mass = 1.0;
 animation-for-open-window = "zoom";
-animation-for-workswitch = "slide";
-```
+animation-for-unmap-window = "zoom";
+animation-for-workspace-switch-in = "zoom";
 
-### Backend
-
-```bash
-backend = "glx";      # OpenGL (khuyên dùng)
-# backend = "xrender"; # fallback nếu glx không hoạt động
-# backend = "egl";     # thử nếu glx có vấn đề
+# Rounded corner
+corner-radius = 13;
+round-borders = 1;             # Ép viền bspwm theo góc bo
 ```
 
 ---
@@ -249,17 +269,21 @@ backend = "glx";      # OpenGL (khuyên dùng)
 | **Nord** | Xanh lam lạnh, tối giản | `#2E3440`, `#D8DEE9`, `#81A1C1` |
 | **Dracula** | Tím đậm, tương phản cao | `#282A36`, `#F8F8F2`, `#BD93F9` |
 
-### Cài đặt theme cho từng thành phần
+### Cài đặt theme cho từng thành phần (config thực tế)
 
-| Thành phần | Catppuccin | Nord | Dracula |
-|------------|-----------|------|---------|
-| GTK | `catppuccin-gtk-theme` (AUR) | `nordic-theme` | `dracula-gtk-theme` (AUR) |
-| Alacritty | Copy từ catppuccin/alacritty | Copy từ arcticicestudio/nord-alacritty | Copy từ dracula/alacritty |
-| Polybar | Tự chỉnh màu trong config.ini | Tự chỉnh | Tự chỉnh |
-| Rofi | Dùng catppuccin rofi theme | Dùng nord rofi theme | Dùng dracula rofi theme |
-| Picom | Chỉnh màu shadow | Chỉnh màu shadow | Chỉnh màu shadow |
+| Thành phần | Config hiện tại |
+|------------|----------------|
+| GTK | `Arc-Dark` + `Papirus` icons |
+| Alacritty | Catppuccin Mocha (tự định nghĩa màu trong `alacritty.toml`) |
+| Polybar | Catppuccin Mocha (màu thủ công trong `config.ini` + modules) |
+| Rofi | Catppuccin Mocha (glassmorphism, ảnh nền, pill input) |
+| Picom | Catppuccin Mocha (shadow màu đen mặc định) |
+| Dunst | Catppuccin North (`#2E3440`, `#81A1C1`, `#5E81AC`) |
+| Tmux | Catppuccin Mocha (plugin `catppuccin/tmux`, flavour mocha) |
 
 **Quan trọng:** Chọn một scheme và **dùng đồng bộ** cho tất cả thành phần.
+Catppuccin Mocha là theme chính, đồng bộ qua: bspwm borders, polybar, rofi,
+alacritty, dunst, tmux.
 
 ---
 
@@ -315,50 +339,30 @@ super + Shift + Escape
 
 ---
 
-## Screenshot
+## Screenshot (Flameshot AppImage)
 
-### maim (có sẵn trong official repos)
-
-```bash
-sudo pacman -S maim
-```
-
-
-Tạo thư mục chứa ảnh chụp:
+Dùng Flameshot **AppImage** (không cài package, portable):
 
 ```bash
-mkdir -p ~/Pictures/screenshots
+# Tải từ flameshot.org
+# Đặt tại ~/flameshot-13.3.AppImage
+chmod +x ~/flameshot-13.3.AppImage
 ```
 
-Keybinding trong sxhkdrc (với Flameshot AppImage):
+Keybinding trong sxhkdrc:
 
 ```
-# GUI chọn vùng + copy vào clipboard
+# Chụp vùng chọn + tự động lưu + copy clipboard
 Print
 	~/flameshot-13.3.AppImage gui --accept-on-select -p ~/images/Screenshots -c
 
-# Mở Flameshot GUI
+# Mở Flameshot GUI để chú thích trước khi lưu
 super + Print
 	~/flameshot-13.3.AppImage gui
 ```
 
-### maim (thay thế nhẹ hơn, official repo)
-
-```bash
-sudo pacman -S maim
-```
-
-Keybinding với maim:
-
-```
-# Toàn màn hình
-Print
-	maim -u ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-
-# Chụp vùng chọn (select area)
-super + Print
-	maim -su ~/Pictures/screenshots/$(date +%Y%m%d-%H%M%S).png
-```
+Tự động chạy cùng bspwm: `~/flameshot-13.3.AppImage &` trong bspwmrc (chạy ngầm
+để giảm thời gian khởi động khi nhấn Print).
 
 ---
 
@@ -382,39 +386,45 @@ tar -czf bspwm-config-$(date +%Y%m%d).tar.gz \
 
 ---
 
-## Autostart
-
-Mọi chương trình tự động chạy đều đặt trong `bspwmrc`:
+## Autostart (cấu hình thực tế)
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 # ~/.config/bspwm/bspwmrc
 
-# Daemon
-sxhkd &
-/usr/local/bin/fnq-handler.sh &
+# Touchpad tap-to-click (auto-detect ID)
+for id in $(xinput list | grep -i "touchpad" | grep -o 'id=[0-9]*' | cut -d= -f2); do
+    xinput set-prop "$id" "libinput Tapping Enabled" 1
+done
 
-# Bar
-polybar main &
+# Hotkey daemon
+pgrep -x sxhkd > /dev/null || sxhkd &
 
-# Compositor
-picom --config ~/.config/picom/picom.conf &
-
-# Wallpaper
-nitrogen --restore &
-# hoặc feh --bg-scale ~/Pictures/wallpapers/current.jpg &
+# Cursor fix (tránh icon X đen)
+xsetroot -cursor_name left_ptr &
 
 # Policy kit
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 
-# Notifications
-dunst &
+# Wallpaper (custom script có prev/next/random)
+~/.local/bin/wallpaper.sh &
 
-# Network applet (nếu dùng nm-applet)
-nm-applet &
+# Compositor
+picom --config ~/.config/picom/picom.conf &
+
+# Polybar Dynamic Island
+~/.config/polybar/launch.sh &
+
+# Notification
+pgrep -x dunst > /dev/null || dunst &
+
+# Flameshot AppImage (preload)
+~/flameshot-13.3.AppImage &
 ```
 
-> **Lưu ý:** Giữ `bspwmrc` gọn gàng. Nếu có quá nhiều autostart, tách ra file riêng (ví dụ `~/.config/bspwm/autostart.sh`) và gọi từ `bspwmrc`.
+> **Lưu ý:** Không dùng `nitrogen`, `nm-applet`, `blueman-applet`, `xfce4-power-manager`.
+> Các chức năng được thay thế bởi: `wallpaper.sh` (wallpaper), Polybar modules (network, battery),
+> `volume.sh` + Dunst (audio feedback).
 
 ---
 

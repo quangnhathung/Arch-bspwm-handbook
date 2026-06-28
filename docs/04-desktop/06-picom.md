@@ -53,18 +53,23 @@ cài từ AUR.
 
 ### Bước 1: Cài Picom
 
-**Option A — Official (khuyên dùng):**
+**Cấu hình thực tế dùng:** `picom-ftlabs-git` (AUR) — fork có animation spring physics.
 
 ```bash
-pacman -S picom
+yay -S picom-ftlabs-git
 ```
 
-**Option B — ibhagwan fork (có animation + blur):**
+> Fork `ftlabs` khác với `ibhagwan`: dùng **spring physics** (lò xo) thay vì
+> easing thông thường, tạo hiệu ứng nảy tự nhiên. Config sử dụng các option
+> `animation-stiffness`, `animation-dampening`, `animation-mass`.
 
-```bash
-# Cần yay hoặc paru
-yay -S picom-ibhagwan-git
-```
+**Các lựa chọn khác:**
+
+| Gói | Animation | Blur | Spring physics |
+|-----|-----------|------|----------------|
+| `picom` (official) | ❌ | ❌ | ❌ |
+| `picom-ibhagwan-git` (AUR) | ✅ Easing | ✅ | ❌ |
+| **`picom-ftlabs-git`** (AUR) ⭐ | ✅ **Spring** | ❌ | ✅ |
 
 ### Bước 2: Tạo thư mục và file config
 
@@ -78,196 +83,119 @@ exit
 vim /home/archuser/.config/picom/picom.conf
 ```
 
-### Bước 3: File cấu hình picom.conf
+### Bước 3: File cấu hình picom.conf (cấu hình thực tế)
 
-#### Dành cho Official Picom (không animation, không blur)
+**Yêu cầu:** Gói `picom-ftlabs-git` (AUR) — fork có animation spring physics.
 
-```conf
-#################################
-#          Shadows              #
-#################################
-
-shadow = true;
-shadow-radius = 12;
-shadow-offset-x = -8;
-shadow-offset-y = -8;
-shadow-opacity = 0.4;
-shadow-red = 0.0;
-shadow-green = 0.0;
-shadow-blue = 0.0;
-shadow-exclude = [
-    "name = 'Notification'",
-    "class_g = 'Polybar'",
-    "class_g = 'Rofi'",
-    "class_g = 'Dunst'",
-    "class_g = 'Nitrogen'"
-];
-
-#################################
-#       Fading                  #
-#################################
-
-fading = true;
-fade-in-step = 0.03;
-fade-out-step = 0.03;
-fade-delta = 3;
-no-fading-openclose = true;
-fade-exclude = [];
-
-#################################
-#      Opacity                  #
-#################################
-
-inactive-opacity = 0.95;
-active-opacity = 1.0;
-frame-opacity = 1.0;
-inactive-opacity-override = false;
-opacity-rule = [
-    "90:class_g = 'Alacritty' && focused",
-    "80:class_g = 'Alacritty' && !focused"
-];
-
-#################################
-#      VSync / Tearing          #
-#################################
-
-vsync = true;
-
-#################################
-#     Window type settings      #
-#################################
-
-wintypes:
-{
-    tooltip = { fade = true; shadow = false; opacity = 0.85; };
-    dock = { shadow = false; };
-    desktop = { shadow = false; };
-    menu = { opacity = 0.95; };
-    popup_menu = { opacity = 0.95; };
-    dropdown_menu = { opacity = 0.95; };
-};
-
-#################################
-#      Miscellaneous            #
-#################################
-
-detect-rounded-corners = true;
-detect-transient = true;
-detect-client-opacity = true;
-refresh-rate = 144;
-use-damage = true;
-
-# NVIDIA-specific
-unredir-if-possible = false;
+```bash
+yay -S picom-ftlabs-git
 ```
 
-#### Dành cho ibhagwan fork (có animation + blur)
-
-Nếu bạn cài `picom-ibhagwan-git`, dùng config này (thêm animation và blur):
-
 ```conf
-#################################
-#         Animations            #
-#################################
+# =========================================================
+# 1. BACKEND & PERFORMANCE
+# =========================================================
+backend = "glx";
+vsync = true;
+use-damage = false;
+xrender-sync-fence = true;
+unredir-if-possible = false;     # Quan trọng với NVIDIA
 
-animations = true;
-animation-window-mass = 0.5;
-animation-for-open-window = "zoom";
-animation-for-workspace-switch-in = "slide-left";
-animation-for-workspace-switch-out = "slide-right";
-
-#################################
-#          Shadows              #
-#################################
-
+# =========================================================
+# 2. SHADOWS
+# =========================================================
 shadow = true;
-shadow-radius = 12;
-shadow-offset-x = -8;
-shadow-offset-y = -8;
-shadow-opacity = 0.4;
-shadow-red = 0.0;
-shadow-green = 0.0;
-shadow-blue = 0.0;
+shadow-radius = 28;              # Bóng mềm, lan rộng
+shadow-opacity = 0.18;           # Nhẹ, tinh tế
+shadow-offset-x = 0;
+shadow-offset-y = 8;             # Đổ xuống dưới
 shadow-exclude = [
-    "name = 'Notification'",
-    "class_g = 'Polybar'",
-    "class_g = 'Rofi'",
-    "class_g = 'Dunst'",
-    "class_g = 'Nitrogen'"
+  "class_g = 'Rofi'",
+  "class_g = 'Dunst'",
+  "_GTK_FRAME_EXTENTS@:c"
 ];
 
-#################################
-#       Fading                  #
-#################################
+# =========================================================
+# 3. OPACITY
+# =========================================================
+active-opacity = 1.0;
+inactive-opacity = 0.9;
+frame-opacity = 1.0;
+inactive-opacity-override = true;
 
+detect-client-opacity = true;
+detect-transient = true;
+
+opacity-rule = [
+  "90:class_g = 'Code' && !focused",
+  "100:class_g = 'Code' && focused",
+  "90:class_g = 'Google-chrome' && !focused",
+  "100:class_g = 'Google-chrome' && focused",
+  "90:class_g = 'Thunar' && !focused",
+  "100:class_g = 'Thunar' && focused",
+  "80:class_g = 'Alacritty' && !focused",
+  "100:class_g = 'Alacritty' && focused",
+  "95:class_g = 'code' && !focused",
+  "100:class_g = 'code' && focused",
+  "90:class_g = 'Org.gnome.gThumb' && !focused",
+  "100:class_g = 'Org.gnome.gThumb' && focused",
+];
+
+# =========================================================
+# 4. FADING
+# =========================================================
 fading = true;
 fade-in-step = 0.03;
 fade-out-step = 0.03;
-fade-delta = 3;
-no-fading-openclose = true;
-fade-exclude = [];
+fade-delta = 5;
+no-fading-openclose = false;
 
-#################################
-#      Opacity                  #
-#################################
+# =========================================================
+# 5. ANIMATIONS — Spring physics (picom-ftlabs-git)
+# =========================================================
+animations = true;
+animation-stiffness = 300.0;     # Độ cứng lò xo
+animation-dampening = 22.0;      # Giảm chấn — tạo độ nảy
+animation-clamping = true;
+animation-mass = 1.0;
 
-inactive-opacity = 0.95;
-active-opacity = 1.0;
-frame-opacity = 1.0;
-inactive-opacity-override = false;
-opacity-rule = [
-    "90:class_g = 'Alacritty' && focused",
-    "80:class_g = 'Alacritty' && !focused"
-];
+animation-for-open-window = "zoom";
+animation-for-unmap-window = "zoom";
+animation-for-workspace-switch-in = "zoom";
+animation-for-workspace-switch-out = "zoom";
+animation-for-transient-window = "zoom";
 
-#################################
-#      VSync / Tearing          #
-#################################
+# =========================================================
+# 6. FOCUS & BORDERS
+# =========================================================
+mark-wmwin-focused = true;
+mark-ovredir-focused = true;
+detect-rounded-corners = true;
 
-vsync = true;
-
-#################################
-#      Blur                     #
-#################################
-
-blur-method = "kawase";
-blur-size = 12;
-blur-deviation = 5;
-blur-strength = 5;
-blur-background = true;
-blur-background-frame = false;
-blur-background-fixed = false;
-blur-kern = "3x3box";
-blur-background-exclude = [
-    "window_type = 'dock'",
-    "window_type = 'desktop'"
-];
-
-#################################
-#     Window type settings      #
-#################################
-
+# =========================================================
+# 7. WINDOW TYPES
+# =========================================================
 wintypes:
 {
-    tooltip = { fade = true; shadow = false; opacity = 0.85; };
-    dock = { shadow = false; };
-    desktop = { shadow = false; };
-    menu = { opacity = 0.95; };
-    popup_menu = { opacity = 0.95; dropdown_menu = { opacity = 0.95; }; };
+  tooltip = { fade = false; shadow = false; opacity = 0.90; };
+  desktop = { shadow = false; };
+  menu = { opacity = 0.95; };
+  popup_menu = { opacity = 0.95; };
+  dropdown_menu = { opacity = 0.95; };
 };
 
-#################################
-#      Miscellaneous            #
-#################################
+# =========================================================
+# 8. ROUNDED CORNERS
+# =========================================================
+corner-radius = 13;              # Bo góc 13px
+round-borders = 1;               # Ép viền bspwm theo góc bo
 
-detect-rounded-corners = true;
-detect-transient = true;
-detect-client-opacity = true;
-refresh-rate = 144;
-use-damage = true;
-
-# NVIDIA-specific
-unredir-if-possible = false;
+rounded-corners-exclude = [
+  "window_type = 'dock'",
+  "window_type = 'desktop'",
+  "class_g = 'Polybar'",         # Polybar tự bo góc trong config
+  "name = 'Notification'",
+];
 ```
 
 ### Bước 4: Cấu hình cho NVIDIA

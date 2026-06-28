@@ -43,6 +43,18 @@ hoặc từ `sxhkdrc` (phím tắt).
 
 ---
 
+## Cấu hình thực tế trên máy
+
+Bộ desktop hiện tại dùng **Catppuccin Mocha** + **Dynamic Island Polybar** +
+**picom-ftlabs-git** (spring animations) + **Alacritty** (opacity 0.85) +
+**Dunst** (Catppuccin North notifications) + **Rofi** (glassmorphism với ảnh nền).
+
+Xem từng bài chi tiết:
+- `02-bspwm.md` — bspwmrc với touchpad fix, focus_follows_pointer, Catppuccin borders
+- `04-polybar.md` — Dynamic Island floating bar, peek.sh, GPU/mic scripts
+- `05-rofi.md` — Rofi glassmorphism, pill search bar, powermenu grid
+- `06-picom.md` — picom-ftlabs-git với spring physics animation, corner radius 13px
+
 ## 2. Từng nhóm công cụ
 
 ### 2.1 Window Manager core — bspwm + sxhkd
@@ -67,59 +79,81 @@ hoặc từ `sxhkdrc` (phím tắt).
 - `picom` (official pacman) — không blur, không animation
 - `picom-ibhagwan-git` (AUR) — có blur + animation ⭐ r/unixporn
 
-**Config "ăn tiền" cho r/unixporn:**
+**Config thực tế (picom-ftlabs-git — spring physics):**
 
 ```ini
-# Bắt buộc cho modern look:
+# Shadow kiểu macOS (lan rộng, nhẹ)
 shadow = true;
-shadow-radius = 12;
-shadow-opacity = 0.4;
+shadow-radius = 28;
+shadow-opacity = 0.18;
+shadow-offset-y = 8;
 
-# Blur (chỉ với ibhagwan fork):
-blur-method = "kawase";
-blur-size = 12;
-blur-background = true;
+# Spring physics animation (zoom + nảy)
+animations = true;
+animation-stiffness = 300.0;
+animation-dampening = 22.0;
+animation-for-open-window = "zoom";
 
-# Rounded corner (phát hiện tự động):
-detect-rounded-corners = true;
+# Rounded corner 13px
+corner-radius = 13;
+round-borders = 1;
 
-# Opacity cho terminal:
+# Opacity per-app
 opacity-rule = [
-    "90:class_g = 'Alacritty' && focused",
-    "80:class_g = 'Alacritty' && !focused"
+    "80:class_g = 'Alacritty' && !focused",
+    "100:class_g = 'Alacritty' && focused"
 ];
 ```
 
-### 2.3 Status bar — Polybar
+### 2.3 Status bar — Polybar (Dynamic Island)
 
 | Tool | Vai trò | Đã có bài? |
 |---|---|---|
-| polybar | Thanh workspace, CPU, RAM, network, pin, giờ | ✅ 04-polybar.md |
+| polybar | Thanh workspace, CPU, GPU, network, pin, giờ | ✅ 04-polybar.md |
 
-**Module phổ biến trên r/unixporn:**
-| Module | Hiển thị |
-|---|---|
-| `bspwm` | Workspace có highlight |
-| `pulseaudio` | Volume, click chuột phải → pavucontrol |
-| `network` | Tên Wi-Fi + IP |
-| `battery` | % pin (quan trọng với laptop) |
-| `date` | Giờ:phút |
-| `cpu` / `memory` | Tài nguyên hệ thống |
-| `powermenu` | Menu tắt máy bằng Rofi |
+**Config thực tế:** Floating bar kiểu Dynamic Island (macOS):
+- `override-redirect = true` — bar nổi hoàn toàn, không chiếm không gian bspwm
+- `width = 78%`, `offset-x = 11%` — căn giữa, bo góc 20px
+- Ẩn mặc định, hiện khi nhấn `Super + Shift + b` (peek.sh)
+- Tự động ẩn sau 8 giây
 
-**Font cần có:** `ttf-nerd-fonts-symbols` để hiển thị icon.
+**Modules trên bar thực tế:**
+| Vị trí | Module | Hiển thị |
+|--------|--------|----------|
+| Trái | `power` | Icon  → gọi powermenu |
+| Trái | `user` | Tên user (`whoami`) |
+| Trái | `wifi` | SSID + vạch sóng |
+| Trái | `cpu` | CPU usage |
+| Trái | `mic-status` | Mic đỏ khi có app đang ghi âm |
+| Giữa | `bspwm` | Dot pager (●) |
+| Phải | `gpu` | Intel MHz + NVIDIA % |
+| Phải | `pulseaudio` | Volume + icon thay đổi theo mức |
+| Phải | `battery` | % pin + icon sạc |
+| Phải | `date` | Đồng hồ HH:MM |
+
+**Script tùy chỉnh:**
+- `scripts/gpu.sh` — Đọc Intel iGPU frequency + NVIDIA utilization
+- `scripts/mic.sh` — Phát hiện app đang ghi âm qua `pactl`
+
+**Font cần có:** `ttf-jetbrains-mono` + `ttf-nerd-fonts-symbols`.
 
 ### 2.4 App launcher — Rofi
 
 | Tool | Vai trò | Đã có bài? |
 |---|---|---|
-| rofi | Launcher, window switcher, power menu, calculator | ✅ 05-rofi.md |
+| rofi | Launcher, window switcher, power menu | ✅ 05-rofi.md |
 
-**Modes phổ biến:**
-- `rofi -show drun` — tìm app (Super + space)
-- `rofi -show run` — chạy lệnh
-- `rofi -show window` — chuyển cửa sổ (alt + Tab)
-- `rofi-power-menu` (AUR) — shutdown/reboot/logout
+**Config thực tế:**
+- **Nền ảnh:** `rofi.jpeg` với lớp glassmorphism (`#11111b96`)
+- **Pill input bar:** `border-radius: 100px` — hình viên thuốc
+- **FZF sorting:** `sorting-method: fzf`
+- **Matching:** fuzzy
+- **Theme:** Catppuccin Mocha (đồng bộ toàn hệ thống)
+
+**Modes:**
+- `rofi -show drun` — tìm app (`Super + space`)
+- `rofi -show window` — chuyển cửa sổ (`alt + Tab`)
+- `powermenu.rasi` — layout grid 5 cột (gọi từ Polybar click)
 
 ### 2.5 Wallpaper — feh / Nitrogen
 
@@ -155,53 +189,63 @@ và tự động hoạt động với hầu hết ứng dụng.
 pacman -S dunst
 ```
 
-**Cấu hình** `~/.config/dunst/dunstrc`:
+**Cấu hình thực tế** `~/.config/dunst/dunstrc` (Catppuccin North + custom rules):
 
 ```ini
 [global]
-    monitor = 0
-    width = 350
-    height = 100
-    offset = 16x56
     origin = top-right
-    notification_limit = 5
-    progress_bar = true
-    indicate_hidden = yes
-    transparency = 10
-    corner_radius = 8
-    gap_size = 4
-    separator_height = 2
-    padding = 12
-    horizontal_padding = 12
+    offset = (20, 20)
+    width = 320
+    height = (0, 350)
+    corner_radius = 12
     frame_width = 2
-    frame_color = "#44475A"
-    font = "JetBrains Mono 11"
-    line_height = 4
+    gap_size = 8
+    padding = 18
+    horizontal_padding = 18
+    text_icon_padding = 20
+    font = "JetBrains Mono Nerd Font 10, Noto Sans 10"
     markup = full
     format = "<b>%s</b>\n%b"
-    sort = yes
+    notification_limit = 5
+    idle_threshold = 120
     show_age_threshold = 60
-    ignore_newline = false
-    stack_duplicates = true
-    hide_duplicate_count = false
-    show_indicators = no
+    word_wrap = yes
+    icon_theme = "Papirus-Dark,Papirus,Adwaita"
     icon_position = left
-    max_icon_size = 32
+    min_icon_size = 64
+    max_icon_size = 80
+    progress_bar = true
+    progress_bar_height = 8
+    progress_bar_corner_radius = 4
 
 [urgency_low]
-    background = "#282A36"
-    foreground = "#F8F8F2"
-    timeout = 5
+    background = "#2E3440"
+    foreground = "#ECEFF4"
+    frame_color = "#81A1C1"
+    timeout = 4
 
 [urgency_normal]
-    background = "#282A36"
-    foreground = "#F8F8F2"
-    timeout = 8
+    background = "#2E3440"
+    foreground = "#D8DEE9"
+    frame_color = "#5E81AC"
+    timeout = 6
 
 [urgency_critical]
-    background = "#FF5555"
-    foreground = "#FFFFFF"
+    background = "#2E3440"
+    foreground = "#BF616A"
+    frame_color = "#BF616A"
     timeout = 0
+
+# Custom rules
+[dev_tools]
+    appname = "code"
+    summary = "*Flutter*|*Spring Boot*|*Golang*|*Python*|*Java*"
+    frame_color = "#A3BE8C"    # Xanh lá cho dev tools
+    timeout = 8
+
+[gaming_mode]
+    appname = "steam_app_*"
+    fullscreen = pushback      # Ẩn noti khi chơi game
 ```
 
 **Autostart trong bspwmrc:**
@@ -266,51 +310,40 @@ super + e
 pacman -S alacritty
 ```
 
-**Config** `~/.config/alacritty/alacritty.toml` (theme Dracula):
+**Config thực tế** `~/.config/alacritty/alacritty.toml` (Catppuccin Mocha):
 
 ```toml
-[window]
-opacity = 0.92
-padding = { x = 8, y = 8 }
-
-[font]
-size = 11
-
-[font.normal]
-family = "JetBrains Mono"
-style = "Regular"
-
-[font.bold]
-family = "JetBrains Mono"
-style = "Bold"
-
-[font.italic]
-family = "JetBrains Mono"
-style = "Italic"
-
 [colors.primary]
-background = "#282A36"
-foreground = "#F8F8F2"
+background = "#121212"
+foreground = "#cdd6f4"
+
+[colors.cursor]
+text = "#1e1e2e"
+cursor = "#f5e0dc"
 
 [colors.normal]
-black   = "#21222C"
-red     = "#FF5555"
-green   = "#50FA7B"
-yellow  = "#FFB86C"
-blue    = "#BD93F9"
-magenta = "#FF79C6"
-cyan    = "#8BE9FD"
-white   = "#F8F8F2"
+black   = "#45475a"
+red     = "#f38ba8"
+green   = "#a6e3a1"
+yellow  = "#f9e2af"
+blue    = "#89b4fa"
+magenta = "#f5c2e7"
+cyan    = "#94e2d5"
+white   = "#bac2de"
 
 [colors.bright]
-black   = "#6272A4"
-red     = "#FF6E6E"
-green   = "#69FF94"
-yellow  = "#FFCA80"
-blue    = "#CAA9FA"
-magenta = "#FF92D0"
-cyan    = "#A4FFFF"
-white   = "#FFFFFF"
+black   = "#585b70"
+red     = "#f38ba8"
+green   = "#a6e3a1"
+yellow  = "#f9e2af"
+blue    = "#89b4fa"
+magenta = "#f5c2e7"
+cyan    = "#94e2d5"
+white   = "#a6adc8"
+
+[window]
+opacity = 0.85
+padding = { x = 6, y = 0 }
 ```
 
 **Opacity + blur combo:** Alacritty opacity 0.92 + picom blur → background
@@ -477,80 +510,85 @@ yay -S picom-ibhagwan-git rofi-power-menu catppuccin-gtk-theme-mocha
 
 ---
 
-## 4. Bspwmrc — autostart đầy đủ
-
-File `~/.config/bspwm/bspwmrc` hoàn chỉnh cho modern setup:
+## 4. Bspwmrc — autostart đầy đủ (cấu hình thực tế)
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 
-# ---- Monitor ----
-xrandr --output eDP-1 --mode 1920x1080 --rate 144
+# ---- Touchpad fix ----
+for id in $(xinput list | grep -i "touchpad" | grep -o 'id=[0-9]*' | cut -d= -f2); do
+    xinput set-prop "$id" "libinput Tapping Enabled" 1
+done
+
+# ---- Hotkey daemon ----
+pgrep -x sxhkd > /dev/null || sxhkd &
+
+# ---- Cursor fix ----
+xsetroot -cursor_name left_ptr &
+
+# ---- Polkit ----
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+
+# ---- Wallpaper (custom script) ----
+~/.local/bin/wallpaper.sh &
+
+# ---- Compositor (picom-ftlabs-git) ----
+picom --config ~/.config/picom/picom.conf &
+
+# ---- Polybar Dynamic Island ----
+~/.config/polybar/launch.sh &
+
+# ---- Notification ----
+pgrep -x dunst > /dev/null || dunst &
+
+# ---- Screenshot ----
+~/flameshot-13.3.AppImage &
 
 # ---- Workspaces ----
 bspc monitor -d I II III IV V VI VII VIII IX
 
-# ---- Config ----
-bspc config border_width         2
-bspc config window_gap           8
-bspc config split_ratio          0.50
+# ---- Padding = 0 (Polybar floating) ----
+bspc config top_padding    0
+bspc config bottom_padding 0
+bspc config left_padding   0
+bspc config right_padding  0
+
+# ---- Appearance (Catppuccin) ----
+bspc config border_width         1
+bspc config window_gap           3
+bspc config focused_border_color "#89B4FA"
+bspc config normal_border_color  "#45475A"
+bspc config active_border_color  "#F38BA8"
+
+# ---- Behavior ----
+bspc config split_ratio          0.65
 bspc config borderless_monocle   true
 bspc config gapless_monocle      true
-bspc config focus_follows_pointer false
-bspc config pointer_follows_focus false
+bspc config focus_follows_pointer true
+bspc config pointer_modifier     mod4
 
 # ---- Rules ----
-bspc rule -a Alacritty              state=tiled
-bspc rule -a firefox                desktop='^2' state=tiled
-bspc rule -a Gimp                   desktop='^8' state=tiled
-bspc rule -a nitrogen:*             state=floating
-bspc rule -a Rofi:*                 state=floating
-bspc rule -a Polybar:*              state=floating
-bspc rule -a Dunst:*                state=floating
-bspc rule -a "Viewnior:*"           state=floating
-bspc rule -a "Pcmanfm:*"            state=floating
-bspc rule -a "Thunar:*"             state=floating
-bspc rule -a "Xfce4-power-manager:*" state=floating
-bspc rule -a "Flameshot:*"          state=floating
-bspc rule -a "Pavucontrol:*"        state=floating
-
-# ---- Compositor ----
-picom --config ~/.config/picom/picom.conf &
-
-# ---- Bar ----
-polybar main &
-
-# ---- Wallpaper ----
-feh --bg-fill ~/Pictures/wallpapers/current.jpg &
-
-# ---- Notification ----
-dunst &
-
-# ---- System tray ----
-nm-applet &
-blueman-applet &
-
-# ---- Power management ----
-xfce4-power-manager &
-
-# ---- Polkit ----
-/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+bspc rule -a Pavucontrol state=floating center=true
+bspc rule -a Flameshot state=floating
+bspc rule -a flameshot state=floating
 ```
 
 ---
 
-## 5. Tổng kết visual — "r/unixporn checklist"
+## 5. Tổng kết visual — "r/unixporn checklist" (config thực tế)
 
-| Yếu tố | Công cụ | Config gợi ý |
+| Yếu tố | Công cụ | Config thực tế |
 |---|---|---|
-| Window gap | bspwm | `window_gap = 8` |
-| Rounded corner | picom | `detect-rounded-corners = true` |
-| Shadow | picom | `shadow-radius = 12`, `shadow-opacity = 0.4` |
-| Blur background | picom-ibhagwan-git | `blur-method = "kawase"` |
-| Opacity terminal | alacritty + picom | `opacity = 0.92` + `opacity-rule` |
-| Status bar | polybar | Module: bspwm, date, pulseaudio, network, battery |
-| Notification | dunst | Góc trên phải, corner radius, transparent |
-| Launcher | rofi | Theme Nord/Catppuccin, icon Papirus |
-| Terminal font | JetBrains Mono | Size 11 |
-| Color scheme | Catppuccin Mocha / Dracula / Nord | Đồng bộ tất cả app |
-| Wallpaper | feh | `--bg-fill` |
+| Window gap | bspwm | `window_gap = 3` (hẹp) |
+| Rounded corner | picom | `corner-radius = 13`, `round-borders = 1` |
+| Shadow | picom | `shadow-radius = 28`, `shadow-opacity = 0.18` (macOS style) |
+| Animation | picom-ftlabs-git | Spring physics: stiffness 300, dampening 22 |
+| Opacity terminal | alacritty + picom | `opacity = 0.85` + `inactive-opacity = 0.9` |
+| Status bar | polybar | Dynamic Island: floating, ẩn/hiện, peek 8s |
+| Notification | dunst | Catppuccin North, góc trên phải, corner radius 12px |
+| Launcher | rofi | Glassmorphism + ảnh nền + pill input bar |
+| Terminal font | JetBrains Mono Nerd Font | Size 11 |
+| Color scheme | Catppuccin Mocha | Đồng bộ tất cả app |
+| Wallpaper | feh | `~/.local/bin/wallpaper.sh` (prev/next/random) |
+| GPU monitoring | Polybar script | Intel iGPU MHz + NVIDIA % |
+| Mic status | Polybar script | Tự động ẩn/hiện khi có app ghi âm |

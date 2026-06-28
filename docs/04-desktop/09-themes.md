@@ -20,12 +20,35 @@ Cài đặt theme cho GTK, icon, và cursor để có giao diện đồng bộ.
 Arch không có theme mặc định. Ứng dụng GTK sẽ hiển thị theme mặc định xấu.
 Cần cài theme riêng.
 
+## Cấu hình thực tế trên máy
+
+| Thành phần | Giá trị |
+|---|---|
+| GTK Theme | `Arc-Dark` |
+| Icon Theme | `Papirus` |
+| Cursor Theme | `Adwaita` |
+| Font | `Adwaita Sans 11` |
+| Xft Hinting | hintmedium |
+
+File: `~/.config/gtk-3.0/settings.ini`
+
+```ini
+[Settings]
+gtk-theme-name=Arc-Dark
+gtk-icon-theme-name=Papirus
+gtk-font-name=Adwaita Sans 11
+gtk-cursor-theme-name=Adwaita
+gtk-xft-antialias=1
+gtk-xft-hinting=1
+gtk-xft-hintstyle=hintmedium
+```
+
 ## Các bước thực hiện
 
 ### Bước 1: Cài GTK theme
 
 ```bash
-pacman -S nordic-theme materia-gtk-theme
+sudo pacman -S arc-gtk-theme papirus-icon-theme
 ```
 
 | Theme | Đặc điểm |

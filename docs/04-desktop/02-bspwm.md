@@ -60,7 +60,7 @@ Các chương trình trong bspwmrc cần được cài trước, nếu không ch
 hoặc không khởi động được:
 
 ```bash
-pacman -S picom nitrogen network-manager-applet blueman xfce4-power-manager polkit-gnome
+sudo pacman -S picom dunst polkit-gnome xorg-xinput
 ```
 
 Chi tiết:
@@ -68,16 +68,17 @@ Chi tiết:
 | Gói | Mục đích | Bắt buộc? |
 |---|---|---|
 | `picom` | Compositor (đổ bóng, chống tearing) | Khuyên dùng |
-| `nitrogen` | Quản lý wallpaper | Nên có |
-| `network-manager-applet` | Tray icon NetworkManager (`nm-applet`) | Nếu dùng NetworkManager |
-| `blueman` | Tray icon Bluetooth (`blueman-applet`) | Nếu cần Bluetooth |
-| `xfce4-power-manager` | Quản lý năng lượng | Khuyên dùng với laptop |
-| `polkit-gnome` | Xác thực quyền cho GUI | Nên có |
+| `dunst` | Notification daemon (volume, brightness alerts) | Nên có |
+| `polkit-gnome` | Xác thực quyền cho GUI (mount USB, cài app) | Nên có |
+| `xorg-xinput` | Cấu hình input (touchpad tap-to-click) | Nếu dùng touchpad |
+| `xdotool` | Điều khiển cửa sổ từ CLI (polybar launch/peek) | Cần cho Dynamic Island |
 
-> **Lưu ý về `volumeicon`:** Một số hướng dẫn cũ thêm `volumeicon &` vào
-> bspwmrc. Gói `volumeicon` không được cài mặc định. Bạn có thể cài nó
-> (`pacman -S volumeicon`) hoặc xóa dòng đó khỏi bspwmrc (dùng `pulseaudio`
-> module trong Polybar để thay thế).
+> **Lưu ý:** Trong cấu hình thực tế, `nitrogen`, `nm-applet`, `blueman-applet`, `xfce4-power-manager`
+> **không được dùng**. Polybar Dynamic Island + script `wallpaper.sh` + Dunst thay thế hoàn toàn các
+> chức năng đó. Không cần cài các gói này nếu muốn theo đúng config.
+
+> **Lưu ý về `volumeicon`:** Không dùng `volumeicon` — đã thay thế bằng module `pulseaudio`
+> trong Polybar + `volume.sh` script + Dunst notification.
 
 ### Bước 4: Tạo file cấu hình bspwmrc
 
@@ -85,96 +86,121 @@ Chi tiết:
 vim /home/archuser/.config/bspwm/bspwmrc
 ```
 
-Nội dung:
+Nội dung (cấu hình thực tế trên máy — Catppuccin Dynamic Island):
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 
-# ---- Monitor ----
-xrandr --output eDP-1 --mode 1920x1080 --rate 144
+# =========================================================
+# 1. AUTOSTART - Khởi động các tiến trình nền
+# =========================================================
+# Vá lỗi Touchpad: Tự động quét và bật Tapping bằng tên thay vì ID cứng
+for id in $(xinput list | grep -i "touchpad" | grep -o 'id=[0-9]*' | cut -d= -f2); do
+    xinput set-prop "$id" "libinput Tapping Enabled" 1
+done
 
-# ---- Configuration ----
+# Khởi động trình quản lý phím tắt
+pgrep -x sxhkd > /dev/null || sxhkd &
+
+# Fix lỗi trỏ chuột biến thành dấu X đen trên nền desktop trống
+xsetroot -cursor_name left_ptr &
+
+# Khởi động các tác vụ hệ thống và giao diện
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+~/.local/bin/wallpaper.sh &
+picom --config ~/.config/picom/picom.conf &
+~/.config/polybar/launch.sh &
+pgrep -x dunst > /dev/null || dunst &
+~/flameshot-13.3.AppImage &
+
+# =========================================================
+# 2. WORKSPACE & MONITORS
+# =========================================================
 bspc monitor -d I II III IV V VI VII VIII IX
 
-bspc config border_width         2
-bspc config window_gap           8
-bspc config split_ratio          0.50
+# Padding = 0 để Polybar Dynamic Island hoạt động hoàn toàn nổi (float)
+bspc config top_padding         0
+bspc config bottom_padding      0
+bspc config left_padding        0
+bspc config right_padding       0
+
+# =========================================================
+# 3. APPEARANCE - Viền cửa sổ
+# =========================================================
+bspc config border_width         1
+bspc config window_gap           3
+bspc config focused_border_color "#89B4FA" # Xanh biển (cửa sổ đang chọn)
+bspc config normal_border_color  "#45475A" # Xám đen (cửa sổ không chọn)
+bspc config active_border_color  "#F38BA8" # Đỏ/Hồng (khi có thông báo/urgency)
+
+# =========================================================
+# 4. BEHAVIOR - Hành vi
+# =========================================================
+bspc config split_ratio          0.65
 bspc config borderless_monocle   true
 bspc config gapless_monocle      true
-bspc config focus_follows_pointer false
-bspc config pointer_follows_focus false
-bspc config pointer_action_modifier super
+bspc config focus_follows_pointer true   # Chuột chỉ vào đâu, tự động focus
+bspc config pointer_modifier     mod4    # Super + chuột trái để kéo cửa sổ float
 
-# ---- Rules ----
-bspc rule -a Gimp                   desktop='^8' state=tiled
-bspc rule -a firefox                desktop='^2' state=tiled
-bspc rule -a Alacritty              state=tiled
-bspc rule -a nitrogen:*             state=floating
-bspc rule -a Rofi:*                 state=floating
-bspc rule -a Polybar:*              state=floating
-bspc rule -a "Viewnior:*"           state=floating
-bspc rule -a "Pcmanfm:*"            state=floating
-bspc rule -a "Xfce4-power-manager:*" state=floating
-
-# ---- Compositor ----
-picom --config ~/.config/picom/picom.conf &
-
-# ---- Bar ----
-polybar main &
-
-# ---- Launcher daemon ----
-# (sxhkd chạy riêng)
-
-# ---- Wallpaper ----
-nitrogen --restore &
-
-# ---- System tray ----
-nm-applet &
-blueman-applet &
-
-# ---- Power management ----
-xfce4-power-manager &
-
-# ---- Polkit ----
-/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+# =========================================================
+# 5. WINDOW RULES
+# =========================================================
+bspc rule -a Gimp desktop='^8' state=floating follow=on
+bspc rule -a mplayer2 state=floating
+bspc rule -a Kupfer.py focus=on
+bspc rule -a Screenkey manage=off
+bspc rule -a Flameshot state=floating
+bspc rule -a flameshot state=floating
+bspc rule -a Pavucontrol state=floating center=true
+bspc config automatic_scheme alternate
 ```
 
 Giải thích từng phần:
 
-#### `xrandr`
+#### Autostart — `for id in $(xinput list | grep -i "touchpad")...`
 
-Đặt độ phân giải 1920x1080 144Hz cho màn hình laptop (`eDP-1`).
-Tên output có thể khác (eDP-1-1). Kiểm tra bằng `xrandr` sau khi có NVIDIA driver.
+Tự động quét ID touchpad và bật **tap-to-click** (chạm để click). Không fix cứng ID vì ID có thể thay đổi qua mỗi lần boot. Thay thế cho cách cũ dùng `xinput set-prop 12 304 1` (gõ sai ID là hỏng).
 
-#### `bspc monitor`
+#### `xsetroot -cursor_name left_ptr &`
 
-Tạo 9 desktop (workspace) có tên I đến IX.
+Fix lỗi con trỏ chuột biến thành dấu X đen trên desktop trống (thường gặp trên Arch với bspwm).
+
+#### Autostart sequence
+
+- `polkit-gnome` → Xác thực quyền GUI (mount USB, cài app, ...).
+- `wallpaper.sh` → Script đặt wallpaper + ghi nhớ ảnh cuối.
+- `picom` → Compositor (shadow, round corner, animation).
+- `polybar/launch.sh` → Khởi động Dynamic Island bar (ẩn sẵn chờ peek).
+- `dunst` → Notification daemon (volume, brightness, ...).
+- `flameshot AppImage` → Chụp màn hình.
+
+#### Padding = 0
+
+Tất cả padding đặt về 0 vì Polybar chạy ở chế độ **override-redirect = true** (floating hoàn toàn, không chiếm không gian bspwm). Không cần top_padding.
 
 #### `bspc config`
 
-Các cấu hình window manager:
-- `border_width 2`: Độ dày viền cửa sổ.
-- `window_gap 8`: Khoảng cách giữa các cửa sổ.
-- `split_ratio 0.50`: Tỉ lệ chia mặc định (50/50).
-- `focus_follows_pointer false`: Focus không tự động theo chuột.
-- `pointer_follows_focus false`: Chuột không tự động nhảy theo focus.
+- `border_width 1`: Viền mỏng hơn mặc định (2px) — nhìn thanh lịch hơn.
+- `window_gap 3`: Khoảng cách hẹp 3px giữa các cửa sổ — tiết kiệm không gian.
+- `focused_border_color "#89B4FA"`: Màu xanh Catppuccin Blue — đồng bộ với Polybar.
+- `normal_border_color "#45475A"`: Màu xám Catppuccin Surface1.
+- `active_border_color "#F38BA8"`: Màu đỏ Catppuccin Red — báo urgency.
 
-#### `bspc rule`
+#### `focus_follows_pointer = true`
 
-Rules để xử lý cửa sổ cụ thể:
-- `firefox` luôn mở ở desktop 2.
-- `Rofi` và `Polybar` luôn ở dạng floating.
-- `nitrogen` floating để tránh bị tile.
+Chuột chỉ vào cửa sổ nào → tự động focus. Rất tiện khi code: không cần nhấn phím để chuyển focus, chỉ cần di chuột.
 
-#### Các chương trình nền
+#### `pointer_modifier = mod4`
 
-- `picom`: Compositor (đổ bóng, chống tearing).
-- `polybar`: Thanh trạng thái.
-- `nitrogen`: Quản lý wallpaper.
-- `nm-applet`: NetworkManager tray icon.
-- `blueman-applet`: Bluetooth tray icon.
-- `xfce4-power-manager`: Quản lý năng lượng (pin, brightness).
-- `polkit-gnome`: Xác thực quyền (cho GUI). Kiểm tra đường dẫn bằng `which polkit-gnome-authentication-agent-1` nếu cần.
+Giữ **Super (Windows key)** + chuột trái để kéo thả cửa sổ đang floating. Rất trực quan.
+
+#### `split_ratio = 0.65`
+
+Khi chia cửa sổ mới, node mới chiếm 35%, node cũ giữ 65% — không phải 50/50 như mặc định.
+
+#### `automatic_scheme alternate`
+
+Cách chia tự động: luân phiên giữa ngang và dọc thay vì luôn cùng hướng.
 
 ### Bước 5: Phân quyền executable
 
