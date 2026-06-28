@@ -1,6 +1,6 @@
 # Command Cheatsheet — Arch Linux + bspwm
 
-**Ngày: 25/06/2026 — Kernel 7.x** — Lenovo LOQ 15IAX9 (Intel + RTX 4050)
+**Ngày: 28/06/2026 — Kernel 7.x** — Lenovo LOQ 15IAX9 (Intel + RTX 4050)
 
 ---
 

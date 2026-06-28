@@ -1,6 +1,6 @@
 # Customization — Tùy chỉnh bspwm
 
-Ngày: 25/06/2026
+Ngày: 28/06/2026
 
 ## Các thành phần có thể tùy chỉnh
 

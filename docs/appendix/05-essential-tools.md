@@ -1,6 +1,6 @@
 # Công Cụ Thiết Yếu — Arch Linux + bspwm (Lenovo LOQ 15IAX9)
 
-**Ngày: 25/06/2026 — Kernel 7.x**
+**Ngày: 28/06/2026 — Kernel 7.x**
 
 Tổng hợp các công cụ cần thiết cho lập trình viên dùng Arch Linux với bspwm. Mỗi mục gồm: mục đích, lệnh cài đặt, và ví dụ sử dụng nhanh.
 

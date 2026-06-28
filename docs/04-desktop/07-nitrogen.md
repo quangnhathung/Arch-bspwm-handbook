@@ -1,6 +1,6 @@
 # Nitrogen — Wallpaper
 
-Ngày cập nhật: 25/06/2026
+Ngày cập nhật: 28/06/2026
 
 ## Mục tiêu
 
