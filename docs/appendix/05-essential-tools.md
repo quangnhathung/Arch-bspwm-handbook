@@ -384,6 +384,88 @@ go version
 
 ---
 
+## 14. Terminal Multiplexer — tmux
+
+### tmux
+Terminal multiplexer: quản lý nhiều phiên terminal trong một cửa sổ, giữ phiên làm việc sống ngay cả khi đóng terminal.
+
+```bash
+sudo pacman -S tmux
+tmux new -s work              # Tạo session mới tên "work"
+tmux attach -t work           # Đính kèm lại session "work"
+tmux ls                       # Liệt kê session
+```
+
+### Cấu hình tmux hiện tại
+
+File: `~/.tmux.conf`
+
+| Tính năng | Giá trị |
+|-----------|---------|
+| Prefix key | `Ctrl + a` (thay vì `Ctrl + b` mặc định) |
+| Base index | Window/Pane bắt đầu từ 1 |
+| Mouse | Bật — scroll, click chọn pane, kéo thả resize |
+| History limit | 10,000 dòng |
+| Reload config | `Prefix + r` |
+
+### Plugin đã cài (TPM — Tmux Plugin Manager)
+
+| Plugin | Chức năng |
+|--------|-----------|
+| `tmux-plugins/tpm` | Trình quản lý plugin |
+| `tmux-plugins/tmux-sensible` | Thiết lập mặc định tối ưu |
+| `tmux-plugins/tmux-resurrect` | Lưu/khôi phục trạng thái session (cửa sổ, pane, đường dẫn) |
+| `tmux-plugins/tmux-continuum` | Tự động lưu mỗi 15 phút + tự khôi phục khi mở tmux |
+| `catppuccin/tmux` | Theme Catppuccin Mocha |
+
+### Cài plugin
+
+```bash
+# Trong tmux: Prefix + I (chữ I hoa) → cài tất cả plugin
+# Cập nhật plugin: Prefix + U
+# Xoá plugin thừa: Prefix + M-u
+```
+
+### Resurrect — lưu và khôi phục
+
+```bash
+# Lưu thủ công:      Prefix + Ctrl + s
+# Khôi phục:         Prefix + Ctrl + r
+# Tự động lưu:       continuum cứ 15 phút lưu 1 lần
+# Tự động khôi phục: continuum-restore = on → tự restore khi mở tmux
+```
+
+### Phím tắt tmux cơ bản
+
+| Phím | Chức năng |
+|------|-----------|
+| `Prefix + c` | Tạo window mới |
+| `Prefix + ,` | Đổi tên window |
+| `Prefix + &` | Đóng window |
+| `Prefix + w` | Chọn window bằng danh sách |
+| `Prefix + n/p` | Window tiếp theo / trước |
+| `Prefix + số` | Chuyển đến window số đó |
+| `Prefix + %` | Chia pane dọc |
+| `Prefix + "` | Chia pane ngang |
+| `Prefix + o` | Di chuyển qua các pane |
+| `Prefix + x` | Đóng pane |
+| `Prefix + z` | Zoom pane (full màn hình) |
+| `Prefix + {` | Swap pane với pane trên |
+| `Prefix + }` | Swap pane với pane dưới |
+| `Prefix + [` | Vào chế độ copy (cuộn log, dùng `vi` keys) |
+| `Prefix + d` | Detach session |
+| `Prefix + :` | Command mode (gõ lệnh tmux) |
+| `Prefix + ?` | Danh sách tất cả phím tắt |
+
+### ⚠️ Lưu ý xung đột phím tắt
+
+- `Prefix` là `Ctrl + a`: không xung đột với bspwm/sxhkd (sxhkd không dùng `Ctrl + a`).
+- `Prefix + r` reload tmux config — không xung đột với sxhkd (`Super + Escape` reload sxhkd).
+- `Prefix + Ctrl + s` (tmux-resurrect save) — không xung đột.
+- Scroll bằng chuột được bật (không cần dùng phím).
+
+---
+
 ## Tổng hợp — Cài đặt nhanh
 
 ```bash
@@ -397,6 +479,7 @@ sudo pacman -S --needed \
   mpv vlc yt-dlp ffmpeg \
   networkmanager iwd \
   pcmanfm ranger lf \
+  tmux \
   unzip p7zip \
   openssh gnupg ufw \
   python python-pip nodejs npm docker go \

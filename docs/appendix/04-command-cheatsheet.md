@@ -172,6 +172,25 @@
 | `bspc query -N` | Liệt kê nodes |
 | `bspc query -M` | Liệt kê monitors |
 
+## Tmux
+
+| Lệnh | Chức năng |
+|---|---|
+| `tmux new -s <tên>` | Tạo session mới |
+| `tmux attach -t <tên>` | Đính kèm lại session |
+| `tmux ls` | Liệt kê session |
+| `tmux kill-session -t <tên>` | Xoá session |
+| `tmux new -s <tên> -d` | Tạo session dạng detached (chạy ngầm) |
+| `tmux rename-session -t <cũ> <mới>` | Đổi tên session |
+| `Prefix + r` | Reload ~/.tmux.conf |
+| `Prefix + I` | Cài plugin (TPM) |
+| `Prefix + U` | Cập nhật plugin |
+| `Prefix + M-u` | Xoá plugin thừa |
+| `Prefix + Ctrl + s` | Lưu session (tmux-resurrect) |
+| `Prefix + Ctrl + r` | Khôi phục session (tmux-resurrect) |
+
+> Prefix mặc định trong config hiện tại là `Ctrl + a`.
+
 ## Sxhkd
 
 | Lệnh | Chức năng |

@@ -220,3 +220,20 @@ pkill -USR1 -x sxhkd
 ```
 
 > **Lưu ý:** sxhkd yêu cầu TAB indentation (hard tab), không dùng spaces.
+
+## Ghi chú về tmux
+
+Hệ thống phím tắt này được thiết kế **không xung đột** với tmux:
+
+| Phím tắt sxhkd | Phím tắt tmux | Ghi chú |
+|----------------|---------------|---------|
+| `Super + Return` (Alacritty) | `Prefix` = `Ctrl + a` | Khác modifier |
+| `Super + Escape` (reload sxhkd) | `Prefix + r` (reload tmux) | Khác modifier, không conflict |
+| `Super + {h,j,k,l}` (focus) | `Prefix + {h,j,k,l}` (trong tmux) | Chỉ conflict trong tmux, ngoài sxhkd vẫn dùng được |
+| `Super + Ctrl + {h,j,k,l}` (preselect) | — | Không conflict |
+| `Alt + Tab` (Rofi window) | — | Không conflict |
+
+**Khi ở trong tmux:**
+- `Ctrl + a` là prefix → gửi lệnh cho tmux.
+- `Super + ...` vẫn hoạt động bình thường (sxhkd bắt được trước tmux).
+- Để gửi `Ctrl + a` vào ứng dụng bên trong tmux (vd: trong neovim), nhấn `Ctrl + a` hai lần.
